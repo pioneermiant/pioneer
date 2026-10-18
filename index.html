@@ -259,6 +259,7 @@ async function persistLocal(){
    ===================================================================== */
 const $=s=>document.querySelector(s);
 const $$=s=>[...document.querySelectorAll(s)];
+function newId(){return uid()}
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const n=v=>Math.round((parseFloat(v)||0)*100)/100;
@@ -2205,7 +2206,7 @@ function openExpense(){
 }
 function openGiveCash(uid){
   modal(`<h3>تسليم عهدة فلوس — ${esc(userName(uid))}</h3><div class="grid g2"><label class="f">المبلغ<input type="number" min="0" step="any" id="gc_a"></label><label class="f">التاريخ<input type="date" id="gc_d" value="${today()}"></label><label class="f">الطريقة<select id="gc_m">${S.settings.methods.map(m=>`<option>${esc(m)}</option>`).join('')}</select></label><label class="f">ملاحظات<input id="gc_n" placeholder="مثلاً: عهدة مواصلات الشهر"></label></div>`,()=>{
-    const a=n($('#gc_a').value);if(a<=0)return false;S.custody.push({id:uid(),uid,kind:'cash',date:$('#gc_d').value,amount:a,method:$('#gc_m').value,notes:$('#gc_n').value.trim(),by:ME.id,createdAt:new Date().toISOString()});save();toast('اتسلمت العهدة');render();
+    const a=n($('#gc_a').value);if(a<=0)return false;S.custody.push({id:newId(),uid,kind:'cash',date:$('#gc_d').value,amount:a,method:$('#gc_m').value,notes:$('#gc_n').value.trim(),by:ME.id,createdAt:new Date().toISOString()});save();toast('اتسلمت العهدة');render();
   });
 }
 function openSettle(uid){
@@ -2214,12 +2215,12 @@ function openSettle(uid){
     <div class="grid g2"><label class="f">رجّع فلوس للشركة<input type="number" min="0" step="any" id="st_a" value="${Math.max(0,C.bal)}"></label><label class="f">التاريخ<input type="date" id="st_d" value="${today()}"></label><label class="f span2">ملاحظات<input id="st_n"></label>
     <label class="row span2" style="gap:6px"><input type="checkbox" id="st_ok" style="width:auto" checked> اعتمد كل المصاريف اللي مستنية مراجعة (${C.pending.length})</label></div>`,()=>{
     if($('#st_ok').checked)C.pending.forEach(x=>{x.status='ok';x.reviewedBy=ME.id});
-    S.custody.push({id:uid(),uid,kind:'settle',date:$('#st_d').value,amount:n($('#st_a').value),notes:$('#st_n').value.trim(),by:ME.id,createdAt:new Date().toISOString()});save();toast('اتعملت التسوية');render();
+    S.custody.push({id:newId(),uid,kind:'settle',date:$('#st_d').value,amount:n($('#st_a').value),notes:$('#st_n').value.trim(),by:ME.id,createdAt:new Date().toISOString()});save();toast('اتعملت التسوية');render();
   });
 }
 function openGiveTool(uid){
   modal(`<h3>تسليم عدة — ${esc(userName(uid))}</h3><div class="grid g2"><label class="f span2">الصنف<input id="gt_n" placeholder="مثلاً: شنطة عدة، ملتيميتر، مفك عزل…"></label><label class="f">الكود / السيريال<input id="gt_c"></label><label class="f">العدد<input type="number" min="1" step="1" id="gt_q" value="1"></label><label class="f">التاريخ<input type="date" id="gt_d" value="${today()}"></label><label class="f">ملاحظات / الحالة<input id="gt_no"></label></div>`,()=>{
-    const nm=$('#gt_n').value.trim();if(!nm){toast('اكتب اسم الصنف');return false}S.custody.push({id:uid(),uid,kind:'tool',name:nm,code:$('#gt_c').value.trim(),qty:Math.max(1,parseInt($('#gt_q').value)||1),date:$('#gt_d').value,notes:$('#gt_no').value.trim(),status:'with',by:ME.id,createdAt:new Date().toISOString()});save();toast('اتسلمت');render();
+    const nm=$('#gt_n').value.trim();if(!nm){toast('اكتب اسم الصنف');return false}S.custody.push({id:newId(),uid,kind:'tool',name:nm,code:$('#gt_c').value.trim(),qty:Math.max(1,parseInt($('#gt_q').value)||1),date:$('#gt_d').value,notes:$('#gt_no').value.trim(),status:'with',by:ME.id,createdAt:new Date().toISOString()});save();toast('اتسلمت');render();
   });
 }
 /* =====================================================================

@@ -308,9 +308,9 @@ const DEFAULT_SETTINGS={
 const COLS=['users','clients','parts','reports','contracts','payments','requests','units','partReturns','returns','catalog','tests'];
 const PERM_COLS={suppliers:['suppliers','accounts','devices'],purchases:['suppliers','accounts','devices'],supplierPayments:['suppliers','accounts'],sales:['devices','ar','accounts'],rentals:['devices','ar','accounts'],stockDevices:['devices','accounts'],partSales:['part_sales','ar','accounts','orders_manage','orders_work'],orders:['orders_manage','orders_work','ar','accounts'],testKeys:['tests'],attendance:['attendance','payroll_prep','payroll_approve'],salaries:['salary_set','payroll_prep','payroll_approve'],payroll:['payroll_prep','payroll_approve']};
 const OWN_COLS={custody:['custody','accounts'],hr:['hr','payroll_prep','payroll_approve'],evals:['evals'],punches:['hr','payroll_prep','payroll_approve'],payslips:['payroll_approve'],testAnswers:['tests'],empFiles:['emp_files']};
-const SPECIAL_COLS=['notifs','ratings','penalties','empDocs'];
+const SPECIAL_COLS=['notifs','ratings','penalties','empDocs','bonuses'];
 const ALL_COLS=[...COLS,...Object.keys(PERM_COLS),...Object.keys(OWN_COLS),...SPECIAL_COLS];
-const DEL_PERM={parts:'stock_edit',units:'stock_edit',returns:'stock_edit',reports:'delete',contracts:'delete',payments:'delete',requests:'requests',partReturns:'returns',purchases:'suppliers',supplierPayments:'suppliers',sales:'devices',rentals:'devices',stockDevices:'devices',partSales:'part_sales',custody:'custody',hr:'hr',orders:'orders_manage',evals:'evals',penalties:'penalties_approve',catalog:'stock_edit',ratings:'evals',punches:'hr',tests:'tests',testKeys:'tests',testAnswers:'tests',empFiles:'emp_files',attendance:'attendance',salaries:'salary_set',payroll:'payroll_approve',payslips:'payroll_approve'};
+const DEL_PERM={parts:'stock_edit',units:'stock_edit',returns:'stock_edit',reports:'delete',contracts:'delete',payments:'delete',requests:'requests',partReturns:'returns',purchases:'suppliers',supplierPayments:'suppliers',sales:'devices',rentals:'devices',stockDevices:'devices',partSales:'part_sales',custody:'custody',hr:'hr',orders:'orders_manage',evals:'evals',penalties:'penalties_approve',catalog:'stock_edit',ratings:'evals',punches:'hr',tests:'tests',testKeys:'tests',testAnswers:'tests',empFiles:'emp_files',attendance:'attendance',salaries:'salary_set',payroll:'payroll_approve',payslips:'payroll_approve',bonuses:'bonuses_approve'};
 function emptyState(){const s={v:3,demo:false,settings:JSON.parse(JSON.stringify(DEFAULT_SETTINGS))};ALL_COLS.forEach(c=>s[c]=[]);return s}
 function demoState(){
   const s=emptyState(); s.demo=true; s.settings.nextNo=4; s.settings.next_unit=4; s.settings.next_psale=2;
@@ -497,6 +497,8 @@ const PERMS=[
  ['salary_set','تحديد مرتب كل موظف','المرتبات'],
  ['payroll_prep','تجهيز المرتبات واعتماد مرتب كل موظف (مدير الحسابات)','المرتبات'],
  ['payroll_approve','الموافقة النهائية على المرتبات ونزولها (المدير العام)','المرتبات'],
+ ['bonuses','كتابة مكافآت للموظفين (بتعدّي على الموافقات)','المرتبات'],
+ ['bonuses_approve','اعتماد المكافآت','المرتبات'],
  ['tests','عمل اختبارات للمهندسين وتصحيحها','الموظفين'],
  ['users','إدارة المستخدمين والصلاحيات','الإدارة'],
  ['settings','الإعدادات','الإدارة']
@@ -513,7 +515,7 @@ const ROLE_PERMS={
 const MGR_PERMS={
  maint:{attendance:1,requests:1,reports_write:1,reports_all:1,prices_edit:1,clients:1,contracts:1,stock:1,stock_edit:1,part_sales:1,returns:1,hr:1,evals:1,penalties:1,tests:1,custody:1},
  cons:{orders_manage:1,orders_work:1,shop_clients:1,clients:1,stock:1,stock_edit:1,stock_costs:1,part_sales:1,hr:1,evals:1,penalties:1},
- acc:{salary_set:1,payroll_prep:1,attendance:1,reports_all:1,clients:1,contracts:1,stock:1,stock_costs:1,part_sales:1,returns:1,devices:1,suppliers:1,ar:1,accounts:1,custody:1,delete:1,hr:1,evals:1,penalties:1},
+ acc:{bonuses:1,salary_set:1,payroll_prep:1,attendance:1,reports_all:1,clients:1,contracts:1,stock:1,stock_costs:1,part_sales:1,returns:1,devices:1,suppliers:1,ar:1,accounts:1,custody:1,delete:1,hr:1,evals:1,penalties:1},
  mkt:{clients:1,contracts:1,devices:1,hr:1,evals:1,penalties:1},
  sales:{clients:1,contracts:1,devices:1,part_sales:1,ar:1,stock:1,shop_clients:1,hr:1,evals:1,penalties:1}
 };
@@ -598,12 +600,15 @@ function startListeners(){
   })};
   for(const c of COLS)sub(c,FB.db.collection(c));
   for(const c in PERM_COLS)if(PERM_COLS[c].some(can))sub(c,FB.db.collection(c));
-  for(const c in OWN_COLS)sub(c,OWN_COLS[c].some(can)?FB.db.collection(c):FB.db.collection(c).where('uid','==',ME.id));
+  const subMulti=(c,qs)=>{SUBS.push(c);const parts=qs.map(()=>[]);qs.forEach((q,i)=>L(q,snap=>{parts[i]=snap.docs.map(d=>({...d.data(),id:d.id}));const m=new Map();parts.flat().forEach(x=>m.set(x.id,x));S[c]=[...m.values()];SYNCED[c]=new Map(S[c].map(x=>[x.id,JSON.stringify(x)]));liveRender()}))};
+  const apQ=c=>FB.db.collection(c).where('approvers','array-contains',ME.id);
+  for(const c in OWN_COLS){if(OWN_COLS[c].some(can))sub(c,FB.db.collection(c));else if(c==='hr'||c==='custody')subMulti(c,[FB.db.collection(c).where('uid','==',ME.id),apQ(c)]);else sub(c,FB.db.collection(c).where('uid','==',ME.id))}
   sub('notifs',FB.db.collection('notifs').where('ts','>=',Date.now()-21*864e5));
   sub('ratings',can('evals')?FB.db.collection('ratings'):FB.db.collection('ratings').where('engineerId','==',ME.id));
-  sub('penalties',can('penalties')||can('penalties_approve')||can('payroll_prep')||can('payroll_approve')?FB.db.collection('penalties'):FB.db.collection('penalties').where('uid','==',ME.id).where('status','==','approved'));
+  if(can('bonuses')||can('bonuses_approve')||can('payroll_prep')||can('payroll_approve'))sub('bonuses',FB.db.collection('bonuses'));else subMulti('bonuses',[FB.db.collection('bonuses').where('uid','==',ME.id).where('status','==','approved'),apQ('bonuses')]);
+  if(can('penalties')||can('penalties_approve')||can('payroll_prep')||can('payroll_approve'))sub('penalties',FB.db.collection('penalties'));else subMulti('penalties',[FB.db.collection('penalties').where('uid','==',ME.id).where('status','==','approved'),apQ('penalties')]);
 }
-function canDel(c,x){if(c==='penalties'&&x&&x.status==='pending'&&x.by===ME?.id&&can('penalties'))return true;if((c==='custody'||c==='hr')&&x&&x.uid===ME?.id&&x.status==='pending')return true;return !!DEL_PERM[c]&&can(DEL_PERM[c])}
+function canDel(c,x){if(c==='bonuses'&&x&&x.status==='pending'&&x.by===ME?.id&&can('bonuses'))return true;if(c==='penalties'&&x&&x.status==='pending'&&x.by===ME?.id&&can('penalties'))return true;if((c==='custody'||c==='hr')&&x&&x.uid===ME?.id&&x.status==='pending')return true;return !!DEL_PERM[c]&&can(DEL_PERM[c])}
 async function persistOnline(){
   if(!ME||!FB)return;
   const cols=isClinic()?[]:SUBS.filter(c=>c!=='users');
@@ -692,7 +697,7 @@ const TABS=[
  ['perf','الأداء والتقييم',()=>isStaff()],
  ['tests','الاختبارات',()=>can('tests')||myTests().length>0],
  ['emps','ملفات الموظفين',()=>can('emp_files')],
- ['payroll','المرتبات',()=>can('salary_set')||can('payroll_prep')||can('payroll_approve')],
+ ['payroll','المرتبات والمكافآت',()=>can('salary_set')||can('payroll_prep')||can('payroll_approve')||can('bonuses')||can('bonuses_approve')],
  ['users','المستخدمين',()=>can('users'),'الإدارة'],
  ['settings','الإعدادات',()=>can('settings')]
 ];
@@ -753,7 +758,7 @@ function render(){
   if(isClinic()){$('#tabs').innerHTML='';document.body.classList.add('nonav');m.classList.add('narrow');m.innerHTML=viewClinic();initClinic();return}
   if(!allowed(VIEW,PARAM))VIEW='home';
   const badge={requests:can('requests')?S.requests.filter(r=>r.status==='new').length:0,hr:can('hr')?(S.hr||[]).filter(x=>x.status==='pending'&&x.uid!==ME.id).length:0,custody:can('custody')?(S.custody||[]).filter(x=>x.kind==='expense'&&x.status==='pending'&&x.uid!==ME.id).length:0,orders:(S.orders||[]).filter(o=>can('orders_manage')?o.status==='new':o.assignedTo===ME.id&&['assigned','preparing','out'].includes(o.status)).length};
-  if(can('penalties_approve'))badge.hr=(badge.hr||0)+(S.penalties||[]).filter(x=>x.status==='pending').length;
+  badge.hr=approvalItems().length;badge.custody=can('custody')?(S.custody||[]).filter(x=>x.kind==='expense'&&x.status==='pending').length:0;
   const cur=tabOf(VIEW);
   $('#tabs').innerHTML=TABS.filter(t=>t[2]()).map(([k,l,,sec])=>`${sec?`<div class="navsec">${sec}</div>`:''}<button class="tab ${cur===k?'on':''}" data-go="${k}"><svg viewBox="0 0 24 24" aria-hidden="true">${ICONS[k]||''}</svg><span>${l}</span>${badge[k]?`<span class="cnt">${badge[k]}</span>`:''}</button>`).join('');
   document.body.classList.remove('nonav');
@@ -961,10 +966,12 @@ function viewHomeEng(){
   const last=[...my].sort((a,b)=>b.date.localeCompare(a.date)||b.no-a.no).slice(0,6);
   const cu=custOf(ME.id);const myHr=(S.hr||[]).filter(x=>x.uid===ME.id&&x.decidedAt&&daysTo((x.decidedAt||'').slice(0,10))>=-3);
   return `<div class="row between"><h2>أهلاً ${esc(ME.name)}</h2><div class="row">${can('reports_write')?'<button class="btn" data-go="new">+ تقرير من غير طلب</button>':''}<button class="btn" data-act="addExp">+ مصروف</button><button class="btn" data-act="hrMission">+ مأمورية</button></div></div>
+  ${(S.bonuses||[]).filter(x=>x.uid===ME.id&&x.status==='approved'&&daysTo((x.decidedAt||x.createdAt||'').slice(0,10))>=-5).map(x=>`<div class="banner info">🎉 اتصرفلك ${esc(x.type)} <b>${money(x.amount)}</b>${x.reason?' — '+esc(x.reason):''} — هتنزل في مرتب ${monthName((x.month||'')+'-01')}</div>`).join('')}
   ${(S.payslips||[]).filter(x=>x.uid===ME.id&&daysTo((x.publishedAt||'').slice(0,10))>=-5).map(x=>`<div class="banner info row between"><span>💰 مرتب ${monthName(x.month+'-01')} نزل — الصافي <b>${money(x.net)}</b></span><button class="btn sm" data-act="mySlip" data-id="${x.id}">التفاصيل</button></div>`).join('')}
   ${(S.penalties||[]).filter(x=>x.uid===ME.id&&x.status==='approved'&&daysTo((x.decidedAt||x.createdAt||'').slice(0,10))>=-7).map(x=>`<div class="banner">اتسجل عليك جزاء: <b>${esc(x.type)}</b> — ${esc(x.reason)}</div>`).join('')}
   ${(S.evals||[]).filter(x=>x.uid===ME.id&&daysTo((x.createdAt||'').slice(0,10))>=-7).map(x=>`<div class="banner info row between"><span>اتسجل لك تقييم أداء جديد: <b>${n(x.avg).toFixed(1)} من 5</b></span><button class="btn sm" data-go="perf">التفاصيل</button></div>`).join('')}
   ${(S.orders||[]).filter(o=>o.assignedTo===ME.id&&['assigned','preparing','out'].includes(o.status)).length?`<div class="banner info row between"><span>معاك <b>${(S.orders||[]).filter(o=>o.assignedTo===ME.id&&['assigned','preparing','out'].includes(o.status)).length}</b> طلب مستهلكات لازم يتجهز ويتوصل.</span><button class="btn sm" data-go="orders">الطلبات</button></div>`:''}
+  ${approvalItems().length?`<div class="banner info row between"><span>فيه <b>${approvalItems().length}</b> طلب مستني موافقتك.</span><button class="btn sm" data-act="goAppr">الطلبات</button></div>`:''}
   ${myHr.map(x=>`<div class="banner ${x.status==='approved'?'info':''}">طلبك (${x.kind==='leave'?'إجازة':'مأمورية'} ${fd(x.from)}) ${x.status==='approved'?'اتوافق عليه ✓':'اترفض'}${x.note?' — '+esc(x.note):''}</div>`).join('')}
   ${cu.cash||cu.L.length?`<div class="panel row between"><span>العهدة اللي معاك: <b class="num">${money(cu.bal)}</b> <span class="muted small">(استلمت ${money(cu.cash)} · صرفت ${money(cu.spent)})</span>${cu.toolsWith.length?` · <span class="muted small">${cu.toolsWith.length} عدة معاك</span>`:''}</span><button class="btn sm" data-go="custody">التفاصيل</button></div>`:''}
   ${punchCard()}
@@ -1010,7 +1017,7 @@ function viewHomeAdmin(sub){
   const exp=S.contracts.filter(k=>{const d=daysTo(k.end);return d>=0&&d<=30});
   const newReq=can('requests')?S.requests.filter(r=>r.status==='new'):[];
   const last=[...S.reports].filter(mine).sort((a,b)=>b.date.localeCompare(a.date)||b.no-a.no).slice(0,6);
-  const hrP=can('hr')?(S.hr||[]).filter(x=>x.status==='pending'&&x.uid!==ME.id).length:0,exP=can('custody')?(S.custody||[]).filter(x=>x.kind==='expense'&&x.status==='pending'&&x.uid!==ME.id).length:0;
+  const apI=approvalItems();const hrP=apI.filter(a=>a.t==='leave'||a.t==='mission'||a.t==='penalty').length,exP=apI.filter(a=>a.t==='expense').length;
   const supD=can('suppliers')?supDueItems().filter(i=>daysTo(i.due)<=7):[];const atRep=(S.units||[]).filter(u=>u.status==='at_repair');
   const wSoon=can('clients')?warrantyRows().filter(x=>!x.w.expired&&((x.w.days!=null&&x.w.days<=15)||(x.w.left!=null&&x.w.left<=n(x.p.wPulses)*.1))):[];
   return `
@@ -2174,7 +2181,7 @@ function custodyBody(uid,manage){
   return `<div class="grid g4"><div class="panel kpi"><span>عهدة نقدية استلمها</span><b>${money(C.cash)}</b></div><div class="panel kpi"><span>المصروف</span><b>${money(C.spent)}</b></div><div class="panel kpi"><span>رجّعه للشركة</span><b>${money(C.ret)}</b></div><div class="panel kpi"><span>الباقي معاه</span><b>${money(C.bal)}</b></div></div>
   <div class="row">${mine?'<button class="btn pri" data-act="addExp">+ تسجيل مصروف</button>':''}${manage?`<button class="btn" data-act="giveCash" data-id="${uid}">تسليم عهدة فلوس</button><button class="btn" data-act="settleCust" data-id="${uid}">تسوية العهدة</button><button class="btn" data-act="giveTool" data-id="${uid}">تسليم عدة</button>`:''}</div>
   ${C.bal<0?`<div class="banner">صرف ${money(-C.bal)} زيادة عن العهدة — ليه فلوس عند الشركة.</div>`:''}
-  <div class="panel"><h3>حركة العهدة النقدية</h3>${ex.length?`<div class="tbl-wrap"><table class="t"><thead><tr><th>التاريخ</th><th>البيان</th><th>رايح فين</th><th>المبلغ</th><th>الحالة</th><th></th></tr></thead><tbody>${ex.map(x=>{if(x.kind==='cash')return `<tr><td>${fd(x.date)}</td><td><b>استلم عهدة</b> <span class="muted small">${esc(x.method||'')} ${esc(x.notes||'')}</span></td><td></td><td class="num pos">+ ${money(x.amount)}</td><td></td><td>${manage?`<button class="btn sm ghost" data-act="delCust" data-id="${x.id}">✕</button>`:''}</td></tr>`;if(x.kind==='settle')return `<tr><td>${fd(x.date)}</td><td><b>تسوية</b> <span class="muted small">${esc(x.notes||'')}</span></td><td></td><td class="num">${n(x.amount)?'رجّع '+money(x.amount):'—'}</td><td></td><td>${manage?`<button class="btn sm ghost" data-act="delCust" data-id="${x.id}">✕</button>`:''}</td></tr>`;const st=EXP_ST[x.status]||EXP_ST.pending;const c=client(x.clientId);return `<tr><td>${fd(x.date)}</td><td><b>${esc(x.type)}</b><div class="small">${esc(x.purpose||'')}</div></td><td class="small">${c?esc(c.name)+(x.branch?' – '+esc(x.branch):''):esc(x.place||'—')}</td><td class="num neg">- ${money(x.amount)}</td><td><span class="pill ${st[1]}">${st[0]}</span>${x.note?`<div class="small muted">${esc(x.note)}</div>`:''}</td><td><div class="row" style="flex-wrap:nowrap">${x.photo?`<button class="btn sm" data-act="showImg" data-src="cu:${x.id}">الإيصال</button>`:''}${manage&&x.status==='pending'&&!mine?`<button class="btn sm pri" data-act="expOk" data-id="${x.id}">اعتماد</button><button class="btn sm ghost" data-act="expNo" data-id="${x.id}">رفض</button>`:''}${(mine&&x.status==='pending')||manage?`<button class="btn sm ghost" data-act="delCust" data-id="${x.id}">✕</button>`:''}</div></td></tr>`}).join('')}</tbody></table></div>`:'<div class="empty">مفيش حركة لسه</div>'}</div>
+  <div class="panel"><h3>حركة العهدة النقدية</h3>${ex.length?`<div class="tbl-wrap"><table class="t"><thead><tr><th>التاريخ</th><th>البيان</th><th>رايح فين</th><th>المبلغ</th><th>الحالة</th><th></th></tr></thead><tbody>${ex.map(x=>{if(x.kind==='cash')return `<tr><td>${fd(x.date)}</td><td><b>استلم عهدة</b> <span class="muted small">${esc(x.method||'')} ${esc(x.notes||'')}</span></td><td></td><td class="num pos">+ ${money(x.amount)}</td><td></td><td>${manage?`<button class="btn sm ghost" data-act="delCust" data-id="${x.id}">✕</button>`:''}</td></tr>`;if(x.kind==='settle')return `<tr><td>${fd(x.date)}</td><td><b>تسوية</b> <span class="muted small">${esc(x.notes||'')}</span></td><td></td><td class="num">${n(x.amount)?'رجّع '+money(x.amount):'—'}</td><td></td><td>${manage?`<button class="btn sm ghost" data-act="delCust" data-id="${x.id}">✕</button>`:''}</td></tr>`;const st=EXP_ST[x.status]||EXP_ST.pending;const c=client(x.clientId);return `<tr><td>${fd(x.date)}</td><td><b>${esc(x.type)}</b><div class="small">${esc(x.purpose||'')}</div></td><td class="small">${c?esc(c.name)+(x.branch?' – '+esc(x.branch):''):esc(x.place||'—')}</td><td class="num neg">- ${money(x.amount)}</td><td><span class="pill ${st[1]}">${st[0]}</span>${x.note?`<div class="small muted">${esc(x.note)}</div>`:''}</td><td><div class="row" style="flex-wrap:nowrap">${x.photo?`<button class="btn sm" data-act="showImg" data-src="cu:${x.id}">الإيصال</button>`:''}${canAct(x,'expense')?`<button class="btn sm pri" data-act="expOk" data-id="${x.id}">اعتماد</button><button class="btn sm ghost" data-act="expNo" data-id="${x.id}">رفض</button>`:''}${(mine&&x.status==='pending')||manage?`<button class="btn sm ghost" data-act="delCust" data-id="${x.id}">✕</button>`:''}</div></td></tr>`}).join('')}</tbody></table></div>`:'<div class="empty">مفيش حركة لسه</div>'}</div>
   <div class="panel"><h3>عهدة العدة</h3>${C.tools.length?`<div class="tbl-wrap"><table class="t"><thead><tr><th>الصنف</th><th>الكود / السيريال</th><th>العدد</th><th>استلمها</th><th>الحالة</th><th></th></tr></thead><tbody>${C.tools.map(t=>`<tr><td><b>${esc(t.name)}</b>${t.notes?`<div class="small muted">${esc(t.notes)}</div>`:''}</td><td class="num">${esc(t.code||'—')}</td><td>${n(t.qty)||1}</td><td>${fd(t.date)}</td><td>${t.status==='returned'?`<span class="pill p-mut">رجعت ${fd(t.returnedAt)}</span>`:'<span class="pill p-info">معاه</span>'}</td><td>${manage&&t.status!=='returned'?`<button class="btn sm" data-act="toolBack" data-id="${t.id}">استلمتها منه</button>`:''}</td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">مفيش عدة مستلمة</div>'}</div>`;
 }
 function viewCustody(){
@@ -2187,7 +2194,7 @@ function viewCustody(){
   return `<div class="row between"><h2>عهد الموظفين</h2><div class="seg"><button data-ctab2="all" class="${(window._CT2||'all')==='all'?'on':''}">كل الموظفين</button><button data-ctab2="me" class="${window._CT2==='me'?'on':''}">عهدتي أنا</button></div></div>
   ${window._CT2==='me'?custodyBody(ME.id,true):`
   <div class="grid g3"><div class="panel kpi"><span>فلوس مع الموظفين</span><b>${money(rows.reduce((a,r)=>a+Math.max(0,r.bal),0))}</b></div><div class="panel kpi"><span>مصاريف مستنية مراجعة</span><b>${pend.length}</b></div><div class="panel kpi"><span>مصاريف الشهر</span><b>${money((S.custody||[]).filter(x=>x.kind==='expense'&&x.status!=='rejected'&&x.date.startsWith(today().slice(0,7))).reduce((a,x)=>a+n(x.amount),0))}</b></div></div>
-  ${pend.length?`<div class="panel"><h3>مصاريف مستنية مراجعتك</h3>${pend.map(x=>{const c=client(x.clientId);return `<div class="row between" style="padding:6px 0;border-bottom:1px solid var(--line)"><span><b>${esc(userName(x.uid))}</b> — ${fd(x.date)} — ${esc(x.type)}: ${esc(x.purpose||'')} ${c?'<span class="muted small">('+esc(c.name)+(x.branch?' – '+esc(x.branch):'')+')</span>':''}</span><span class="row"><b class="num">${money(x.amount)}</b>${x.photo?`<button class="btn sm" data-act="showImg" data-src="cu:${x.id}">الإيصال</button>`:''}<button class="btn sm pri" data-act="expOk" data-id="${x.id}">اعتماد</button><button class="btn sm ghost" data-act="expNo" data-id="${x.id}">رفض</button></span></div>`}).join('')}</div>`:''}
+  ${pend.length?`<div class="panel"><h3>مصاريف مستنية مراجعتك</h3>${pend.map(x=>{const c=client(x.clientId);return `<div class="row between" style="padding:6px 0;border-bottom:1px solid var(--line)"><span><b>${esc(userName(x.uid))}</b> — ${fd(x.date)} — ${esc(x.type)}: ${esc(x.purpose||'')} ${c?'<span class="muted small">('+esc(c.name)+(x.branch?' – '+esc(x.branch):'')+')</span>':''}</span><span class="row"><b class="num">${money(x.amount)}</b>${x.photo?`<button class="btn sm" data-act="showImg" data-src="cu:${x.id}">الإيصال</button>`:''}${canAct(x,'expense')?`<button class="btn sm pri" data-act="expOk" data-id="${x.id}">اعتماد</button><button class="btn sm ghost" data-act="expNo" data-id="${x.id}">رفض</button>`:chainLine(x)}</span></div>`}).join('')}</div>`:''}
   <div class="panel">${rows.length?`<div class="tbl-wrap"><table class="t"><thead><tr><th>الموظف</th><th>استلم</th><th>صرف</th><th>الباقي معاه</th><th>عدة معاه</th><th>آخر مصروف</th></tr></thead><tbody>${rows.map(r=>{const last=r.L.filter(x=>x.kind==='expense').sort((a,b)=>b.date.localeCompare(a.date))[0];return `<tr class="click" data-go="cust" data-p="${r.u.id}"><td><b>${esc(r.u.name)}</b><div class="muted small">${ROLE[r.u.role]}</div></td><td class="num">${money(r.cash)}</td><td class="num">${money(r.spent)}</td><td class="num"><b>${money(r.bal)}</b></td><td>${r.toolsWith.length}</td><td class="small">${last?fd(last.date)+' — '+esc(last.type):'—'}${r.pending.length?` <span class="pill p-warn">${r.pending.length} جديد</span>`:''}</td></tr>`}).join('')}</tbody></table></div>`:'<div class="empty">مفيش موظفين</div>'}</div>`}`;
 }
 function viewCustodyOf(uid){const u=S.users.find(x=>x.id===uid);if(!u)return '<div class="empty">الموظف مش موجود</div>';return `<div class="row between"><h2>عهدة ${esc(u.name)}</h2><button class="btn" data-go="custody">رجوع</button></div>${custodyBody(uid,can('custody'))}`}
@@ -2206,7 +2213,7 @@ function openExpense(){
     <div class="row"><div class="photos" id="ex_box"></div><label class="btn">📷 صوّر الإيصال (لو فيه)<input type="file" id="ex_photo" accept="image/*" capture="environment" hidden></label></div>
     <div class="muted small">الباقي معاك دلوقتي ${money(custOf(ME.id).bal)} — المصروف هيتخصم منه على طول.</div>`,()=>{
     const a=n($('#ex_a').value);if(a<=0){toast('اكتب المبلغ');return false}
-    S.custody.push({id:uid(),uid:ME.id,kind:'expense',date:$('#ex_d').value,type:$('#ex_t').value,clientId:$('#ex_c').value,branch:$('#ex_b').value,place:$('#ex_pl').value.trim(),purpose:$('#ex_p').value.trim(),amount:a,photo,status:'pending',requestId:$('#ex_q')?.value||'',createdAt:new Date().toISOString()});notify(['perm:custody'],'مصروف جديد من العهدة',`${ME.name} — ${money(a)} — ${$('#ex_p').value.trim()}`,'custody');
+    const ex={id:uid(),uid:ME.id,kind:'expense',date:$('#ex_d').value,type:$('#ex_t').value,clientId:$('#ex_c').value,branch:$('#ex_b').value,place:$('#ex_pl').value.trim(),purpose:$('#ex_p').value.trim(),amount:a,photo,status:'pending',requestId:$('#ex_q')?.value||'',createdAt:new Date().toISOString()};const enx=attachChain(ex,'expense',ME.id);S.custody.push(ex);notify(enx.length?enx:['perm:custody'],'مصروف جديد من العهدة',`${ME.name} — ${money(a)} — ${$('#ex_p').value.trim()}`,'custody');
     save();toast('اتسجل المصروف');render();
   });
   const fb=()=>{const c=client($('#ex_c').value);$('#ex_b').innerHTML='<option value="">—</option>'+branchesOf(c).map(b=>`<option>${esc(b.name)}</option>`).join('')};
@@ -2241,7 +2248,7 @@ const MISSION_T={in:'مأمورية حضور (بدل بصمة الحضور)',out
 const HR_ST={pending:['مستني موافقة','p-warn'],approved:['اتوافق','p-ok'],rejected:['اترفض','p-bad']};
 const leaveDays=x=>leaveDaysX(x);
 function hrDesc(x){if(x.kind==='leave')return `<b>إجازة ${esc(x.type)}</b> — ${fd(x.from)}${x.to!==x.from?' لحد '+fd(x.to):''} <span class="muted small">(${leaveDays(x)} يوم)</span>${x.reason?`<div class="small">${esc(x.reason)}</div>`:''}`;const c=client(x.clientId);return `<b>${esc(MISSION_T[x.type]||'مأمورية')}</b> — ${fd(x.from)}${x.type==='travel'&&x.to&&x.to!==x.from?' لحد '+fd(x.to):''}${x.timeFrom?` <span class="muted small num">${esc(x.timeFrom)}${x.timeTo?' – '+esc(x.timeTo):''}</span>`:''}<div class="small">${c?esc(c.name)+(x.branch?' – '+esc(x.branch):''):''}${x.place?' · '+esc(x.place):''}${x.gov?' · '+esc(x.gov):''}</div>${x.purpose?`<div class="small">الغرض: ${esc(x.purpose)}</div>`:''}`}
-function hrRow(x,manage){const st=HR_ST[x.status]||HR_ST.pending;return `<div style="padding:10px 0;border-bottom:1px solid var(--line);display:grid;gap:4px"><div class="row between"><span>${manage?`<b>${esc(userName(x.uid))}</b> · `:''}${hrDesc(x)}</span><span class="pill ${st[1]}">${st[0]}</span></div>${x.note?`<div class="small muted">رد المدير: ${esc(x.note)}</div>`:''}<div class="row between"><span class="small muted">اتقدم ${fdt(x.createdAt)}</span><span class="row">${manage&&x.status==='pending'&&x.uid!==ME.id?`<button class="btn sm pri" data-act="hrOk" data-id="${x.id}">موافقة</button><button class="btn sm danger" data-act="hrNo" data-id="${x.id}">رفض</button>`:''}${(x.uid===ME.id&&x.status==='pending')||(manage&&can('hr'))?`<button class="btn sm ghost" data-act="hrDel" data-id="${x.id}">حذف</button>`:''}</span></div></div>`}
+function hrRow(x,manage){const st=HR_ST[x.status]||HR_ST.pending;return `<div style="padding:10px 0;border-bottom:1px solid var(--line);display:grid;gap:4px"><div class="row between"><span>${manage?`<b>${esc(userName(x.uid))}</b> · `:''}${hrDesc(x)}</span><span class="pill ${st[1]}">${st[0]}</span></div>${x.note?`<div class="small muted">رد المدير: ${esc(x.note)}</div>`:''}${chainLine(x)}<div class="row between"><span class="small muted">اتقدم ${fdt(x.createdAt)}</span><span class="row">${canAct(x,x.kind==='leave'?'leave':'mission')?`<button class="btn sm pri" data-act="hrOk" data-id="${x.id}">موافقة</button><button class="btn sm danger" data-act="hrNo" data-id="${x.id}">رفض</button>`:''}${(x.uid===ME.id&&x.status==='pending')||(manage&&can('hr'))?`<button class="btn sm ghost" data-act="hrDel" data-id="${x.id}">حذف</button>`:''}</span></div></div>`}
 let HRF='pending';
 function viewHR(){
   const my=(S.hr||[]).filter(x=>x.uid===ME.id).sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||''));
@@ -2267,7 +2274,7 @@ function openMission(){
     <label class="f span2">الغرض من المأمورية<input id="ms_p" placeholder="مثلاً: صيانة جهاز، تركيب جهاز، استلام قطع غيار…"></label></div>`,()=>{
     const t=$('#ms_t').value,f=$('#ms_f').value;if(!f){toast('اختار التاريخ');return false}
     if(!$('#ms_p').value.trim()){toast('اكتب الغرض من المأمورية');return false}
-    S.hr.push({id:uid(),uid:ME.id,name:ME.name,kind:'mission',type:t,from:f,to:t==='travel'?($('#ms_to').value||f):f,timeFrom:$('#ms_tf').value,timeTo:$('#ms_tt').value,clientId:$('#ms_c').value,branch:$('#ms_b').value,place:$('#ms_pl').value.trim(),gov:t==='travel'?$('#ms_g').value.trim():'',purpose:$('#ms_p').value.trim(),status:'pending',createdAt:new Date().toISOString()});notify(['perm:hr'],'طلب مأمورية جديد',`${ME.name} — ${MISSION_T[t]} — ${fd(f)}`,'hr');save();toast('اتبعت الطلب للمدير');render();
+    {const mx={id:uid(),uid:ME.id,name:ME.name,kind:'mission',type:t,from:f,to:t==='travel'?($('#ms_to').value||f):f,timeFrom:$('#ms_tf').value,timeTo:$('#ms_tt').value,clientId:$('#ms_c').value,branch:$('#ms_b').value,place:$('#ms_pl').value.trim(),gov:t==='travel'?$('#ms_g').value.trim():'',purpose:$('#ms_p').value.trim(),status:'pending',createdAt:new Date().toISOString()};const nx=attachChain(mx,'mission',ME.id);S.hr.push(mx);notify(nx.length?nx:['perm:hr'],'طلب مأمورية جديد',`${ME.name} — ${MISSION_T[t]} — ${fd(f)}`,'hr')}save();toast('اتبعت الطلب للمدير');render();
   });
   const f=()=>{const tr=$('#ms_t').value==='travel';$$('.ms-tr').forEach(x=>x.hidden=!tr);$$('.ms-tm').forEach(x=>x.hidden=tr)};$('#ms_t').onchange=f;f();
   $('#ms_c').onchange=()=>{const c=client($('#ms_c').value);$('#ms_b').innerHTML='<option value="">—</option>'+branchesOf(c).map(b=>`<option>${esc(b.name)}</option>`).join('');if(c&&!$('#ms_pl').value)$('#ms_pl').value=c.address||''};
@@ -2420,6 +2427,7 @@ service cloud.firestore {
     function can(p) { return isAdmin() || (isStaff() && me().get('perms', {}).get(p, false) == true); }
     function ownClient() { return active() && me().role == 'clinic' && resource.data.clientId == me().clientId; }
     function mineDoc() { return isStaff() && resource.data.uid == request.auth.uid; }
+    function approver() { return isStaff() && request.auth.uid in resource.data.approvers; }
 
     match /meta/admin { allow read: if true; allow create: if signed() && !exists(/databases/$(database)/documents/meta/admin); }
     match /meta/settings { allow read: if signed(); allow write: if can('settings'); }
@@ -2484,23 +2492,29 @@ service cloud.firestore {
     match /salaries/{id} { allow read: if can('salary_set') || can('payroll_prep') || can('payroll_approve'); allow write: if can('salary_set'); }
     match /payroll/{id} { allow read: if can('payroll_prep') || can('payroll_approve'); allow create, update: if can('payroll_prep') || can('payroll_approve'); allow delete: if can('payroll_approve'); }
     match /payslips/{id} { allow read: if can('payroll_approve') || mineDoc(); allow write: if can('payroll_approve'); }
+    match /bonuses/{id} {
+      allow read: if can('bonuses') || can('bonuses_approve') || can('payroll_prep') || can('payroll_approve') || approver() || (isStaff() && resource.data.uid == request.auth.uid && resource.data.status == 'approved');
+      allow create: if can('bonuses_approve') || (can('bonuses') && request.resource.data.status == 'pending' && request.resource.data.by == request.auth.uid);
+      allow update: if can('bonuses_approve') || approver();
+      allow delete: if can('bonuses_approve') || (can('bonuses') && resource.data.status == 'pending' && resource.data.by == request.auth.uid);
+    }
     match /evals/{id} { allow read: if can('evals') || mineDoc(); allow write: if can('evals'); }
     match /penalties/{id} {
-      allow read: if can('penalties') || can('penalties_approve') || can('payroll_prep') || can('payroll_approve') || (isStaff() && resource.data.uid == request.auth.uid && resource.data.status == 'approved');
+      allow read: if can('penalties') || can('penalties_approve') || can('payroll_prep') || can('payroll_approve') || approver() || (isStaff() && resource.data.uid == request.auth.uid && resource.data.status == 'approved');
       allow create: if can('penalties_approve') || (can('penalties') && request.resource.data.status == 'pending' && request.resource.data.by == request.auth.uid);
-      allow update: if can('penalties_approve');
+      allow update: if can('penalties_approve') || approver();
       allow delete: if can('penalties_approve') || (can('penalties') && resource.data.status == 'pending' && resource.data.by == request.auth.uid);
     }
     match /custody/{id} {
-      allow read: if can('custody') || can('accounts') || mineDoc();
+      allow read: if can('custody') || can('accounts') || mineDoc() || approver();
       allow create: if can('custody') || (isStaff() && request.resource.data.uid == request.auth.uid && request.resource.data.kind == 'expense' && request.resource.data.status == 'pending');
-      allow update: if can('custody');
+      allow update: if can('custody') || approver();
       allow delete: if can('custody') || (mineDoc() && resource.data.kind == 'expense' && resource.data.status == 'pending');
     }
     match /hr/{id} {
-      allow read: if can('hr') || can('payroll_prep') || can('payroll_approve') || mineDoc();
+      allow read: if can('hr') || can('payroll_prep') || can('payroll_approve') || mineDoc() || approver();
       allow create: if isStaff() && request.resource.data.uid == request.auth.uid && request.resource.data.status == 'pending';
-      allow update: if can('hr');
+      allow update: if can('hr') || approver();
       allow delete: if can('hr') || (mineDoc() && resource.data.status == 'pending');
     }
   }
@@ -2531,6 +2545,7 @@ function viewSettings(){
     <label class="f">رصيد الإجازات السنوي الافتراضي (يوم)<input type="number" min="0" step="1" id="s_lbal" value="${n(s.leaveBal??21)}"></label>
     <label class="row" style="gap:6px;grid-column:1/-1"><input type="checkbox" id="s_prices" style="width:auto" ${s.showPrices?'checked':''}> إظهار الأسعار والحساب في التقرير اللي بيتسلم للعميل</label>
   </div>
+  ${chainsSettingsHTML()}
   <div class="panel grid"><h3 style="margin:0">طرق الدفع</h3><label class="f">كل طريقة في سطر<textarea id="s_methods">${esc(s.methods.join('\n'))}</textarea></label></div>
   <div class="panel grid"><h3 style="margin:0">ملاحظات هامة (أسفل التقرير)</h3><label class="f">كل بند في سطر<textarea id="s_terms" style="min-height:130px">${esc(s.terms.join('\n'))}</textarea></label></div>
   <div class="row" style="justify-content:flex-end"><button class="btn pri" type="submit">حفظ الإعدادات</button></div>
@@ -2569,7 +2584,7 @@ function bindSettings(){
   if(ONLINE)FB.db.doc('meta/counter').get().then(d=>{if(d.exists&&$('#s_no'))$('#s_no').value=d.data().next}).catch(()=>{});
   f.onsubmit=e=>{e.preventDefault();const s=S.settings;
     const ws=Math.max(0,Math.min(23,parseInt($('#s_ws').value)||12)),we=Math.max(ws+1,Math.min(24,parseInt($('#s_we').value)||20));
-    Object.assign(s,{company:$('#s_company').value.trim()||'Pioneer',sub:$('#s_sub').value.trim(),phone:$('#s_phone').value.trim(),visitFee:n($('#s_fee').value),contractVisitFee:n($('#s_cfee').value),showPrices:$('#s_prices').checked,leaveBal:n($('#s_lbal').value),
+    Object.assign(s,{company:$('#s_company').value.trim()||'Pioneer',sub:$('#s_sub').value.trim(),phone:$('#s_phone').value.trim(),visitFee:n($('#s_fee').value),contractVisitFee:n($('#s_cfee').value),showPrices:$('#s_prices').checked,chains:readChainsSettings(),leaveBal:n($('#s_lbal').value),
       workStart:ws,workEnd:we,slotHours:Math.max(.5,n($('#s_sh').value)||2),crews:Math.max(1,parseInt($('#s_crews').value)||1),offDays:$$('.s_off').filter(x=>x.checked).map(x=>+x.value),
       methods:$('#s_methods').value.split('\n').map(x=>x.trim()).filter(Boolean),terms:$('#s_terms').value.split('\n').map(x=>x.trim()).filter(Boolean)});
     const no=Math.max(1,parseInt($('#s_no').value)||1);
@@ -2633,7 +2648,7 @@ document.addEventListener('click',e=>{
   if(t.dataset.clear){const k=t.dataset.clear;FORM[k]='';const cv=$('#'+k);const x=cv.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,cv.width,cv.height);return}
   if(t.dataset.delphoto!==undefined){FORM.photos.splice(+t.dataset.delphoto,1);drawPhotos();return}
   const a=t.dataset.act,id=t.dataset.id;
-  const NEED={delClient:'clients_delete',addContract:'contracts',editContract:'contracts',renewContract:'contracts',addPart:'stock_edit',editPart:'stock_edit',restock:'stock_edit',addUnit:'stock_edit',editUnit:'stock_edit',unitRepair:'stock_edit',unitBack:'stock_edit',unitScrap:'stock_edit',redue:'ar',delPay:'delete',delReport:'delete',clearDemo:'users',export:'settings',import:'settings',wipe:'settings',addUser:'users',addClinicUser:'users',editUser:'users',toggleUser:'users',delUser:'users',reschedule:'requests',cancelReq:'requests',connect:'settings',migrate:'settings',mvPart:'stock',mvClient:'stock',addSupplier:'suppliers',editSupplier:'suppliers',addPurchase:'suppliers',addSupPay:'suppliers',delPurchase:'suppliers',delSupPay:'suppliers',addSale:'devices',editSale:'devices',delSale:'devices',addRent:'devices',editRent:'devices',delRent:'devices',endRent:'devices',addSdev:'devices',addSdevSup:'devices',editSdev:'devices',delSdev:'devices',costSdev:'devices',delCostSdev:'devices',partnerSdev:'devices',payPartner:'devices',sellSdev:'devices',rentSdev:'devices',addPSale:'part_sales',delPS:'delete',retLine:'returns',giveCash:'custody',settleCust:'custody',giveTool:'custody',toolBack:'custody',expOk:'custody',expNo:'custody',hrOk:'hr',hrNo:'hr'};
+  const NEED={delClient:'clients_delete',addContract:'contracts',editContract:'contracts',renewContract:'contracts',addPart:'stock_edit',editPart:'stock_edit',restock:'stock_edit',addUnit:'stock_edit',editUnit:'stock_edit',unitRepair:'stock_edit',unitBack:'stock_edit',unitScrap:'stock_edit',redue:'ar',delPay:'delete',delReport:'delete',clearDemo:'users',export:'settings',import:'settings',wipe:'settings',addUser:'users',addClinicUser:'users',editUser:'users',toggleUser:'users',delUser:'users',reschedule:'requests',cancelReq:'requests',connect:'settings',migrate:'settings',mvPart:'stock',mvClient:'stock',addSupplier:'suppliers',editSupplier:'suppliers',addPurchase:'suppliers',addSupPay:'suppliers',delPurchase:'suppliers',delSupPay:'suppliers',addSale:'devices',editSale:'devices',delSale:'devices',addRent:'devices',editRent:'devices',delRent:'devices',endRent:'devices',addSdev:'devices',addSdevSup:'devices',editSdev:'devices',delSdev:'devices',costSdev:'devices',delCostSdev:'devices',partnerSdev:'devices',payPartner:'devices',sellSdev:'devices',rentSdev:'devices',addPSale:'part_sales',delPS:'delete',retLine:'returns',giveCash:'custody',settleCust:'custody',giveTool:'custody',toolBack:'custody',hrNo:'hr'};
   Object.assign(NEED,NEED9);
   if(NEED[a]&&!can(NEED[a])){toast('مفيش عندك صلاحية للحاجة دي');return}
   if(a==='collect'&&t.dataset.type!=='report'&&!(can('ar')||(t.dataset.type==='psale'&&can('part_sales'))||(t.dataset.type==='contract'&&can('contracts')))){toast('مفيش عندك صلاحية للتحصيل');return}
@@ -2691,13 +2706,13 @@ document.addEventListener('click',e=>{
     case 'settleCust':openSettle(id);break;
     case 'giveTool':openGiveTool(id);break;
     case 'toolBack':confirmBox('استلمت العدة دي منه؟',()=>{const x=S.custody.find(y=>y.id===id);x.status='returned';x.returnedAt=today();save();render()});break;
-    case 'expOk':{const x=S.custody.find(y=>y.id===id);x.status='ok';x.reviewedBy=ME.id;save();render();break}
-    case 'expNo':{const x=S.custody.find(y=>y.id===id);modal(`<h3>رفض المصروف</h3><div>${esc(x.type)} — ${money(x.amount)}</div><label class="f">السبب<input id="xn"></label>`,()=>{x.status='rejected';x.note=$('#xn').value.trim();x.reviewedBy=ME.id;save();render()});break}
+    case 'expOk':decideChain('expense',id,true);break;
+    case 'expNo':decideChain('expense',id,false);break;
     case 'delCust':confirmBox('حذف الحركة دي؟',()=>{S.custody=S.custody.filter(y=>y.id!==id);save();render()});break;
     case 'hrLeave':openLeave();break;
     case 'hrMission':openMission();break;
-    case 'hrOk':decideHR(id,true);break;
-    case 'hrNo':decideHR(id,false);break;
+    case 'hrOk':{const x=S.hr.find(y=>y.id===id);decideChain(x?.kind==='leave'?'leave':'mission',id,true);break}
+    case 'hrNo':{const x=S.hr.find(y=>y.id===id);decideChain(x?.kind==='leave'?'leave':'mission',id,false);break}
     case 'hrDel':confirmBox('حذف الطلب ده؟',()=>{S.hr=S.hr.filter(y=>y.id!==id);save();render()});break;
     case 'addClinicUser':if(!S.clients.length){toast('ضيف العميل الأول');break}openUserModal(null,'clinic',id||'');break;
     case 'editUser':openUserModal(id);break;
@@ -3091,7 +3106,7 @@ function openLeave2(){
    <div class="grid g2"><label class="f">نوع الإجازة<select id="lv_t">${LEAVE_T.map(x=>`<option>${x}</option>`).join('')}</select></label><span id="lv_inf" class="muted small" style="align-self:end"></span><label class="f">من<input type="date" id="lv_f" value="${addDays(today(),1)}"></label><label class="f">لحد<input type="date" id="lv_to" value="${addDays(today(),1)}"></label><label class="f span2">السبب / ملاحظات<input id="lv_r"></label></div>`,()=>{
     const f=$('#lv_f').value,t=$('#lv_to').value;if(!f||!t||t<f){toast('اتأكد من التواريخ');return false}
     const x={id:uid(),uid:ME.id,name:ME.name,kind:'leave',type:$('#lv_t').value,from:f,to:t,reason:$('#lv_r').value.trim(),status:'pending',createdAt:new Date().toISOString()};
-    S.hr.push(x);notify(['perm:hr'],'طلب إجازة جديد',`${ME.name} — ${x.type} ${leaveDaysX(x)} يوم من ${fd(f)}`,'hr');save();toast('اتبعت الطلب للمدير');render();
+    {const nx=attachChain(x,'leave',ME.id);S.hr.push(x);notify(nx.length?nx:['perm:hr'],'طلب إجازة جديد',`${ME.name} — ${x.type} ${leaveDaysX(x)} يوم من ${fd(f)}`,'hr')}save();toast('اتبعت الطلب للمدير');render();
   });
   const inf=()=>{const x={type:$('#lv_t').value,from:$('#lv_f').value,to:$('#lv_to').value,kind:'leave'};if(!x.from||!x.to||x.to<x.from){$('#lv_inf').textContent='';return}const d=leaveDaysX(x);$('#lv_inf').innerHTML=`${d} يوم شغل${isDed(x)?(d>b.left?` — <b style="color:var(--bad)">أكتر من رصيدك</b>`:' — بيتخصم من الرصيد'):' — مش بيتخصم من الرصيد'}`};
   ['lv_t','lv_f','lv_to'].forEach(i=>$('#'+i).addEventListener('change',inf));inf();
@@ -3111,7 +3126,7 @@ function openSetBal(id){
 const PEN_T=['لفت نظر','إنذار كتابي','خصم أيام من المرتب','خصم مبلغ','حرمان من حافز','أخرى'];
 const PEN_ST={pending:['مستني موافقة الإدارة','p-warn'],approved:['اتعتمد','p-bad'],rejected:['اترفض','p-mut']};
 function penDesc(x){return `<b>${esc(x.type)}</b>${n(x.days)?` — ${n(x.days)} يوم`:''}${n(x.amount)?` — ${money(x.amount)}`:''} <span class="muted small">(${fd(x.date)})</span>${x.reason?`<div class="small">السبب: ${esc(x.reason)}</div>`:''}`}
-function penRow(x){const st=PEN_ST[x.status]||PEN_ST.pending;const mg=can('penalties')||can('penalties_approve');return `<div style="padding:10px 0;border-bottom:1px solid var(--line);display:grid;gap:4px"><div class="row between"><span>${mg&&x.uid!==ME.id?`<b>${esc(x.name||userName(x.uid))}</b> · `:''}${penDesc(x)}</span><span class="pill ${st[1]}">${st[0]}</span></div><div class="row between"><span class="small muted">${mg?`كتبه ${esc(x.byName||userName(x.by))} · `:''}${fdt(x.createdAt)}${x.note?' · ملاحظة الإدارة: '+esc(x.note):''}</span><span class="row">${can('penalties_approve')&&x.status==='pending'?`<button class="btn sm pri" data-act="penOk" data-id="${x.id}">اعتماد</button><button class="btn sm danger" data-act="penNo" data-id="${x.id}">رفض</button>`:''}${(can('penalties_approve')||(x.status==='pending'&&x.by===ME.id))&&mg?`<button class="btn sm ghost" data-act="penDel" data-id="${x.id}">حذف</button>`:''}</span></div></div>`}
+function penRow(x){const st=PEN_ST[x.status]||PEN_ST.pending;const mg=can('penalties')||can('penalties_approve');return `<div style="padding:10px 0;border-bottom:1px solid var(--line);display:grid;gap:4px"><div class="row between"><span>${mg&&x.uid!==ME.id?`<b>${esc(x.name||userName(x.uid))}</b> · `:''}${penDesc(x)}</span><span class="pill ${st[1]}">${st[0]}</span></div>${chainLine(x)}<div class="row between"><span class="small muted">${mg?`كتبه ${esc(x.byName||userName(x.by))} · `:''}${fdt(x.createdAt)}${x.note?' · ملاحظة الإدارة: '+esc(x.note):''}</span><span class="row">${canAct(x,'penalty')?`<button class="btn sm pri" data-act="penOk" data-id="${x.id}">اعتماد</button><button class="btn sm danger" data-act="penNo" data-id="${x.id}">رفض</button>`:''}${(can('penalties_approve')||(x.status==='pending'&&x.by===ME.id))&&mg?`<button class="btn sm ghost" data-act="penDel" data-id="${x.id}">حذف</button>`:''}</span></div></div>`}
 function viewPenalties(){
   const all=[...(S.penalties||[])].sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||''));
   const pend=all.filter(x=>x.status==='pending');
@@ -3125,13 +3140,14 @@ function openPenalty(){
    <label class="f">نوع الجزاء<select id="pn_t">${PEN_T.map(x=>`<option>${x}</option>`).join('')}</select></label><label class="f">تاريخ المخالفة<input type="date" id="pn_d" value="${today()}"></label>
    <label class="f">عدد أيام الخصم (لو فيه)<input type="number" min="0" step="0.5" id="pn_days"></label><label class="f">مبلغ الخصم (لو فيه)<input type="number" min="0" step="any" id="pn_a"></label>
    <label class="f span2">سبب الجزاء / المخالفة<textarea id="pn_r" style="min-height:70px"></textarea></label></div>
-   ${can('penalties_approve')?'<div class="muted small">الجزاء هيتعتمد على طول ويظهر للموظف.</div>':'<div class="banner info">الجزاء هيروح للإدارة الأول، ولما يتعتمد هيظهر للموظف.</div>'}`,()=>{
+   ${isAdmin()?'<div class="muted small">الجزاء هيتعتمد على طول ويظهر للموظف.</div>':'<div class="banner info">الجزاء هيعدّي على تسلسل الموافقات، ولما يتعتمد هيظهر للموظف.</div>'}`,()=>{
     const u=S.users.find(x=>x.id===$('#pn_u').value);if(!u){toast('اختار الموظف');return false}
     const reason=$('#pn_r').value.trim();if(!reason){toast('اكتب سبب الجزاء');return false}
-    const ok=can('penalties_approve');const now=new Date().toISOString();
+    const ok=isAdmin();const now=new Date().toISOString();
     const x={id:uid(),uid:u.id,name:u.name,type:$('#pn_t').value,date:$('#pn_d').value||today(),days:n($('#pn_days').value),amount:n($('#pn_a').value),reason,status:ok?'approved':'pending',by:ME.id,byName:ME.name,createdAt:now,decidedBy:ok?ME.id:'',decidedAt:ok?now:''};
+    let pnx=[];if(!ok)pnx=attachChain(x,'penalty',u.id,[ME.id]);
     S.penalties.push(x);
-    if(ok)notify([u.id],'اتسجل عليك جزاء',`${x.type} — ${reason}`,'hr');else notify(['perm:penalties_approve'],'جزاء مستني موافقتك',`${ME.name} كتب جزاء على ${u.name}: ${x.type}`,'hr');
+    if(ok)notify([u.id],'اتسجل عليك جزاء',`${x.type} — ${reason}`,'hr');else notify(pnx.length?pnx:['perm:penalties_approve'],'جزاء مستني موافقتك',`${ME.name} كتب جزاء على ${u.name}: ${x.type}`,'hr');
     save();toast(ok?'اتسجل الجزاء':'اتبعت للإدارة للموافقة');HRF='pen';render();
   });
 }
@@ -3153,20 +3169,21 @@ function viewHR2(){
     <div class="panel"><h3>طلباتي</h3>${my.length?my.map(x=>hrRow(x,false)).join(''):'<div class="empty">لسه مقدمتش طلبات</div>'}</div>
     ${myPen.length?`<div class="panel"><h3>الجزاءات اللي عليّا</h3>${myPen.map(x=>`<div style="padding:8px 0;border-bottom:1px solid var(--line)">${penDesc(x)}</div>`).join('')}</div>`:''}`;
   const hrM=can('hr'),penM=can('penalties')||can('penalties_approve'),balM=can('leave_bal')||can('hr');
-  if(!hrM&&!penM&&!balM&&!can('attendance'))return `<h2>الإجازات والمأموريات</h2>${mine}`;
+  const apL=approvalItems();
+  if(!hrM&&!penM&&!balM&&!can('attendance')&&!apL.length)return `<h2>الإجازات والمأموريات</h2>${mine}`;
   const all=(S.hr||[]).filter(x=>x.uid!==ME.id);const F={pending:x=>x.status==='pending',leave:x=>x.kind==='leave',mission:x=>x.kind==='mission',all:()=>true};
-  const tabs=[];if(can('attendance'))tabs.push(['att','الحضور والانصراف (البصمة)']);if(hrM)tabs.push(['pending',`مستنية موافقتك (${all.filter(F.pending).length})`],['leave','الإجازات'],['mission','المأموريات'],['all','الكل']);if(hrM)tabs.push(['punch','البصمات']);if(balM)tabs.push(['bal','أرصدة الإجازات']);if(penM)tabs.push(['pen',`الجزاءات${(S.penalties||[]).some(x=>x.status==='pending')?` (${(S.penalties||[]).filter(x=>x.status==='pending').length})`:''}`]);tabs.push(['mine','طلباتي أنا']);
+  const tabs=[['appr',`مستنية موافقتي (${apL.length})`]];if(can('attendance'))tabs.push(['att','الحضور والانصراف (البصمة)']);if(hrM)tabs.push(['pending',`كل المستني (${all.filter(F.pending).length})`],['leave','الإجازات'],['mission','المأموريات'],['all','الكل']);if(hrM)tabs.push(['punch','البصمات']);if(balM)tabs.push(['bal','أرصدة الإجازات']);if(penM)tabs.push(['pen',`الجزاءات${(S.penalties||[]).some(x=>x.status==='pending')?` (${(S.penalties||[]).filter(x=>x.status==='pending').length})`:''}`]);tabs.push(['mine','طلباتي أنا']);
   if(!tabs.some(t=>t[0]===HRF))HRF=tabs[0][0];
   const list=F[HRF]?all.filter(F[HRF]).sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||'')):[];
   return `<div class="row between"><h2>الإجازات والمأموريات والجزاءات</h2></div>
   <div class="seg" style="flex-wrap:wrap">${tabs.map(([k,l])=>`<button data-hrf="${k}" class="${HRF===k?'on':''}">${l}</button>`).join('')}</div>
-  ${HRF==='mine'?mine:HRF==='att'?viewAttendance():HRF==='punch'?viewPunches():HRF==='bal'?viewLeaveBal():HRF==='pen'?viewPenalties():`<div class="panel">${list.length?list.map(x=>hrRow(x,true)).join(''):'<div class="empty">مفيش طلبات هنا</div>'}</div>`}`;
+  ${HRF==='mine'?mine:HRF==='appr'?viewApprovals():HRF==='att'?viewAttendance():HRF==='punch'?viewPunches():HRF==='bal'?viewLeaveBal():HRF==='pen'?viewPenalties():`<div class="panel">${list.length?list.map(x=>hrRow(x,true)).join(''):'<div class="empty">مفيش طلبات هنا</div>'}</div>`}`;
 }
 
 /* =====================================================================
    v9 — الأزرار الجديدة
    ===================================================================== */
-const NEED9={addCons:'stock_edit',editCons:'stock_edit',addEval:'evals',setBal:'leave_bal',penOk:'penalties_approve',penNo:'penalties_approve',ordCancel:'orders_manage',waRemind:'ar'};
+const NEED9={addCons:'stock_edit',editCons:'stock_edit',addEval:'evals',setBal:'leave_bal',ordCancel:'orders_manage',waRemind:'ar'};
 const X9={
   bell:()=>openBell(),
   addCons:()=>openConsModal(null),
@@ -3181,8 +3198,8 @@ const X9={
   rateVisit:(t,id)=>openRating(id),
   setBal:(t,id)=>openSetBal(id),
   addPen:()=>{if(!(can('penalties')||can('penalties_approve'))){toast('مفيش عندك صلاحية');return}openPenalty()},
-  penOk:(t,id)=>decidePen(id,true),
-  penNo:(t,id)=>decidePen(id,false),
+  penOk:(t,id)=>decideChain('penalty',id,true),
+  penNo:(t,id)=>decideChain('penalty',id,false),
   penDel:(t,id)=>confirmBox('حذف الجزاء ده؟',()=>{S.penalties=S.penalties.filter(x=>x.id!==id);save();render()}),
   waEng:(t,id)=>{const r=S.requests.find(x=>x.id===id);const u=S.users.find(x=>x.id===r?.engineerId);if(!u?.phone){toast('ضيف رقم موبايل المهندس من صفحة المستخدمين');return}const c=client(r.clientId)||{};const br=branchInfo(c,r.branch);openWa(u.phone,`عندك زيارة صيانة ${dayLabel(r.date)} ${slotLabel(r.slot)}\nالعميل: ${c.name||''} — ${c.clinic||''}${r.branch?' — فرع '+r.branch:''}\nالعنوان: ${br?.address||c.address||''}\nالتليفون: ${br?.phone||c.phone||''}\nالجهاز: ${devLabel(r.device)} ${r.device?.serial||''}\nالمطلوب: ${r.description||''}`)},
   waRemind:(t,id)=>{const i=openItems().find(x=>x.type===t.dataset.type&&x.x.id===id&&String(x.sub??'')===String(t.dataset.sub??''));if(!i)return;openWa(i.client?.phone||i.x.phone,waMsgDue(i))}
@@ -3248,7 +3265,7 @@ function viewUsers(){
   const staff=S.users.filter(u=>u.role!=='clinic'),clin=S.users.filter(u=>u.role==='clinic');
   const order=STAFF_ROLE_LIST;
   const groups=Object.keys(DEPTS).map(d=>[d,staff.filter(u=>deptOf(u)===d)]).concat([['',staff.filter(u=>!DEPTS[deptOf(u)])]]).filter(g=>g[1].length);
-  const row=u=>{const pm=permsOf(u);const on=PERMS.filter(p=>pm[p[0]]);return `<tr><td><b>${esc(u.name)}</b>${u.jobTitle?`<div class="muted small">${esc(u.jobTitle)}</div>`:''}</td><td class="num">${esc(u.username)}</td><td><span class="pill ${u.role==='admin'?'p-acc':u.role==='clinic'?'p-info':'p-mut'}">${ROLE[u.role]||u.role}</span></td><td class="small">${u.role==='clinic'?`<a href="#" data-go="client" data-p="${u.clientId}">${esc(cName(client(u.clientId))||'—')}</a><div class="muted">${CPERMS.filter(([k])=>cpOf(client(u.clientId),k)).map(x=>x[1]).slice(0,3).join('، ')}${CPERMS.filter(([k])=>cpOf(client(u.clientId),k)).length>3?' …':''}</div>`:u.role==='admin'?'كل حاجة':on.length?on.map(p=>p[1]).slice(0,3).join('، ')+(on.length>3?` و${on.length-3} كمان`:''):'العهدة والإجازات بس'}</td><td>${u.active===false?'<span class="pill p-bad">موقوف</span>':'<span class="pill p-ok">نشط</span>'}</td><td><div class="row" style="flex-wrap:nowrap">${u.role!=='clinic'&&can('emp_files')?`<button class="btn sm" data-go="empf" data-p="${u.id}">الملف</button>`:''}<button class="btn sm" data-act="editUser" data-id="${u.id}">تعديل${u.role!=='admin'?' والصلاحيات':''}</button>${u.id!==ME.id&&!(u.role==='admin'&&S.users.filter(x=>x.role==='admin').length<2)?`<button class="btn sm ghost" data-act="toggleUser" data-id="${u.id}">${u.active===false?'تفعيل':'إيقاف'}</button><button class="btn sm danger" data-act="delUser" data-id="${u.id}">حذف</button>`:''}</div></td></tr>`};
+  const row=u=>{const pm=permsOf(u);const on=PERMS.filter(p=>pm[p[0]]);return `<tr><td><b>${esc(u.name)}</b>${u.jobTitle?`<div class="muted small">${esc(u.jobTitle)}</div>`:''}${u.managerId?`<div class="muted small">مديره: ${esc(userName(u.managerId))}</div>`:''}</td><td class="num">${esc(u.username)}</td><td><span class="pill ${u.role==='admin'?'p-acc':u.role==='clinic'?'p-info':'p-mut'}">${ROLE[u.role]||u.role}</span></td><td class="small">${u.role==='clinic'?`<a href="#" data-go="client" data-p="${u.clientId}">${esc(cName(client(u.clientId))||'—')}</a><div class="muted">${CPERMS.filter(([k])=>cpOf(client(u.clientId),k)).map(x=>x[1]).slice(0,3).join('، ')}${CPERMS.filter(([k])=>cpOf(client(u.clientId),k)).length>3?' …':''}</div>`:u.role==='admin'?'كل حاجة':on.length?on.map(p=>p[1]).slice(0,3).join('، ')+(on.length>3?` و${on.length-3} كمان`:''):'العهدة والإجازات بس'}</td><td>${u.active===false?'<span class="pill p-bad">موقوف</span>':'<span class="pill p-ok">نشط</span>'}</td><td><div class="row" style="flex-wrap:nowrap">${u.role!=='clinic'&&can('emp_files')?`<button class="btn sm" data-go="empf" data-p="${u.id}">الملف</button>`:''}<button class="btn sm" data-act="editUser" data-id="${u.id}">تعديل${u.role!=='admin'?' والصلاحيات':''}</button>${u.id!==ME.id&&!(u.role==='admin'&&S.users.filter(x=>x.role==='admin').length<2)?`<button class="btn sm ghost" data-act="toggleUser" data-id="${u.id}">${u.active===false?'تفعيل':'إيقاف'}</button><button class="btn sm danger" data-act="delUser" data-id="${u.id}">حذف</button>`:''}</div></td></tr>`};
   const tbl=list=>`<div class="tbl-wrap"><table class="t"><thead><tr><th>الاسم</th><th>اسم المستخدم</th><th>الوظيفة</th><th>الصلاحيات</th><th>الحالة</th><th></th></tr></thead><tbody>${[...list].sort((a,b)=>order.indexOf(a.role)-order.indexOf(b.role)||a.name.localeCompare(b.name,'ar')).map(row).join('')}</tbody></table></div>`;
   return `<div class="row between"><h2>المستخدمين</h2><div class="row"><button class="btn pri" data-act="addUser" data-role="engineer">+ موظف جديد</button><button class="btn" data-act="addClinicUser">+ حساب عيادة</button></div></div>
   <div class="panel small muted">كل موظف ليه وظيفة وإدارة وصلاحيات بتختارها له. كل وظيفة بتيجي بصلاحيات جاهزة، وتقدر تزوّد أو تشيل منها.</div>
@@ -3265,6 +3282,7 @@ function openUserModal(id,role='engineer',clientId=''){
    <label class="f">الاسم${!isCl?' (بيظهر في التقرير)':''}<input id="us_name" value="${esc(u?.name||(isCl?(c?.clinic||c?.name||''):''))}" required></label>
    <label class="f">اسم المستخدم (إنجليزي)<input id="us_user" value="${esc(u?.username||'')}" autocapitalize="off" ${u&&ONLINE?'readonly':''} required></label>
    ${roleSel}
+   ${!isCl?`<label class="f span2">المدير المباشر (أول واحد بيوافق على طلباته)<select id="us_mgr"><option value="">— مفيش —</option>${S.users.filter(x=>STAFF_ROLES.includes(x.role)&&x.active!==false&&x.id!==u?.id).map(x=>`<option value="${x.id}" ${x.id===u?.managerId?'selected':''}>${esc(x.name)} — ${esc(x.jobTitle||ROLE[x.role]||'')}</option>`).join('')}</select></label>`:''}
    ${!isCl?`<label class="f">المسمى الوظيفي (اختياري)<input id="us_job" value="${esc(u?.jobTitle||'')}" placeholder="مثلاً: مدير قسم المستهلكات"></label><label class="f">موبايل (للواتساب)<input id="us_ph" type="tel" value="${esc(u?.phone||'')}"></label>`:''}
    ${isCl?`<label class="f span2">العيادة / العميل<select id="us_client">${CL().map(x=>`<option value="${x.id}" ${x.id===(u?.clientId||clientId)?'selected':''}>${esc(cName(x))}${cSub(x)?' – '+esc(cSub(x)):''}</option>`).join('')}</select></label>`:''}
    ${pwField}</div>
@@ -3274,7 +3292,7 @@ function openUserModal(id,role='engineer',clientId=''){
     const cid=$('#us_client')?.value||'';const role2=$('#us_role')?.value||r;const dept=$('#us_dept')?.value||'';
     const perms=!isCl&&role2!=='admin'?Object.fromEntries(PERMS.map(([k])=>[k,!!$(`#permBox .pm[value="${k}"]`)?.checked])):undefined;
     if(isCl&&!cid){toast('اختار العيادة');return false}
-    const extra=!isCl?{jobTitle:$('#us_job').value.trim(),phone:$('#us_ph').value.trim(),dept}:{};
+    const extra=!isCl?{jobTitle:$('#us_job').value.trim(),phone:$('#us_ph').value.trim(),dept,managerId:$('#us_mgr')?.value||''}:{};
     if(!u&&isCl){readCpBox(client(cid));save()}
     if(!u){const nu=await createUser({name,username:un,pw,role:role2,clientId:cid,perms});if(!isCl){Object.assign(nu,extra);if(perms)nu.perms=perms;await saveUserDoc(nu).catch(()=>{})}toast('اتعمل الحساب');render();return}
     if(!name){toast('اكتب الاسم');return false}
@@ -3671,14 +3689,16 @@ function calcLine(u,m,keep){
   const pens=(S.penalties||[]).filter(x=>x.uid===u.id&&x.status==='approved'&&(x.date||'').startsWith(m)).map(x=>({type:x.type,reason:x.reason,days:n(x.days),amount:n(x.amount),value:n(n(x.amount)+n(x.days)*dayRate)}));
   const L={uid:u.id,name:u.name,job:u.jobTitle||ROLE[u.role]||'',basic,allow,gross,dayRate,
     attDays:keep?.attOverride!=null?n(keep.attOverride):attDays,attAuto:attDays,attOverride:keep?.attOverride??null,late:A?{n:A.lateN,m:A.lateM,absent:A.absent,miss:A.miss}:null,
-    unpaid,pens,insurance:n(s.insurance),bonus:n(keep?.bonus),bonusNote:keep?.bonusNote||'',other:n(keep?.other),otherNote:keep?.otherNote||'',ok:!!keep?.ok,okBy:keep?.okBy||'',notes:keep?.notes||''};
+    unpaid,pens,bons:(S.bonuses||[]).filter(x=>x.uid===u.id&&x.status==='approved'&&x.month===m).map(x=>({type:x.type,reason:x.reason,amount:n(x.amount)})),insurance:n(s.insurance),bonus:n(keep?.bonus),bonusNote:keep?.bonusNote||'',other:n(keep?.other),otherNote:keep?.otherNote||'',ok:!!keep?.ok,okBy:keep?.okBy||'',notes:keep?.notes||''};
   L.attDed=n(L.attDays*dayRate);L.unpaidDed=n(unpaid*dayRate);L.penDed=n(pens.reduce((a,x)=>a+x.value,0));
-  L.totalDed=n(L.attDed+L.unpaidDed+L.penDed+L.insurance+L.other);L.net=n(gross+L.bonus-L.totalDed);
+  L.bonSum=n(L.bons.reduce((a,x)=>a+x.amount,0));L.totalDed=n(L.attDed+L.unpaidDed+L.penDed+L.insurance+L.other);L.net=n(gross+L.bonSum+L.bonus-L.totalDed);
   return L;
 }
 function viewPayroll(){
   const prep=can('payroll_prep'),appr=can('payroll_approve'),setS=can('salary_set');
-  const tabs=`<div class="seg"><button data-payt="month" class="${PAYT==='month'?'on':''}">مرتبات الشهر</button>${setS||prep||appr?`<button data-payt="sal" class="${PAYT==='sal'?'on':''}">مرتب كل موظف</button>`:''}</div>`;
+  const bonP=can('bonuses')||can('bonuses_approve');if(!prep&&!appr&&!setS)PAYT='bon';else if(PAYT==='bon'&&!bonP&&!prep&&!appr)PAYT='month';
+  const tabs=`<div class="seg">${prep||appr?`<button data-payt="month" class="${PAYT==='month'?'on':''}">مرتبات الشهر</button>`:''}${setS||prep||appr?`<button data-payt="sal" class="${PAYT==='sal'?'on':''}">مرتب كل موظف</button>`:''}${bonP||prep||appr?`<button data-payt="bon" class="${PAYT==='bon'?'on':''}">المكافآت</button>`:''}</div>`;
+  if(PAYT==='bon')return `<div class="row between"><h2>المرتبات</h2>${tabs}</div>${viewBonuses()}`;
   if(PAYT==='sal')return `<div class="row between"><h2>المرتبات</h2>${tabs}</div>${viewSalaries()}`;
   const months=[...new Set([today().slice(0,7),addMonths(today().slice(0,7)+'-01',-1).slice(0,7),...(S.payroll||[]).map(x=>x.id)])].sort().reverse();
   const P=payDoc(PAYM);const st=P?PAY_ST[P.status]:null;const lines=P?Object.values(P.lines||{}).sort((a,b)=>a.name.localeCompare(b.name,'ar')):[];
@@ -3687,9 +3707,9 @@ function viewPayroll(){
   <div class="row between"><div class="row"><select id="paym" style="width:auto">${months.map(m=>`<option value="${m}" ${m===PAYM?'selected':''}>${monthName(m+'-01')}</option>`).join('')}</select>${st?`<span class="pill ${st[1]}">${st[0]}</span>`:''}</div>
    <div class="row">${prep&&(!P||P.status==='draft')?`<button class="btn" data-act="payCalc">${P?'إعادة الحساب':'احسب مرتبات الشهر'}</button>`:''}${editable?`<button class="btn pri" data-act="paySubmit" ${allOk?'':'disabled title="اعتمد مرتب كل موظف الأول"'}>ابعتها للمدير العام للموافقة</button>`:''}${appr&&P?.status==='submitted'?`<button class="btn pri" data-act="payApprove">موافقة ونزول المرتبات</button><button class="btn danger" data-act="payReturn">رجّعها للمراجعة</button>`:''}${P?`<button class="btn sm" data-act="payXls">تحميل Excel</button>`:''}</div></div>
   ${P?.returnNote&&P.status==='draft'?`<div class="banner">المدير العام رجّعها: ${esc(P.returnNote)}</div>`:''}
-  <div class="muted small">الخصم بيتحسب لوحده من البصمة (أيام الخصم × أجر اليوم = الأساسي ÷ 30) + الجزاءات المعتمدة في الشهر + الإجازات بدون مرتب + التأمينات. مدير الحسابات يقدر يضيف مكافأة أو خصم تاني لكل موظف ويعتمده، وبعدين تروح للمدير العام يوافق عليها كلها.</div>
-  ${P?`<div class="grid g4"><div class="panel kpi"><span>إجمالي المرتبات</span><b>${tot('gross')}</b></div><div class="panel kpi"><span>إجمالي الخصومات</span><b>${tot('totalDed')}</b></div><div class="panel kpi"><span>المكافآت</span><b>${tot('bonus')}</b></div><div class="panel kpi"><span>الصافي اللي هيتصرف</span><b>${tot('net')}</b></div></div>
-  <div class="panel"><div class="tbl-wrap"><table class="t"><thead><tr><th>الموظف</th><th>المرتب</th><th>خصم البصمة</th><th>جزاءات</th><th>بدون مرتب</th><th>تأمينات</th><th>مكافأة</th><th>خصم تاني</th><th>الصافي</th><th>اعتماد الحسابات</th><th></th></tr></thead><tbody>${lines.map(l=>`<tr><td><b>${esc(l.name)}</b><div class="muted small">${esc(l.job)}</div></td><td class="num">${money(l.gross)}</td><td class="small">${l.attDays?`<b class="num">${money(l.attDed)}</b><div class="muted">${l.attDays} يوم${l.attOverride!=null?' (معدّل)':''}</div>`:'—'}</td><td class="num">${l.penDed?money(l.penDed):'—'}</td><td class="num">${l.unpaidDed?money(l.unpaidDed):'—'}</td><td class="num">${l.insurance?money(l.insurance):'—'}</td><td class="num">${l.bonus?money(l.bonus):'—'}</td><td class="num">${l.other?money(l.other):'—'}</td><td class="num"><b>${money(l.net)}</b></td><td>${l.ok?'<span class="pill p-ok">معتمد ✓</span>':'<span class="pill p-warn">لسه</span>'}</td><td><div class="row" style="flex-wrap:nowrap"><button class="btn sm" data-act="payLine" data-id="${l.uid}">${editable?'مراجعة':'التفاصيل'}</button>${editable?`<button class="btn sm ${l.ok?'ghost':'pri'}" data-act="payOk" data-id="${l.uid}">${l.ok?'إلغاء الاعتماد':'اعتماد'}</button>`:''}</div></td></tr>`).join('')}</tbody></table></div></div>
+  <div class="muted small">المكافآت المعتمدة للشهر بتنزل لوحدها. الخصم بيتحسب لوحده من البصمة (أيام الخصم × أجر اليوم = الأساسي ÷ 30) + الجزاءات المعتمدة في الشهر + الإجازات بدون مرتب + التأمينات. مدير الحسابات يقدر يضيف مكافأة أو خصم تاني لكل موظف ويعتمده، وبعدين تروح للمدير العام يوافق عليها كلها.</div>
+  ${P?`<div class="grid g4"><div class="panel kpi"><span>إجمالي المرتبات</span><b>${tot('gross')}</b></div><div class="panel kpi"><span>إجمالي الخصومات</span><b>${tot('totalDed')}</b></div><div class="panel kpi"><span>المكافآت</span><b>${money(lines.reduce((a,l)=>a+n(l.bonus)+n(l.bonSum),0))}</b></div><div class="panel kpi"><span>الصافي اللي هيتصرف</span><b>${tot('net')}</b></div></div>
+  <div class="panel"><div class="tbl-wrap"><table class="t"><thead><tr><th>الموظف</th><th>المرتب</th><th>خصم البصمة</th><th>جزاءات</th><th>بدون مرتب</th><th>تأمينات</th><th>مكافأة</th><th>خصم تاني</th><th>الصافي</th><th>اعتماد الحسابات</th><th></th></tr></thead><tbody>${lines.map(l=>`<tr><td><b>${esc(l.name)}</b><div class="muted small">${esc(l.job)}</div></td><td class="num">${money(l.gross)}</td><td class="small">${l.attDays?`<b class="num">${money(l.attDed)}</b><div class="muted">${l.attDays} يوم${l.attOverride!=null?' (معدّل)':''}</div>`:'—'}</td><td class="num">${l.penDed?money(l.penDed):'—'}</td><td class="num">${l.unpaidDed?money(l.unpaidDed):'—'}</td><td class="num">${l.insurance?money(l.insurance):'—'}</td><td class="num">${l.bonSum||l.bonus?money(n(l.bonSum)+n(l.bonus)):'—'}</td><td class="num">${l.other?money(l.other):'—'}</td><td class="num"><b>${money(l.net)}</b></td><td>${l.ok?'<span class="pill p-ok">معتمد ✓</span>':'<span class="pill p-warn">لسه</span>'}</td><td><div class="row" style="flex-wrap:nowrap"><button class="btn sm" data-act="payLine" data-id="${l.uid}">${editable?'مراجعة':'التفاصيل'}</button>${editable?`<button class="btn sm ${l.ok?'ghost':'pri'}" data-act="payOk" data-id="${l.uid}">${l.ok?'إلغاء الاعتماد':'اعتماد'}</button>`:''}</div></td></tr>`).join('')}</tbody></table></div></div>
   ${P.status==='approved'?`<div class="muted small">اتعتمدت من ${esc(P.approvedByName||'')} ${fdt(P.approvedAt)} — كل موظف شايف تفاصيل مرتبه في حسابه.</div>`:P.submittedAt?`<div class="muted small">اتبعتت للموافقة من ${esc(P.preparedByName||'')} ${fdt(P.submittedAt)}</div>`:''}`
   :`<div class="panel"><div class="empty">${prep?'لسه مرتبات الشهر ده ما اتحسبتش — دوس "احسب مرتبات الشهر".':'لسه مرتبات الشهر ده ما اتجهزتش.'}</div></div>`}`;
 }
@@ -3720,6 +3740,7 @@ function payCalc(){
 function payLineHTML(l){
   const r=(a,b,c='')=>`<div class="row between" style="padding:4px 0;border-bottom:1px solid var(--line);${c}"><span>${a}</span><b class="num">${b}</b></div>`;
   return `${r('المرتب الأساسي',money(l.basic))}${(l.allow||[]).map(a=>r(esc(a.name),money(a.amount))).join('')}${r('إجمالي المستحق',money(l.gross),'font-size:1.05rem')}
+   ${(l.bons||[]).map(b=>r(esc(b.type)+(b.reason?' — '+esc(b.reason):''),'+ '+money(b.amount),'color:var(--ok)')).join('')}
    ${l.bonus?r('مكافأة'+(l.bonusNote?' — '+esc(l.bonusNote):''),'+ '+money(l.bonus),'color:var(--ok)'):''}
    <div class="sec-title" style="margin-top:8px">الخصومات</div>
    ${l.attDays?r(`خصم البصمة: ${l.attDays} يوم${l.late?` <span class="muted small">(غياب ${l.late.absent} · تأخير ${l.late.n} مرة · بصمة ناقصة ${l.late.miss})</span>`:''}`,'- '+money(l.attDed)):''}
@@ -3754,8 +3775,8 @@ function payReturn(){const P=payDoc(PAYM);
   modal(`<h3>رجّع المرتبات للمراجعة</h3><label class="f">إيه اللي محتاج يتعدّل؟<textarea id="pr_n" style="min-height:70px"></textarea></label>`,()=>{P.status='draft';P.returnNote=$('#pr_n').value.trim();Object.values(P.lines).forEach(l=>l.ok=false);if(P.preparedBy)notify([P.preparedBy],'المرتبات رجعت للمراجعة',P.returnNote||'','payroll');save();render()})}
 function paySubmit(){const P=payDoc(PAYM);if(!Object.values(P.lines).every(l=>l.ok)){toast('اعتمد مرتب كل موظف الأول');return}
   P.status='submitted';P.submittedAt=new Date().toISOString();P.preparedBy=ME.id;P.preparedByName=ME.name;P.returnNote='';notify(['perm:payroll_approve'],'مرتبات مستنية موافقتك',`${monthName(PAYM+'-01')} — صافي ${money(Object.values(P.lines).reduce((a,l)=>a+l.net,0))}`,'payroll');save();toast('اتبعتت للمدير العام');render()}
-async function payXls(){const P=payDoc(PAYM);const rows=[['الموظف','الوظيفة','الأساسي','البدلات','المستحق','خصم البصمة (يوم)','خصم البصمة','الجزاءات','بدون مرتب','التأمينات','مكافأة','خصم تاني','الصافي','ملاحظات']];
-  Object.values(P.lines).forEach(l=>rows.push([l.name,l.job,l.basic,n(l.gross-l.basic),l.gross,l.attDays,l.attDed,l.penDed,l.unpaidDed,l.insurance,l.bonus,l.other,l.net,[l.bonusNote,l.otherNote,l.notes].filter(Boolean).join(' — ')]));
+async function payXls(){const P=payDoc(PAYM);const rows=[['الموظف','الوظيفة','الأساسي','البدلات','المستحق','خصم البصمة (يوم)','خصم البصمة','الجزاءات','بدون مرتب','التأمينات','مكافآت معتمدة','مكافأة إضافية','خصم تاني','الصافي','ملاحظات']];
+  Object.values(P.lines).forEach(l=>rows.push([l.name,l.job,l.basic,n(l.gross-l.basic),l.gross,l.attDays,l.attDed,l.penDed,l.unpaidDed,l.insurance,n(l.bonSum),l.bonus,l.other,l.net,[l.bonusNote,l.otherNote,l.notes].filter(Boolean).join(' — ')]));
   try{await loadXLSX();const ws=XLSX.utils.aoa_to_sheet(rows);ws['!views']=[{RTL:true}];const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'المرتبات');download(new Blob([XLSX.write(wb,{type:'array',bookType:'xlsx'})],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),`مرتبات-${PAYM}.xlsx`)}catch(e){toast('مقدرتش أعمل الملف')}}
 function myPayslips(){const L=(S.payslips||[]).filter(x=>x.uid===ME.id).sort((a,b)=>b.month.localeCompare(a.month));
   return `<div class="panel"><h3>مرتباتي</h3>${L.length?L.map(x=>`<div class="row between" style="padding:8px 0;border-bottom:1px solid var(--line)"><span><b>${monthName(x.month+'-01')}</b>${x.totalDed?` <span class="muted small">خصومات ${money(x.totalDed)}</span>`:''}</span><span class="row"><b class="num">${money(x.net)}</b><button class="btn sm" data-act="mySlip" data-id="${x.id}">التفاصيل</button></span></div>`).join(''):'<div class="empty">لسه مفيش مرتبات نازلة</div>'}</div>`}
@@ -3765,6 +3786,111 @@ Object.assign(X9,{payCalc:()=>{const P=payDoc(PAYM);if(P)confirmBox('إعادة 
 Object.assign(NEED9,{payCalc:'payroll_prep',paySubmit:'payroll_prep',payOk:'payroll_prep',payApprove:'payroll_approve',payReturn:'payroll_approve',salEdit:'salary_set'});
 document.addEventListener('click',e=>{const t=e.target.closest('[data-payt]');if(t){PAYT=t.dataset.payt;render()}});
 document.addEventListener('change',e=>{if(e.target.id==='paym'){PAYM=e.target.value;render()}});
+
+/* =====================================================================
+   v13 — التسلسل الوظيفي في الموافقات
+   ===================================================================== */
+const LEVELS={direct:'المدير المباشر',dept:'مدير الإدارة',exec:'المدير التنفيذي',perm:'صاحب صلاحية الموافقة',admin:'المدير العام'};
+const LV_ORDER=['direct','dept','exec','perm','admin'];
+const REQ_T={leave:{l:'الإجازات',perm:'hr'},mission:{l:'المأموريات',perm:'hr'},expense:{l:'مصاريف العهدة',perm:'custody'},penalty:{l:'الجزاءات',perm:'penalties_approve'},bonus:{l:'المكافآت',perm:'bonuses_approve'}};
+const chainOf=t=>(S.settings.chains||{})[t]||['perm'];
+const activeStaff=()=>S.users.filter(u=>STAFF_ROLES.includes(u.role)&&u.active!==false);
+function resolveLvl(lvl,u,type){
+  const A=activeStaff();
+  if(lvl==='direct')return u?.managerId&&A.some(x=>x.id===u.managerId)?[u.managerId]:[];
+  if(lvl==='dept')return A.filter(x=>x.role==='manager'&&deptOf(x)===deptOf(u)).map(x=>x.id);
+  if(lvl==='exec')return A.filter(x=>x.role==='exec').map(x=>x.id);
+  if(lvl==='admin')return A.filter(x=>x.role==='admin').map(x=>x.id);
+  if(lvl==='perm'){const p=REQ_T[type].perm;const L=A.filter(x=>x.role!=='admin'&&permsOf(x)[p]).map(x=>x.id);return L.length?L:A.filter(x=>x.role==='admin').map(x=>x.id)}
+  return [];
+}
+function buildChain(type,subjectId,exclude=[]){
+  const u=S.users.find(x=>x.id===subjectId)||ME;const seen=new Set([subjectId,...exclude]);const steps=[];
+  chainOf(type).forEach(l=>{const ids=resolveLvl(l,u,type).filter(id=>!seen.has(id));ids.forEach(id=>seen.add(id));if(ids.length)steps.push({lvl:l,uids:ids})});
+  if(!steps.length){const ad=activeStaff().filter(x=>x.role==='admin'&&!exclude.includes(x.id)&&x.id!==subjectId).map(x=>x.id);if(ad.length)steps.push({lvl:'admin',uids:ad})}
+  return steps;
+}
+function attachChain(x,type,subjectId,exclude){x.chain=buildChain(type,subjectId,exclude);x.step=0;x.hist=[];x.approvers=[...new Set(x.chain.flatMap(s=>s.uids))];return x.chain[0]?.uids||[]}
+function canAct(x,type){if(x.status!=='pending')return false;if(!x.chain||!x.chain.length)return can(REQ_T[type].perm)&&x.uid!==ME.id;const st=x.chain[x.step];if(!st)return false;return st.uids.includes(ME.id)||(isAdmin()&&x.uid!==ME.id)}
+function chainLine(x){if(!x.chain||!x.chain.length)return '';return `<div class="small muted chainl">${x.chain.map((s,i)=>{const h=(x.hist||[]).find(y=>y.step===i);const cls=h?(h.ok?'p-ok':'p-bad'):i===x.step&&x.status==='pending'?'p-warn':'p-mut';const who=h?h.byName:s.uids.map(userName).join(' / ');return `<span class="pill ${cls}">${LEVELS[s.lvl]}${who?': '+esc(who):''}${h?(h.ok?' ✓':' ✗'):''}</span>`}).join(' ← ')}</div>`}
+function advance(x,ok,note){
+  const i=x.step||0;(x.hist=x.hist||[]).push({step:i,lvl:x.chain?.[i]?.lvl||'perm',by:ME.id,byName:ME.name,ok,note:note||'',at:new Date().toISOString()});
+  if(!ok){x.status='rejected';return 'rejected'}
+  if(x.chain&&i+1<x.chain.length){x.step=i+1;return 'next'}
+  x.step=i+1;return 'done';
+}
+function approvalItems(){
+  const L=[];
+  (S.hr||[]).forEach(x=>{const t=x.kind==='leave'?'leave':'mission';if(canAct(x,t))L.push({t,x})});
+  (S.custody||[]).forEach(x=>{if(x.kind==='expense'&&canAct(x,'expense'))L.push({t:'expense',x})});
+  (S.penalties||[]).forEach(x=>{if(canAct(x,'penalty'))L.push({t:'penalty',x})});
+  (S.bonuses||[]).forEach(x=>{if(canAct(x,'bonus'))L.push({t:'bonus',x})});
+  return L.sort((a,b)=>(a.x.createdAt||'').localeCompare(b.x.createdAt||''));
+}
+function apprRow({t,x}){
+  const who=esc(x.name||userName(x.uid));
+  const desc=t==='bonus'?`<b>${esc(x.type)}</b> لـ ${who} <b class="num" style="color:var(--ok)">${money(x.amount)}</b> — مرتب ${monthName((x.month||'')+'-01')}${x.reason?`<div class="small">${esc(x.reason)}</div>`:''}<div class="small muted">كتبها ${esc(x.byName||'')}</div>`:t==='expense'?`<b>مصروف من العهدة</b> — ${fd(x.date)} — ${esc(x.type)}: ${esc(x.purpose||'')} <b class="num">${money(x.amount)}</b>${x.photo?` <button class="btn sm" data-act="showImg" data-src="cu:${x.id}">الإيصال</button>`:''}`:t==='penalty'?`<b>جزاء</b> على ${who} — ${penDesc(x)}<div class="small muted">كتبه ${esc(x.byName||'')}</div>`:hrDesc(x);
+  return `<div style="padding:10px 0;border-bottom:1px solid var(--line);display:grid;gap:4px"><div class="row between"><span>${t!=='penalty'&&t!=='bonus'?`<b>${who}</b> · `:''}${desc}</span><span class="pill p-mut">${REQ_T[t].l}</span></div>${chainLine(x)}<div class="row" style="justify-content:flex-end"><button class="btn sm pri" data-act="apOk" data-t="${t}" data-id="${x.id}">موافقة</button><button class="btn sm danger" data-act="apNo" data-t="${t}" data-id="${x.id}">رفض</button></div></div>`;
+}
+function colOfT(t){return t==='expense'?S.custody:t==='penalty'?S.penalties:t==='bonus'?S.bonuses:S.hr}
+function decideChain(t,id,ok){
+  const x=colOfT(t).find(y=>y.id===id);if(!x||!canAct(x,t)){toast('مش دورك في الموافقة على الطلب ده');return}
+  const lbl=t==='expense'?`مصروف ${money(x.amount)}`:t==='penalty'?`جزاء ${x.type}`:t==='bonus'?`${x.type} ${money(x.amount)}`:(x.kind==='leave'?'إجازة '+x.type:'مأمورية');
+  modal(`<h3>${ok?'موافقة على':'رفض'} ${esc(lbl)} — ${esc(x.name||userName(x.uid))}</h3>${chainLine(x)}<label class="f">ملاحظة (اختياري)<input id="ap_n"></label>`,()=>{
+    const note=$('#ap_n').value.trim();const r=advance(x,ok,note);
+    if(r==='next'){notify(x.chain[x.step].uids,'طلب مستني موافقتك',`${REQ_T[t].l}: ${x.name||userName(x.uid)} — ${lbl}`,'hr');toast('اتوافق — اتبعت للمستوى اللي بعده');}
+    else{
+      const fin=r==='done';
+      if(t==='expense'){x.status=fin?'ok':'rejected';x.reviewedBy=ME.id;x.note=note}
+      else if(t==='bonus'){x.status=fin?'approved':'rejected';x.decidedBy=ME.id;x.decidedAt=new Date().toISOString();x.note=note;if(fin)notify([x.uid],'🎉 اتصرفلك '+x.type,`${money(x.amount)} — هتنزل في مرتب ${monthName((x.month||today().slice(0,7))+'-01')}`,'hr');if(x.by)notify([x.by],fin?'المكافأة اتعتمدت':'المكافأة اترفضت',`${x.name}: ${x.type} ${money(x.amount)}`,'payroll')}
+      else if(t==='penalty'){x.status=fin?'approved':'rejected';x.decidedBy=ME.id;x.decidedAt=new Date().toISOString();x.note=note;if(fin)notify([x.uid],'اتسجل عليك جزاء',`${x.type} — ${x.reason}`,'hr');if(x.by)notify([x.by],fin?'الجزاء اتعتمد':'الجزاء اترفض',`${x.name}: ${x.type}`,'hr')}
+      else{x.status=fin?'approved':'rejected';x.note=note;x.decidedBy=ME.id;x.decidedAt=new Date().toISOString()}
+      if(t!=='penalty'&&t!=='bonus')notify([x.uid],fin?'طلبك اتوافق عليه ✓':'طلبك اترفض',`${lbl}${note?' — '+note:''}`,t==='expense'?'custody':'hr');
+      toast(fin?'اتوافق نهائي':'اترفض');
+    }
+    save();render();
+  });
+}
+function viewApprovals(){const L=approvalItems();return `<div class="panel"><h3>طلبات مستنية موافقتك (${L.length})</h3>${L.length?L.map(apprRow).join(''):'<div class="empty">مفيش طلبات مستنياك</div>'}</div>`}
+function chainsSettingsHTML(){
+  return `<div class="panel grid"><h3 style="margin:0">تسلسل الموافقات</h3><div class="muted small">اختار لكل نوع طلب مين يوافق عليه بالترتيب. الطلب بيعدّي على المستويات اللي معلّم عليها من فوق لتحت، والمستوى اللي مش موجود للموظف (مثلاً ملوش مدير مباشر) بيتخطّى لوحده. "المدير المباشر" بيتحدد لكل موظف من صفحة المستخدمين.</div>
+   <div class="grid g2">${Object.entries(REQ_T).map(([t,o])=>`<div class="perm-grp"><b>${o.l}</b>${LV_ORDER.map((l,i)=>`<label><input type="checkbox" class="chn" data-t="${t}" value="${l}" ${chainOf(t).includes(l)?'checked':''}> ${i+1}. ${LEVELS[l]}${l==='perm'?` <span class="muted small">(${PERMS.find(p=>p[0]===o.perm)?.[1]||''})</span>`:''}</label>`).join('')}</div>`).join('')}</div></div>`;
+}
+function readChainsSettings(){const ch={};Object.keys(REQ_T).forEach(t=>{const v=LV_ORDER.filter(l=>$(`.chn[data-t="${t}"][value="${l}"]`)?.checked);ch[t]=v.length?v:['perm']});return ch}
+Object.assign(X9,{goAppr:()=>{HRF='appr';go('hr')},apOk:(t,id)=>decideChain(t.dataset.t,id,true),apNo:(t,id)=>decideChain(t.dataset.t,id,false)});
+
+/* =====================================================================
+   v14 — المكافآت
+   ===================================================================== */
+const BON_T=['مكافأة','حافز','عمولة','أوفر تايم','بدل إضافي','أخرى'];
+const BON_ST={pending:['مستنية الموافقة','p-warn'],approved:['اتعتمدت','p-ok'],rejected:['اترفضت','p-mut']};
+function bonRow(x){const st=BON_ST[x.status]||BON_ST.pending;return `<div style="padding:10px 0;border-bottom:1px solid var(--line);display:grid;gap:4px"><div class="row between"><span><b>${esc(x.name||userName(x.uid))}</b> · <b>${esc(x.type)}</b> <b class="num" style="color:var(--ok)">${money(x.amount)}</b> <span class="muted small">— مرتب ${monthName((x.month||today().slice(0,7))+'-01')}</span>${x.reason?`<div class="small">${esc(x.reason)}</div>`:''}</span><span class="pill ${st[1]}">${st[0]}</span></div>${chainLine(x)}<div class="row between"><span class="small muted">كتبها ${esc(x.byName||'')} · ${fdt(x.createdAt)}${x.note?' · '+esc(x.note):''}</span><span class="row">${canAct(x,'bonus')?`<button class="btn sm pri" data-act="apOk" data-t="bonus" data-id="${x.id}">موافقة</button><button class="btn sm danger" data-act="apNo" data-t="bonus" data-id="${x.id}">رفض</button>`:''}${(can('bonuses_approve')||(x.status==='pending'&&x.by===ME.id))?`<button class="btn sm ghost" data-act="bonDel" data-id="${x.id}">حذف</button>`:''}</span></div></div>`}
+let BONM='';
+function viewBonuses(){
+  const m=BONM||today().slice(0,7);const all=(S.bonuses||[]).filter(x=>(x.month||'')===m).sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||''));
+  const months=[...new Set([today().slice(0,7),...(S.bonuses||[]).map(x=>x.month).filter(Boolean)])].sort().reverse();
+  return `<div class="row between"><div class="row"><select id="bonm" style="width:auto">${months.map(x=>`<option value="${x}" ${x===m?'selected':''}>${monthName(x+'-01')}</option>`).join('')}</select><span class="muted small">إجمالي المعتمد: <b class="num">${money(all.filter(x=>x.status==='approved').reduce((a,x)=>a+n(x.amount),0))}</b></span></div>${can('bonuses')||can('bonuses_approve')?'<button class="btn pri" data-act="addBon">+ مكافأة</button>':''}</div>
+  <div class="muted small">المكافأة بتعدّي على تسلسل الموافقات (من الإعدادات)، ولما تتعتمد بتنزل لوحدها في مرتب الشهر اللي اخترته وبتظهر للموظف في تفاصيل مرتبه.</div>
+  <div class="panel">${all.length?all.map(bonRow).join(''):'<div class="empty">مفيش مكافآت في الشهر ده</div>'}</div>`;
+}
+function openBonus(){
+  const E=EMPS();
+  modal(`<h3>مكافأة لموظف</h3><div class="grid g2">
+   <label class="f span2">الموظفين <span class="muted small">(تقدر تختار أكتر من واحد بنفس المكافأة)</span><div class="row" id="bn_us" style="gap:6px">${E.map(u=>`<label class="chipc"><input type="checkbox" value="${u.id}"><span>${esc(u.name)}</span></label>`).join('')}</div></label>
+   <label class="f">النوع<select id="bn_t">${BON_T.map(x=>`<option>${x}</option>`).join('')}</select></label><label class="f">المبلغ<input type="number" min="0" step="any" id="bn_a"></label>
+   <label class="f">تنزل في مرتب شهر<input type="month" id="bn_m" value="${today().slice(0,7)}"></label><label class="f">السبب<input id="bn_r" placeholder="مثلاً: شغل ممتاز في تركيب جهاز أسيوط"></label></div>
+   ${isAdmin()?'<div class="muted small">هتتعتمد على طول لأنك المدير العام.</div>':'<div class="banner info">هتعدّي على تسلسل الموافقات الأول.</div>'}`,()=>{
+    const ids=$$('#bn_us input:checked').map(x=>x.value);if(!ids.length){toast('اختار موظف واحد على الأقل');return false}
+    const amt=n($('#bn_a').value);if(amt<=0){toast('اكتب المبلغ');return false}
+    const m=$('#bn_m').value||today().slice(0,7);const ok=isAdmin();const now=new Date().toISOString();
+    ids.forEach(id=>{const u=S.users.find(x=>x.id===id);const x={id:uid(),uid:id,name:u.name,type:$('#bn_t').value,amount:amt,month:m,reason:$('#bn_r').value.trim(),status:ok?'approved':'pending',by:ME.id,byName:ME.name,createdAt:now,decidedAt:ok?now:''};
+      let nx=[];if(!ok)nx=attachChain(x,'bonus',id,[ME.id]);S.bonuses.push(x);
+      if(ok)notify([id],'🎉 اتصرفلك '+x.type,`${money(amt)} — هتنزل في مرتب ${monthName(m+'-01')}${x.reason?' — '+x.reason:''}`,'hr');else notify(nx.length?nx:['perm:bonuses_approve'],'مكافأة مستنية موافقتك',`${u.name} — ${x.type} ${money(amt)}`,'hr')});
+    BONM=m;save();toast(ok?'اتسجلت المكافأة':'اتبعتت للموافقة');render();
+  });
+}
+Object.assign(X9,{addBon:()=>{if(!(can('bonuses')||can('bonuses_approve'))){toast('مفيش عندك صلاحية');return}openBonus()},bonDel:(t,id)=>confirmBox('حذف المكافأة دي؟',()=>{S.bonuses=S.bonuses.filter(x=>x.id!==id);save();render()})});
+document.addEventListener('change',e=>{if(e.target.id==='bonm'){BONM=e.target.value;render()}});
 
 /* =====================================================================
    التشغيل

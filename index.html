@@ -583,7 +583,7 @@ function startListeners(){
   L(FB.db.doc('meta/settings'),d=>{if(d.exists)S.settings={...DEFAULT_SETTINGS,...d.data()};SYNCED.settings=JSON.stringify(S.settings);liveRender()});
   if(isClinic()){
     S.users=[ME];
-    L(FB.db.doc('clients/'+ME.clientId),d=>{S.clients=d.exists?[{...d.data(),id:d.id}]:[];liveRender()});
+    CL_LOADED=false;L(FB.db.doc('clients/'+ME.clientId),d=>{S.clients=d.exists?[{...d.data(),id:d.id}]:[];CL_LOADED=true;liveRender()});
     L(FB.db.collection('requests').where('uid','==',ME.id),snap=>{S.requests=snap.docs.map(d=>({...d.data(),id:d.id}));liveRender()});
     for(const c of ['reports','contracts','payments','sales','rentals','partSales','partReturns','orders','ratings'])L(FB.db.collection(c).where('clientId','==',ME.clientId),snap=>{S[c]=snap.docs.map(d=>({...d.data(),id:d.id}));liveRender()});
     L(FB.db.collection('catalog'),snap=>{S.catalog=snap.docs.map(d=>({...d.data(),id:d.id}));liveRender()});
@@ -620,7 +620,7 @@ async function persistOnline(){
 let lrTimer=null;
 function liveRender(){clearTimeout(lrTimer);lrTimer=setTimeout(()=>{
   if(!ME)return;
-  if(isClinic()){if(CTAB==='acc'&&!$('#modal')){const y=window.scrollY;render();window.scrollTo(0,y)}else renderClinicList();return}
+  if(isClinic()){const ae=document.activeElement,typing=ae&&$('#main')?.contains(ae)&&/INPUT|TEXTAREA|SELECT/.test(ae.tagName);if(CL_WAIT||((CTAB==='acc'||CTAB==='shop')&&!$('#modal')&&!typing)){const y=window.scrollY;render();window.scrollTo(0,y)}else renderClinicList();return}
   const ae=document.activeElement;
   if($('#modal')||VIEW==='new'||VIEW==='edit'||(ae&&$('#main').contains(ae)&&/INPUT|TEXTAREA|SELECT/.test(ae.tagName))){PENDING=true;return}
   const y=window.scrollY;render();window.scrollTo(0,y);
@@ -864,7 +864,10 @@ function openClinicReport(id){
   bg.innerHTML=`<div class="modal" style="max-width:860px"><div class="row between"><h3 style="margin:0">تقرير #${pad(r.no)}</h3><span class="row"><button class="btn pri sm" data-act="img" data-id="${r.id}">📷 حفظ كصورة</button><button class="btn sm" data-act="share" data-id="${r.id}">مشاركة</button><button class="btn sm" id="crClose">إغلاق</button></span></div><div class="sheet-wrap" style="padding:8px"><div style="width:794px">${reportHTML(r)}</div></div></div>`;
   document.body.appendChild(bg);$('#crClose').onclick=()=>closeModal();bg.onclick=e=>{if(e.target===bg)closeModal()};
 }
+let CL_WAIT=false,CL_LOADED=false;
 function viewClinic(){
+  if(!client(ME.clientId)){CL_WAIT=true;return CL_LOADED||!ONLINE?`<div class="panel"><div class="empty">مش لاقي بيانات العيادة المربوطة بالحساب ده — كلم الشركة.</div></div>`:`<div class="panel"><div class="empty">بيحمّل بيانات العيادة…</div></div>`}
+  CL_WAIT=false;
   const okT=[['req',cp('req')],['shop',cp('shop')],['acc',accTab()]].filter(x=>x[1]).map(x=>x[0]);
   if(!okT.length)return `<div class="panel"><div class="empty">حساب العيادة ده مفيهوش صلاحيات دلوقتي — كلم الشركة.</div></div>`;
   if(!okT.includes(CTAB))CTAB=okT[0];

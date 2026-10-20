@@ -1960,7 +1960,7 @@ function viewPartSales(){
   <div class="muted small">بيع قطع غيار لمهندسين من بره الشركة أو لعيادة من غير زيارة. القطعة بتتخصم من المخزن، وليها ضمان، ولو آجل بتظهر في الآجل والتحصيل.</div>
   <div class="grid g3"><div class="panel kpi"><span>مبيعات الشهر</span><b>${money(monthL.reduce((a,x)=>a+totOf('psale',x),0))}</b></div>${costs?`<div class="panel kpi"><span>ربح الشهر</span><b>${money(monthL.reduce((a,x)=>a+prof(x),0))}</b></div>`:`<div class="panel kpi"><span>فواتير الشهر</span><b>${monthL.length}</b></div>`}<div class="panel kpi"><span>آجل على المشترين</span><b>${money((S.partSales||[]).reduce((a,x)=>a+Math.max(0,balOf('psale',x)),0))}</b></div></div>
   <input id="psq" placeholder="بحث برقم الفاتورة أو المشتري أو القطعة" value="${esc(PSQ)}" style="max-width:340px">
-  <div class="panel">${list.length?`<div class="tbl-wrap"><table class="t"><thead><tr><th>رقم</th><th>التاريخ</th><th>المشتري</th><th>القطع</th><th>الإجمالي</th><th>الحالة</th></tr></thead><tbody>${list.map(x=>{const b=buyerOf(x),bal=balOf('psale',x);return `<tr class="click" data-go="psale" data-p="${x.id}"><td class="num">${pad(x.no)}</td><td>${fd(x.date)}</td><td><b>${esc(b.name)}</b><div class="muted small">${x.clientId?esc(b.clinic||'عميل'):'من بره'}${x.phone?' · <span class="num">'+esc(x.phone)+'</span>':''}</div></td><td class="small">${(x.lines||[]).map(l=>`${esc(l.name)}${l.unitCode?' ('+esc(l.unitCode)+')':''} × ${l.qty}`).join('، ')}</td><td class="num">${money(totOf('psale',x))}</td><td>${bal>0.009?`<span class="pill p-warn">آجل ${money(bal)}</span>`:'<span class="pill p-ok">مدفوع</span>'}</td></tr>`}).join('')}</tbody></table></div>`:'<div class="empty">لسه مفيش فواتير بيع</div>'}</div>`;
+  <div class="panel">${list.length?`<div class="tbl-wrap"><table class="t"><thead><tr><th>رقم</th><th>التاريخ</th><th>المشتري</th><th>القطع</th><th>الإجمالي</th><th>الحالة</th></tr></thead><tbody>${list.map(x=>{const b=buyerOf(x),bal=balOf('psale',x);return `<tr class="click" data-go="psale" data-p="${x.id}"><td class="num">${pad(x.no)}</td><td>${fd(x.date)}</td><td><b>${esc(b.name)}</b><div class="muted small">${x.clientId?esc(b.clinic||'عميل')+(x.branch?' – '+esc(x.branch):''):'من بره'}${x.phone?' · <span class="num">'+esc(x.phone)+'</span>':''}</div></td><td class="small">${(x.lines||[]).map(l=>`${esc(l.name)}${l.unitCode?' ('+esc(l.unitCode)+')':''} × ${l.qty}`).join('، ')}</td><td class="num">${money(totOf('psale',x))}</td><td>${bal>0.009?`<span class="pill p-warn">آجل ${money(bal)}</span>`:'<span class="pill p-ok">مدفوع</span>'}</td></tr>`}).join('')}</tbody></table></div>`:'<div class="empty">لسه مفيش فواتير بيع</div>'}</div>`;
 }
 function psLineHTML(kind){
   kind=kind||window._PSK||'spare';const units=kind==='cons'?[]:(S.units||[]).filter(u=>u.status==='in_stock'&&u.condition!=='damaged');
@@ -1975,7 +1975,8 @@ function openPartSale(kind){
    <label class="f">المشتري<select id="ps_bt"><option value="ext">مهندس / مشتري من بره</option><option value="client">عيادة من العيادات</option></select></label>
    <label class="f" id="ps_bn_l">اسم المشتري<input id="ps_bn" list="ps_bl"><datalist id="ps_bl">${buyers.map(([b])=>`<option value="${esc(b)}">`).join('')}</datalist></label>
    <label class="f" id="ps_bp_l">تليفونه<input id="ps_bp" type="tel"></label>
-   <label class="f span2" id="ps_bc_l" hidden>العيادة<select id="ps_bc">${CL().map(c=>`<option value="${c.id}">${esc(cName(c))}${cSub(c)?' – '+esc(cSub(c)):''}</option>`).join('')}</select></label></div>
+   <label class="f" id="ps_bc_l" hidden>العيادة<select id="ps_bc">${CL().map(c=>`<option value="${c.id}">${esc(cName(c))}${cSub(c)?' – '+esc(cSub(c)):''}</option>`).join('')}</select></label>
+   <label class="f" id="ps_bb_l" hidden>الفرع (الأوردر رايح فين)<select id="ps_bb"></select></label><div id="ps_binf" class="muted small span2"></div></div>
    <div class="sec-title">القطع</div><div id="ps_lines" class="grid" style="gap:8px">${psLineHTML()}</div><div><button type="button" class="btn sm" id="ps_add">+ قطعة</button></div>
    <div class="grid g3"><label class="f">خصم<input type="number" min="0" step="any" id="ps_disc" value="0"></label><label class="f">طريقة الدفع<select id="ps_m">${S.settings.methods.map(m=>`<option>${esc(m)}</option>`).join('')}</select></label>
    <label class="f">السداد<select id="ps_term"><option value="cash">كاش (مدفوع بالكامل)</option><option value="credit">آجل</option></select></label>
@@ -1993,7 +1994,8 @@ function openPartSale(kind){
     for(const pid in need){const p=part(pid);p.qty=n(p.qty)-need[pid]}
     lines.filter(l=>l.unitId).forEach(l=>{const u=unitById(l.unitId);u.status='sold';u.saleId=id;u.clientId=bt==='client'?$('#ps_bc').value:''});
     const c=bt==='client'?client($('#ps_bc').value):null;
-    S.partSales.push({id,no,kind,date:$('#ps_d').value,clientId:c?.id||'',buyer:c?c.name:$('#ps_bn').value.trim(),phone:c?c.phone:$('#ps_bp').value.trim(),lines,discount:disc,total,term:tm,paid:tm==='cash'?total:Math.min(total,n($('#ps_paid').value)),due:tm==='credit'?$('#ps_due').value:'',method:$('#ps_m').value,notes:$('#ps_notes').value.trim(),by:ME.id});
+    const brn=c&&!$('#ps_bb_l').hidden?$('#ps_bb').value:'';const bri=c&&brn?branchInfo(c,brn):null;
+    S.partSales.push({id,no,kind,date:$('#ps_d').value,clientId:c?.id||'',branch:brn,address:c?(bri?bri.address:c.address)||'':'',buyer:c?c.name:$('#ps_bn').value.trim(),phone:c?(bri?.phone||c.phone):$('#ps_bp').value.trim(),lines,discount:disc,total,term:tm,paid:tm==='cash'?total:Math.min(total,n($('#ps_paid').value)),due:tm==='credit'?$('#ps_due').value:'',method:$('#ps_m').value,notes:$('#ps_notes').value.trim(),by:ME.id});
     window.JUST_PS=id;save();toast('اتسجلت الفاتورة');go('psale',id);
   });
   const box=$('#ps_lines');
@@ -2003,7 +2005,10 @@ function openPartSale(kind){
   box.addEventListener('click',e=>{if(e.target.classList.contains('ps-del')){e.target.closest('.ps-row').remove();calc()}});
   $('#ps_add').onclick=()=>box.insertAdjacentHTML('beforeend',psLineHTML());
   $('#ps_disc').addEventListener('input',calc);
-  $('#ps_bt').onchange=()=>{const c=$('#ps_bt').value==='client';$('#ps_bn_l').hidden=c;$('#ps_bp_l').hidden=c;$('#ps_bc_l').hidden=!c};
+  const fillBr=()=>{const isC=$('#ps_bt').value==='client';const c=isC?client($('#ps_bc').value):null;const brs=branchesOf(c);$('#ps_bb').innerHTML=`<option value="">الفرع الرئيسي${c?.address?' — '+esc(c.address):''}</option>`+brs.map(b=>`<option value="${esc(b.name)}">${esc(b.name)}${b.address?' — '+esc(b.address):''}</option>`).join('');$('#ps_bb_l').hidden=!isC||!brs.length;showBr()};
+  const showBr=()=>{const c=$('#ps_bt').value==='client'?client($('#ps_bc').value):null;if(!c){$('#ps_binf').innerHTML='';return}const b=$('#ps_bb').value?branchInfo(c,$('#ps_bb').value):null;const a=b?b.address:c.address,p=b?.phone||c.phone;$('#ps_binf').innerHTML=a||p?`التوصيل: ${esc(a||'—')}${p?' · <span class="num">'+esc(p)+'</span>':''}`:''};
+  $('#ps_bc').onchange=fillBr;$('#ps_bb').onchange=showBr;
+  $('#ps_bt').onchange=()=>{const c=$('#ps_bt').value==='client';$('#ps_bn_l').hidden=c;$('#ps_bp_l').hidden=c;$('#ps_bc_l').hidden=!c;fillBr()};
   $('#ps_term').onchange=()=>{const cr=$('#ps_term').value==='credit';$('#ps_paid_l').hidden=!cr;$('#ps_due_l').hidden=!cr};
   $('#ps_bn').addEventListener('change',()=>{const b=buyers.find(x=>x[0]===$('#ps_bn').value);if(b&&!$('#ps_bp').value)$('#ps_bp').value=b[1]});
   calc();
@@ -2014,7 +2019,7 @@ function invoiceHTML(x){
   const cr=creditOf('psale',x.id),bal=balOf('psale',x);
   return `<div dir="rtl" style="width:794px;background:#fff;color:#16202b;font-family:Tahoma,'Segoe UI',Arial,sans-serif;font-size:13.5px;line-height:1.55;padding:30px 34px;box-sizing:border-box"><div style="border:2px solid #1b2530;padding:18px 20px">
   <div style="display:flex;justify-content:space-between;align-items:flex-start"><div><div style="font-size:19px;font-weight:700">${psKind(x)==='cons'?'فاتورة بيع مستهلكات':'فاتورة بيع قطع غيار'}</div><div style="margin-top:6px"><span style="${lab}">التاريخ : </span><b>${fd(x.date)}</b> &nbsp; <span style="${lab}">رقم : </span><b style="color:#b1243f;font-family:Arial">${pad(x.no)}</b></div></div><div style="text-align:left">${logo}<div style="direction:ltr;font-family:Arial;font-size:13px;margin-top:4px">${esc(s.sub)}</div>${s.phone?`<div style="font-size:12px;color:#5b6876">${esc(s.phone)}</div>`:''}</div></div>
-  <div style="margin-top:12px"><span style="${lab}">المشتري : </span><b>${esc(b.name)}</b>${x.phone?` <span style="${lab}">تليفون : </span><b style="font-family:Arial">${esc(x.phone)}</b>`:''}</div>
+  <div style="margin-top:12px"><span style="${lab}">المشتري : </span><b>${esc(b.name)}</b>${x.branch?` <span style="${lab}">الفرع : </span><b>${esc(x.branch)}</b>`:''}${x.phone?` <span style="${lab}">تليفون : </span><b style="font-family:Arial">${esc(x.phone)}</b>`:''}</div>${x.address?`<div style="margin-top:4px"><span style="${lab}">العنوان : </span>${esc(x.address)}</div>`:''}
   <table style="width:100%;border-collapse:collapse;margin-top:12px"><thead><tr style="background:#eef1f4"><th style="${td}">#</th><th style="${td};text-align:right">الصنف</th><th style="${td}">الكمية</th><th style="${td}">الضمان</th><th style="${td}">السعر</th><th style="${td}">الإجمالي</th></tr></thead><tbody>${(x.lines||[]).map((l,i)=>`<tr><td style="${td};text-align:center">${i+1}</td><td style="${td}">${esc(l.name)}${l.unitCode?` <span style="color:#5b6876;font-family:Arial;font-size:11px">(${esc(l.unitCode)})</span>`:''}</td><td style="${td};text-align:center">${l.qty}</td><td style="${td};text-align:center;font-size:12px">${wLabel(l)||'—'}</td><td style="${td};text-align:center">${money(l.price)}</td><td style="${td};text-align:center">${money(l.qty*l.price)}</td></tr>`).join('')}</tbody></table>
   <div style="width:280px;margin-top:10px;margin-inline-start:auto;border:1px solid #9aa5b1;border-radius:4px;padding:8px 12px">${x.discount?`<div style="display:flex;justify-content:space-between"><span>خصم</span><span>- ${money(x.discount)}</span></div>`:''}${cr?`<div style="display:flex;justify-content:space-between"><span>مرتجع</span><span>- ${money(cr)}</span></div>`:''}<div style="display:flex;justify-content:space-between;font-weight:700"><span>الإجمالي</span><span>${money(totOf('psale',x))}</span></div>${bal>0.009?`<div style="display:flex;justify-content:space-between;color:#b1243f;font-weight:700"><span>المتبقي</span><span>${money(bal)}</span></div>`:''}</div>
   ${x.notes?`<div style="margin-top:10px;${lab}">ملاحظات : <span style="color:#16202b">${esc(x.notes)}</span></div>`:''}
@@ -2042,7 +2047,7 @@ function viewPartSale(id){
 }
 async function sendPartSale(id){
   const x=(S.partSales||[]).find(y=>y.id===id);const b=buyerOf(x);
-  const txt=`${S.settings.company||'Pioneer'} — ${psTitle(x)} رقم ${pad(x.no)}\nالتاريخ: ${fd(x.date)}\n${(x.lines||[]).map(l=>`• ${l.name}${l.unitCode?' ('+l.unitCode+')':''} × ${l.qty} — ${money(l.price)}${wLabel(l)?' — ضمان '+wLabel(l):''}`).join('\n')}\nالإجمالي: ${money(totOf('psale',x))}${balOf('psale',x)>0.009?'\nالمتبقي: '+money(balOf('psale',x)):''}`;
+  const txt=`${S.settings.company||'Pioneer'} — ${psTitle(x)} رقم ${pad(x.no)}\nالتاريخ: ${fd(x.date)}${x.branch?'\nالفرع: '+x.branch:''}${x.address?'\nالعنوان: '+x.address:''}\n${(x.lines||[]).map(l=>`• ${l.name}${l.unitCode?' ('+l.unitCode+')':''} × ${l.qty} — ${money(l.price)}${wLabel(l)?' — ضمان '+wLabel(l):''}`).join('\n')}\nالإجمالي: ${money(totOf('psale',x))}${balOf('psale',x)>0.009?'\nالمتبقي: '+money(balOf('psale',x)):''}`;
   let blob=null;try{blob=await htmlBlob(invoiceHTML(x))}catch(e){}
   const fn=`فاتورة-${pad(x.no)}.png`;let done=false;
   if(blob&&!IN_ART()){const f=new File([blob],fn,{type:'image/png'});try{if(navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],text:txt});done=true}}catch(e){if(e?.name==='AbortError')return}}
@@ -3085,7 +3090,7 @@ function openDeliver(id){
     const paid=Math.min(n(o.total),n($('#dl_p').value));const no=await takeCounter('psale');const sid=uid();
     const lines=(o.lines||[]).map(l=>{const p=part(l.partId);p.qty=n(p.qty)-n(l.qty);return{partId:l.partId,name:l.name,qty:n(l.qty),price:n(l.price),cost:n(p.buy),wMonths:0,wPulses:0}});
     const term=paid>=n(o.total)-0.009?'cash':'credit';
-    S.partSales.push({id:sid,no,date:today(),clientId:o.clientId,buyer:c.name||'',phone:c.phone||'',lines,discount:0,total:n(o.total),term,paid,due:term==='credit'?$('#dl_d').value:'',method:$('#dl_m').value,notes:('طلب مستهلكات '+ordNo(o)+' '+$('#dl_n').value).trim(),by:ME.id,orderId:o.id});
+    S.partSales.push({id:sid,no,date:today(),clientId:o.clientId,branch:o.branch||'',address:(o.branch?branchInfo(c,o.branch)?.address:c.address)||'',buyer:c.name||'',phone:(o.branch&&branchInfo(c,o.branch)?.phone)||c.phone||'',lines,discount:0,total:n(o.total),term,paid,due:term==='credit'?$('#dl_d').value:'',method:$('#dl_m').value,notes:('طلب مستهلكات '+ordNo(o)+' '+$('#dl_n').value).trim(),by:ME.id,orderId:o.id});
     o.status='delivered';o.saleId=sid;o.deliveredAt=new Date().toISOString();o.updatedAt=o.deliveredAt;(o.log=o.log||[]).push({st:'delivered',at:o.deliveredAt,by:ME.name});
     notify(['perm:orders_manage'],'طلب مستهلكات اتسلم',`${c.clinic||c.name||''} — ${ordNo(o)} — اتحصّل ${money(paid)}`,'orders');
     save();toast('اتسلم الطلب واتعملت الفاتورة');render();

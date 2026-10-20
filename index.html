@@ -307,8 +307,8 @@ const DEFAULT_SETTINGS={
   ]
 };
 const COLS=['users','clients','parts','reports','contracts','payments','requests','units','partReturns','returns','catalog','tests','offers','meetings'];
-const PERM_COLS={suppliers:['suppliers','accounts','devices'],purchases:['suppliers','accounts','devices'],supplierPayments:['suppliers','accounts'],sales:['devices','ar','accounts'],rentals:['devices','ar','accounts'],stockDevices:['devices','accounts'],partSales:['part_sales','cons_sales','ar','accounts','orders_manage','orders_work'],orders:['orders_manage','orders_work','ar','accounts'],testKeys:['tests'],attendance:['attendance','payroll_prep','payroll_approve'],salaries:['salary_set','payroll_prep','payroll_approve'],payroll:['payroll_prep','payroll_approve']};
-const OWN_COLS={custody:['custody','accounts'],hr:['hr','payroll_prep','payroll_approve'],evals:['evals'],punches:['hr','payroll_prep','payroll_approve'],payslips:['payroll_approve'],testAnswers:['tests'],empFiles:['emp_files']};
+const PERM_COLS={suppliers:['suppliers','accounts','devices'],purchases:['suppliers','accounts','devices'],supplierPayments:['suppliers','accounts'],sales:['devices','ar','accounts'],rentals:['devices','ar','accounts'],stockDevices:['devices','accounts'],partSales:['part_sales','cons_sales','ar','accounts','orders_manage','orders_work'],orders:['orders_manage','orders_work','ar','accounts'],testKeys:['tests'],attendance:['attendance','payroll_prep','payroll_approve'],salaries:['salary_set','payroll_prep','payroll_approve'],payroll:['payroll_prep','payroll_approve'],contractReqs:['contracts','clients']};
+const OWN_COLS={custody:['custody','accounts'],hr:['hr','payroll_prep','payroll_approve','loans','custody'],evals:['evals'],punches:['hr','payroll_prep','payroll_approve'],payslips:['payroll_approve'],testAnswers:['tests'],empFiles:['emp_files']};
 const SPECIAL_COLS=['notifs','ratings','penalties','empDocs','bonuses'];
 const ALL_COLS=[...COLS,...Object.keys(PERM_COLS),...Object.keys(OWN_COLS),...SPECIAL_COLS];
 const DEL_PERM={parts:'stock_edit',units:'stock_edit',returns:'stock_edit',reports:'delete',contracts:'delete',payments:'delete',requests:'requests',partReturns:'returns',purchases:'suppliers',supplierPayments:'suppliers',sales:'devices',rentals:'devices',stockDevices:'devices',partSales:'part_sales',custody:'custody',hr:'hr',orders:'orders_manage',evals:'evals',penalties:'penalties_approve',catalog:'stock_edit',ratings:'evals',punches:'hr',tests:'tests',testKeys:'tests',testAnswers:'tests',empFiles:'emp_files',attendance:'attendance',salaries:'salary_set',payroll:'payroll_approve',payslips:'payroll_approve',bonuses:'bonuses_approve'};
@@ -483,6 +483,7 @@ const PERMS=[
  ['suppliers','الموردين والمشتريات','المالية'],
  ['suppliers_delete','حذف مورد','المالية'],
  ['ar','الآجل والتحصيل من العملاء','المالية'],
+ ['client_pay','تسجيل دفعة على حساب العميل (بتتخصم من مديونيته)','المالية'],
  ['accounts','حسابات الشركة','المالية'],
  ['delete','حذف تقارير وتحصيلات وعقود','المالية'],
  ['orders_manage','استلام طلبات المستهلكات وتفويضها لموظف','المستهلكات'],
@@ -504,13 +505,15 @@ const PERMS=[
  ['payroll_approve','الموافقة النهائية على المرتبات ونزولها (المدير العام)','المرتبات'],
  ['bonuses','كتابة مكافآت للموظفين (بتعدّي على الموافقات)','المرتبات'],
  ['bonuses_approve','اعتماد المكافآت','المرتبات'],
+ ['loans','الموافقة على السلف ومتابعتها','المرتبات'],
  ['tests','عمل اختبارات للمهندسين وتصحيحها','الموظفين'],
+ ['home_money','يشوف أرقام الفلوس في الرئيسية (مبيعات الشهر، الآجل، تحصيلاته)','الإدارة'],
  ['users','إدارة المستخدمين والصلاحيات','الإدارة'],
  ['settings','الإعدادات','الإدارة']
 ];
 const ROLE_PERMS={
  engineer:{reports_write:1,clients:1,stock:1},
- accountant:{reports_all:1,clients:1,contracts:1,stock:1,stock_costs:1,part_sales:1,returns:1,devices:1,suppliers:1,ar:1,accounts:1,custody:1},
+ accountant:{home_money:1,client_pay:1,reports_all:1,clients:1,contracts:1,stock:1,stock_costs:1,part_sales:1,returns:1,devices:1,suppliers:1,ar:1,accounts:1,custody:1},
  staff:{},
  manager:{},
  courier:{orders_work:1},
@@ -592,7 +595,7 @@ function startListeners(){
     S.users=[ME];
     CL_LOADED=false;L(FB.db.doc('clients/'+ME.clientId),d=>{S.clients=d.exists?[{...d.data(),id:d.id}]:[];CL_LOADED=true;liveRender()});
     L(FB.db.collection('requests').where('uid','==',ME.id),snap=>{S.requests=snap.docs.map(d=>({...d.data(),id:d.id}));liveRender()});
-    for(const c of ['reports','contracts','payments','sales','rentals','partSales','partReturns','orders','ratings'])L(FB.db.collection(c).where('clientId','==',ME.clientId),snap=>{S[c]=snap.docs.map(d=>({...d.data(),id:d.id}));liveRender()});
+    for(const c of ['reports','contracts','payments','sales','rentals','partSales','partReturns','orders','ratings','contractReqs'])L(FB.db.collection(c).where('clientId','==',ME.clientId),snap=>{S[c]=snap.docs.map(d=>({...d.data(),id:d.id}));liveRender()});
     L(FB.db.collection('catalog'),snap=>{S.catalog=snap.docs.map(d=>({...d.data(),id:d.id}));liveRender()});
     L(FB.db.collection('offers'),snap=>{S.offers=snap.docs.map(d=>({...d.data(),id:d.id}));liveRender()});
     return;
@@ -834,10 +837,10 @@ document.addEventListener('submit',async e=>{
 let CF={photos:[],kind:'fault',urgent:false,doneId:null};
 let CTAB='req';
 function clinicTabs(){const bal=cp('acc')?clinicBalance().total:0;const sh=cp('shop');return `<div class="seg" style="width:100%">${cp('req')?`<button data-ctab="req" class="${CTAB==='req'?'on':''}" style="flex:1">طلب صيانة</button>`:''}${sh?`<button data-ctab="shop" class="${CTAB==='shop'?'on':''}" style="flex:1">المستهلكات${Object.values(CART).some(v=>v>0)?' <span class="cnt">🛒</span>':''}</button>`:''}${accTab()?`<button data-ctab="acc" class="${CTAB==='acc'?'on':''}" style="flex:1">حسابي${bal>0.009?` <span class="cnt">${money(bal)}</span>`:''}</button>`:''}</div>`}
-const CPERMS=[['req','طلب صيانة أو زيارة'],['shop','طلب مستهلكات ومستلزمات'],['acc','يشوف حسابه والمديونية والمدفوعات'],['reports','يشوف تقارير الزيارات ويحفظها'],['warranty','يشوف ضمان قطع الغيار'],['devices','يشوف أجهزته وأقساطها'],['rate','يقيّم الزيارات والمهندسين']];
+const CPERMS=[['req','طلب صيانة أو زيارة'],['contract','يطلب عقد صيانة جديد أو تجديد العقد'],['shop','طلب مستهلكات ومستلزمات'],['acc','يشوف حسابه والمديونية والمدفوعات'],['reports','يشوف تقارير الزيارات ويحفظها'],['warranty','يشوف ضمان قطع الغيار'],['devices','يشوف أجهزته وأقساطها'],['rate','يقيّم الزيارات والمهندسين']];
 function cpOf(c,k){if(!c)return false;if(k==='shop')return !!c.shop;return (c.portal||{})[k]!==false}
 const cp=k=>cpOf(client(ME?.clientId),k);
-const accTab=()=>['acc','reports','warranty','devices'].some(cp);
+const accTab=()=>['acc','reports','warranty','devices','contract'].some(cp);
 function cpBox(c){return `<div class="perm-grp" id="cpBox"><b>صلاحيات العيادة في السيستم</b><span class="muted small">بتسري على كل حسابات الدخول بتاعة العيادة دي</span>${CPERMS.map(([k,l])=>`<label><input type="checkbox" class="cpm" value="${k}" ${cpOf(c,k)?'checked':''}> ${l}</label>`).join('')}</div>`}
 function readCpBox(c){if(!c||!$('#cpBox'))return;c.portal=Object.fromEntries(CPERMS.filter(([k])=>k!=='shop').map(([k])=>[k,!!$(`#cpBox .cpm[value="${k}"]`)?.checked]));c.shop=!!$('#cpBox .cpm[value="shop"]')?.checked}
 function clinicBalance(){
@@ -864,7 +867,7 @@ function viewClinicAccount(){
   </div>
   ${B.items.length?`<div class="panel"><h3>المستحقات ومواعيدها</h3>${B.items.map(i=>`<div class="row between" style="padding:8px 0;border-bottom:1px solid var(--line)"><span><b>${esc(i.label)}</b><br><span class="small muted">ميعاد السداد ${fd(i.due)}</span></span><span class="grid" style="gap:2px;justify-items:end"><b class="num">${money(i.bal)}</b>${dueBadge(i.due)}</span></div>`).join('')}</div>`:''}`:''}
   ${cp('devices')?clinicDevicesPanel():''}
-  ${c.type==='contract'||S.contracts.length?`<div class="panel"><h3>عقد الصيانة</h3>${k?`<div>ساري من ${fd(k.start)} لحد <b>${fd(k.end)}</b>${daysTo(k.end)<=30?` <span class="pill p-warn">بينتهي بعد ${daysTo(k.end)} يوم</span>`:''}</div><div class="muted small">قيمة العقد ${money(k.value)} · ${k.branch?'فرع '+esc(k.branch):'كل الفروع'} · الزيارات: ${contractUsed(k)}${k.visits?' من '+k.visits:''}${k.partsCovered?' · قطع الغيار داخل العقد':''}</div>${k.details||k.notes?`<div class="small" style="white-space:pre-wrap;margin-top:4px">${esc(k.details||k.notes)}</div>`:''}`:'<div class="muted">مفيش عقد ساري دلوقتي — كلمنا للتجديد.</div>'}</div>`:''}
+  ${c.type==='contract'||S.contracts.length||cp('contract')||(S.contractReqs||[]).length?`<div class="panel"><h3>عقد الصيانة</h3>${k?`<div>ساري من ${fd(k.start)} لحد <b>${fd(k.end)}</b>${daysTo(k.end)<=30?` <span class="pill p-warn">بينتهي بعد ${daysTo(k.end)} يوم</span>`:''}</div><div class="muted small">قيمة العقد ${money(k.value)} · ${k.branch?'فرع '+esc(k.branch):'كل الفروع'} · الزيارات: ${contractUsed(k)}${k.visits?' من '+k.visits:''}${k.partsCovered?' · قطع الغيار داخل العقد':''}</div>${k.details||k.notes?`<div class="small" style="white-space:pre-wrap;margin-top:4px">${esc(k.details||k.notes)}</div>`:''}`:`<div class="muted">مفيش عقد ساري دلوقتي${cp('contract')?'':' — كلمنا للتجديد'}.</div>`}${clinicContractPanel()}</div>`:''}
   ${cp('warranty')?`<div class="panel"><h3>ضمان قطع الغيار</h3><div class="muted small" style="margin-bottom:6px">الضمان بالنبضات بيتحسب من عداد الجهاز (PP) في آخر زيارة.</div>${warrantyTable(warrantyRows(ME.clientId),false)}</div>`:''}
   ${cp('reports')?`<div class="panel"><h3>الزيارات والتقارير <span class="muted small">(${reps.length})</span></h3>
     ${reps.length?`<div class="grid" style="gap:0">${reps.map(r=>{const b=balOf('report',r);return `<button class="row between" data-act="clinicReport" data-id="${r.id}" style="all:unset;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--line)"><span><b>${fd(r.date)}</b> <span class="muted small num">#${pad(r.no)}</span><br><span class="small muted">${esc(r.work||'')} — ${esc(r.device?.name||'')} ${esc(r.device?.model||'')}${r.parts.length?` — ${r.parts.length} قطعة غيار`:''}</span></span>${cp('acc')?`<span class="grid" style="gap:2px;justify-items:end"><span class="num">${money(totOf('report',r))}</span>${b>0.009?`<span class="pill p-warn">باقي ${money(b)}</span>`:'<span class="pill p-ok">مدفوع</span>'}</span>`:''}</button>${!cp('rate')?'':(S.ratings||[]).some(x=>x.reportId===r.id)?`<div class="small muted" style="padding:2px 0 6px">تقييمك: ${starsTxt((S.ratings.find(x=>x.reportId===r.id)||{}).eng)}</div>`:`<div style="padding:2px 0 6px"><button class="btn sm" data-act="rateVisit" data-id="${r.id}">⭐ قيّم الزيارة</button></div>`}`}).join('')}</div><div class="muted small" style="margin-top:6px">دوس على أي زيارة علشان تشوف التقرير وتحفظه صورة.</div>`:'<div class="empty">لسه مفيش زيارات</div>'}
@@ -985,12 +988,12 @@ function viewHomeEng(){
   ${(S.orders||[]).filter(o=>o.assignedTo===ME.id&&['assigned','preparing','out'].includes(o.status)).length?`<div class="banner info row between"><span>معاك <b>${(S.orders||[]).filter(o=>o.assignedTo===ME.id&&['assigned','preparing','out'].includes(o.status)).length}</b> طلب مستهلكات لازم يتجهز ويتوصل.</span><button class="btn sm" data-go="orders">الطلبات</button></div>`:''}
   ${myMeetings().filter(m=>m.date>=today()&&daysTo(m.date)<=3).map(m=>`<div class="banner info row between"><span>📅 اجتماع <b>${esc(m.title)}</b> — ${dayLabel(m.date)} الساعة ${esc(m.time)} — ${m.mode==='online'?(m.link?`<a href="${esc(m.link)}" target="_blank" rel="noopener">رابط الاجتماع</a>`:'أونلاين'):esc(m.place||'في الشركة')}</span><button class="btn sm" data-go="meetings">التفاصيل</button></div>`).join('')}
   ${approvalItems().length?`<div class="banner info row between"><span>فيه <b>${approvalItems().length}</b> طلب مستني موافقتك.</span><button class="btn sm" data-act="goAppr">الطلبات</button></div>`:''}
-  ${myHr.map(x=>`<div class="banner ${x.status==='approved'?'info':''}">طلبك (${x.kind==='leave'?'إجازة':'مأمورية'} ${fd(x.from)}) ${x.status==='approved'?'اتوافق عليه ✓':'اترفض'}${x.note?' — '+esc(x.note):''}</div>`).join('')}
+  ${myHr.map(x=>`<div class="banner ${x.status==='approved'?'info':''}">طلبك (${HR_KL[x.kind]||'مأمورية'} ${fd(x.from||x.date||(x.createdAt||'').slice(0,10))}) ${x.status==='approved'?'اتوافق عليه ✓':'اترفض'}${x.note?' — '+esc(x.note):''}</div>`).join('')}
   ${cu.cash||cu.L.length?`<div class="panel row between"><span>العهدة اللي معاك: <b class="num">${money(cu.bal)}</b> <span class="muted small">(استلمت ${money(cu.cash)} · صرفت ${money(cu.spent)})</span>${cu.toolsWith.length?` · <span class="muted small">${cu.toolsWith.length} عدة معاك</span>`:''}</span><button class="btn sm" data-go="custody">التفاصيل</button></div>`:''}
   ${punchCard()}
   <div class="panel"><h3>أوردرات النهارده <span class="muted">(${todayO.length})</span></h3><div class="grid">${todayO.length?todayO.map(r=>orderCard(r,true)).join(''):'<div class="empty">مفيش أوردرات ليك النهارده</div>'}</div></div>
   ${next.length?`<div class="panel"><h3>الأوردرات الجاية</h3><div class="grid">${next.map(r=>orderCard(r,true)).join('')}</div></div>`:''}
-  <div class="grid g3"><div class="panel kpi"><span>تقاريري الشهر ده</span><b>${monthR.length}</b></div><div class="panel kpi"><span>اللي حصّلته الشهر ده</span><b>${money(coll)}</b></div><div class="panel kpi"><span>تقارير لسه عليها فلوس</span><b>${my.filter(r=>balOf('report',r)>0.009).length}</b></div></div>
+  <div class="grid g3"><div class="panel kpi"><span>تقاريري الشهر ده</span><b>${monthR.length}</b></div>${can('home_money')?`<div class="panel kpi"><span>اللي حصّلته الشهر ده</span><b>${money(coll)}</b></div><div class="panel kpi"><span>تقارير لسه عليها فلوس</span><b>${my.filter(r=>balOf('report',r)>0.009).length}</b></div>`:''}</div>
   <div class="panel"><h3>آخر تقاريري</h3>${reportsTable(last)}</div>`;
 }
 function revenueChart(){
@@ -1041,11 +1044,11 @@ function viewHomeAdmin(sub){
   ${newReq.length?`<div class="banner row between"><span>فيه <b>${newReq.length}</b> طلب من العيادات مستني تحدد له مهندس${newReq.some(r=>r.urgent)?' (منهم مستعجل)':''}.</span><button class="btn sm" data-go="requests">افتح الطلبات</button></div>`:''}
   <div class="grid g4">
     <div class="panel kpi"><span>تقارير الشهر</span><b>${monthR.length}</b></div>
-    <div class="panel kpi"><span>إجمالي فواتير الشهر</span><b>${money(rev)}</b></div>
-    ${can('ar')||can('accounts')?`<div class="panel kpi"><span>مستحقات آجلة</span><b style="color:var(--accent)">${money(ar)}</b></div>`:''}
+    ${can('home_money')?`<div class="panel kpi"><span>إجمالي فواتير الشهر</span><b>${money(rev)}</b></div>`:''}
+    ${can('home_money')?`<div class="panel kpi"><span>مستحقات آجلة</span><b style="color:var(--accent)">${money(ar)}</b></div>`:''}
     <div class="panel kpi"><span>قطع تحت الحد الأدنى</span><b>${low.length}</b></div>
   </div>
-  ${can('accounts')||can('ar')?revenueChart():''}
+  ${can('home_money')?revenueChart():''}
   ${can('requests')?`<div class="panel"><div class="row between"><h3 style="margin:0">زيارات النهارده</h3><button class="btn sm" data-go="requests">كل الطلبات</button></div><div style="margin-top:8px">${boardHTML(today())}</div></div>`:''}
   <div class="grid g2">
     ${can('ar')?'':'<!--'}<div class="panel"><h3>تحصيلات متأخرة أو خلال أسبوع</h3>
@@ -1383,7 +1386,7 @@ function viewReport(id){
    <div class="row"><button class="btn pri" data-act="sendRep" data-id="${r.id}">📤 ابعت للعميل</button><button class="btn" data-act="img" data-id="${r.id}">📷 حفظ كصورة</button>${IN_ART()?'':'<button class="btn" data-act="print">طباعة / PDF</button>'}</div></div>
   <div class="row no-print">${r.sentAt?`<span class="pill p-info">اتبعت للعميل ${fdt(r.sentAt)}</span>`:'<span class="pill p-warn">لسه متبعتش للعميل</span>'}${bal>0.009?`<span class="pill p-warn">متبقي ${money(bal)}</span> ${dueBadge(r.due||r.date)} <button class="btn sm" data-act="collect" data-type="report" data-id="${r.id}">تسجيل تحصيل</button>`:bal<-0.009?`<span class="pill p-info">مستحق للعميل ${money(-bal)}</span>`:'<span class="pill p-ok">مدفوع بالكامل</span>'}
    <span style="flex:1"></span>${mine(r)&&(can('reports_write')||can('reports_all'))?`<button class="btn sm" data-go="edit" data-p="${r.id}">تعديل</button>`:''}${can('delete')?`<button class="btn sm danger" data-act="delReport" data-id="${r.id}">حذف</button>`:''}</div>
-  ${firstPay||pays.length?`<div class="panel no-print"><h3>استلام الفلوس</h3>${firstPay}${pays.map(p=>`<div class="row between" style="padding:6px 0;border-bottom:1px solid var(--line)"><span>${fd(p.date)} — ${esc(p.method)} — <span class="pill p-ok">استلم ${esc(userName(p.by)||'—')}</span></span><span class="row"><span class="num">${money(p.amount)}</span>${p.receipt?`<button class="btn sm" data-act="showImg" data-src="p:${p.id}">الإيصال</button>`:''}</span></div>`).join('')}</div>`:''}
+  ${firstPay||pays.length?`<div class="panel no-print"><h3>استلام الفلوس</h3>${firstPay}${pays.map(p=>`<div class="row between" style="padding:6px 0;border-bottom:1px solid var(--line)"><span>${fd(p.date)} — ${esc(p.method)} — <span class="pill p-ok">استلم ${esc(userName(p.by)||(p.lump?'حساب الشركة':'—'))}</span></span><span class="row"><span class="num">${money(p.amount)}</span>${p.receipt?`<button class="btn sm" data-act="showImg" data-src="p:${p.id}">الإيصال</button>`:''}</span></div>`).join('')}</div>`:''}
   ${r.parts.length&&(can('returns')||rets.length)?`<div class="panel no-print"><h3>القطع المركبة والمرتجع</h3>${r.parts.map((p,i)=>{const rq=retQty('report',r.id,i);return `<div class="row between" style="padding:6px 0;border-bottom:1px solid var(--line)"><span><b>${esc(p.name)}</b>${p.unitCode?` <span class="muted num small">${esc(p.unitCode)}</span>`:''} × ${p.qty}${rq?` <span class="pill p-warn">اترجع ${rq}</span>`:''}</span>${can('returns')&&rq<n(p.qty)?`<button class="btn sm" data-act="retLine" data-type="report" data-id="${r.id}" data-sub="${i}">مرتجع</button>`:''}</div>`}).join('')}${rets.map(x=>`<div class="small muted" style="padding:4px 0">مرتجع ${fd(x.date)}: ${esc(x.name)} × ${x.qty} — ${esc(x.reason||'')} ${x.credit?`— ${x.creditMode==='refund'?'اترد':'اتخصم'} ${money(x.credit)}`:''}</div>`).join('')}</div>`:''}
   ${oldU.length?`<div class="panel no-print"><h3>القطع القديمة اللي اتستلمت</h3><div class="row">${oldU.map(u=>`<span class="chip"><b class="num">${esc(u.code)}</b> ${esc(u.name)} ${condPill(u.condition)}</span>`).join('')}</div><div class="muted small">موجودة في المخزن ← القطع المكوّدة.</div></div>`:''}
   <div class="sheet-wrap"><div style="width:794px">${reportHTML(r)}</div></div>`;
@@ -1484,7 +1487,7 @@ function viewClient(id){
   ${(()=>{const sl=(S.sales||[]).filter(x=>x.clientId===id),rn=(S.rentals||[]).filter(x=>x.clientId===id);if(!sl.length&&!rn.length)return '';return `<div class="panel"><h3>أجهزة اشترتها أو أجّرتها من الشركة</h3>${sl.map(x=>{const st=saleState(x);return `<div class="row between click" data-go="dev" data-p="sale:${x.id}" style="padding:8px 0;border-bottom:1px solid var(--line);cursor:pointer"><span><b>${esc(devName(x.device))}</b> <span class="muted small">بيع ${fd(x.date)} — ${x.cash?'كاش':'تقسيط'} ${money(x.price)}</span></span>${fin?`<span class="pill ${st.rem<=0.009?'p-ok':st.late.length?'p-bad':'p-info'}">${st.rem<=0.009?'خلص':'باقي '+money(st.rem)}</span>`:''}</div>`}).join('')}${rn.map(x=>`<div class="row between click" data-go="dev" data-p="rent:${x.id}" style="padding:8px 0;border-bottom:1px solid var(--line);cursor:pointer"><span><b>${esc(devName(x.device))}</b> <span class="muted small">إيجار من ${fd(x.start)} — ${money(x.rent)} في الشهر</span></span>${x.end?'<span class="pill p-mut">انتهى</span>':'<span class="pill p-info">ساري</span>'}</div>`).join('')}</div>`})()}
   <div class="panel"><h3>سجل أعطال العيادة</h3>${faultTable(id)}</div>
   <div class="panel"><h3>ضمان قطع الغيار</h3>${warrantyTable(warrantyRows(id),false)}</div>
-  ${fin&&items.length?`<div class="panel"><h3>المستحقات المفتوحة</h3>${items.map(i=>`<div class="row between" style="padding:6px 0;border-bottom:1px solid var(--line)"><span>${esc(i.label)} <span class="muted small">— ${fd(i.due)}</span></span><span class="row"><b class="num">${money(i.bal)}</b>${dueBadge(i.due)}${can('ar')?`<button class="btn sm pri" data-act="collect" data-type="${i.type}" data-id="${i.x.id}" data-sub="${i.sub??''}">تحصيل</button>`:''}</span></div>`).join('')}</div>`:''}
+  ${fin&&items.length?`<div class="panel"><div class="row between"><h3 style="margin:0">المستحقات المفتوحة</h3>${can('client_pay')?`<button class="btn sm pri" data-act="clientPay" data-id="${c.id}">+ تسجيل دفعة على الحساب</button>`:''}</div>${items.map(i=>`<div class="row between" style="padding:6px 0;border-bottom:1px solid var(--line)"><span>${esc(i.label)} <span class="muted small">— ${fd(i.due)}</span></span><span class="row"><b class="num">${money(i.bal)}</b>${dueBadge(i.due)}${can('ar')?`<button class="btn sm pri" data-act="collect" data-type="${i.type}" data-id="${i.x.id}" data-sub="${i.sub??''}">تحصيل</button>`:''}</span></div>`).join('')}</div>`:''}
   <div class="panel"><div class="row between"><h3 style="margin:0">قطع الغيار اللي اتركبت عنده</h3>${can('stock')?`<button class="btn sm" data-act="mvClient" data-id="${c.id}">التفاصيل</button>`:''}</div>
     ${pa.length?`<div class="tbl-wrap" style="margin-top:8px"><table class="t"><thead><tr><th>القطعة</th><th>العدد</th><th>القيمة</th><th>آخر مرة</th></tr></thead><tbody>${pa.map(p=>`<tr><td>${esc(p.name)}</td><td><b>${p.qty}</b></td><td class="num">${money(p.val)}</td><td>${fd(p.last)}</td></tr>`).join('')}</tbody></table></div>`:'<div class="empty" style="margin-top:8px">لسه مفيش قطع اتركبت</div>'}</div>
   <div class="panel"><h3>سجل الزيارات والتقارير</h3><div style="margin-top:8px">${reportsTable(reps)}</div></div>`;
@@ -1502,7 +1505,7 @@ function viewContracts(){
   let F=window._KF||'active';
   const ks=S.contracts.filter(k=>F==='all'||(F==='active'?k.end>=today():k.end<today())).sort((a,b)=>a.end.localeCompare(b.end));
   const act=S.contracts.filter(k=>k.start<=today()&&k.end>=today());
-  return `<div class="row between"><h2>عقود الصيانة</h2><button class="btn pri" data-act="addContract">+ عقد جديد</button></div>
+  return `<div class="row between"><h2>عقود الصيانة</h2><button class="btn pri" data-act="addContract">+ عقد جديد</button></div>${contractReqsPanel()}
   <div class="grid g3"><div class="panel kpi"><span>عقود سارية</span><b>${act.length}</b></div>${fin?`<div class="panel kpi"><span>قيمة العقود السارية</span><b>${money(act.reduce((a,k)=>a+n(k.value),0))}</b></div><div class="panel kpi"><span>متبقي تحصيله من العقود</span><b>${money(S.contracts.reduce((a,k)=>a+Math.max(0,balOf('contract',k)),0))}</b></div>`:`<div class="panel kpi"><span>بتخلص خلال شهر</span><b>${act.filter(k=>daysTo(k.end)<=30).length}</b></div>`}</div>
   <div class="seg">${[['active','السارية والجاية'],['ended','المنتهية'],['all','الكل']].map(([k,l])=>`<button data-kf="${k}" class="${F===k?'on':''}">${l}</button>`).join('')}</div>
   <div class="panel">${ks.length?`<div class="tbl-wrap"><table class="t"><thead><tr><th>العيادة</th><th>الفرع</th><th>المدة</th><th>الزيارات</th><th>القطع</th>${fin?'<th>القيمة</th><th>المتبقي</th>':''}<th>الحالة</th><th></th></tr></thead><tbody>${ks.map(k=>{const c=client(k.clientId);const st=contractState(k);const b=balOf('contract',k);return `<tr><td><a href="#" data-go="client" data-p="${k.clientId}"><b>${esc(c?.name||'—')}</b></a><div class="muted small">${esc(c?.clinic||'')}</div></td><td>${esc(k.branch||'كل الفروع')}</td><td class="small">${fd(k.start)} → ${fd(k.end)}</td><td>${contractUsed(k)}${k.visits?' / '+k.visits:''}</td><td class="small">${k.partsCovered?'داخل العقد':'لوحدها'}</td>${fin?`<td class="num">${money(k.value)}</td><td class="num">${b>0.009?money(b):'—'}</td>`:''}<td><span class="pill ${st[1]}">${st[0]}</span></td><td><div class="row" style="flex-wrap:nowrap"><button class="btn sm" data-act="editContract" data-id="${k.id}">تفاصيل</button><button class="btn sm ghost" data-act="renewContract" data-id="${k.id}">تجديد</button></div></td></tr>`}).join('')}</tbody></table></div>`:'<div class="empty">مفيش عقود هنا</div>'}</div>`;
@@ -1599,7 +1602,7 @@ function viewStock(){
   const val=SPARES().reduce((a,p)=>a+n(p.qty)*n(p.buy),0),uval=(S.units||[]).filter(u=>u.status==='in_stock').reduce((a,u)=>a+unitCost(u),0);
   const sold={};S.reports.forEach(r=>r.parts.forEach(p=>{if(!p.unitId)sold[p.partId]=(sold[p.partId]||0)+p.qty}));
   return head+`
-  ${costs?`<div class="grid g3"><div class="panel kpi"><span>عدد الأصناف</span><b>${SPARES().length}</b></div><div class="panel kpi"><span>قيمة الأصناف (بسعر الشراء)</span><b>${money(val)}</b></div><div class="panel kpi"><span>قيمة القطع المكوّدة</span><b>${money(uval)}</b></div></div>`:''}
+  ${costs?`<div class="grid g2"><div class="panel kpi"><span>عدد الأصناف</span><b>${SPARES().length}</b></div><div class="panel kpi"><span>قيمة الأصناف (بسعر الشراء)</span><b>${money(val)}</b></div></div>`:''}
   <div class="row between"><div class="row"><input id="sq" placeholder="بحث باسم القطعة أو الكود" value="${esc(SQ)}" style="max-width:300px"><select id="scf" style="width:auto"><option value="">كل الحالات</option>${Object.entries(CONDS).map(([k,[l]])=>`<option value="${k}" ${k===SCF?'selected':''}>${l}</option>`).join('')}</select></div>${edit?'<button class="btn pri" data-act="addPart">+ صنف جديد</button>':''}</div>
   <div class="panel">${list.length?`<div class="tbl-wrap"><table class="t"><thead><tr><th>القطعة</th><th>الكود</th><th>الحالة</th>${costs?'<th>سعر الشراء</th>':''}<th>سعر البيع</th><th>الضمان للعميل</th><th>المتاح</th><th>اتركب</th>${edit?'<th></th>':''}</tr></thead><tbody>${list.map(p=>`<tr><td><b>${esc(p.name)}</b></td><td class="num">${esc(p.code)}${p.ref?`<div class="muted small">${esc(p.ref)}</div>`:''}</td><td>${condPill(p.condition)}</td>${costs?`<td class="num">${money(p.buy)}</td>`:''}<td class="num">${money(p.sell)}</td><td class="small">${wLabel(p)||'—'}</td><td>${n(p.qty)<=n(p.min)?`<span class="pill p-bad">${n(p.qty)}</span>`:`<span class="pill p-ok">${n(p.qty)}</span>`}</td><td>${sold[p.id]?`<a href="#" data-act="mvPart" data-id="${p.id}">${sold[p.id]} ← فين؟</a>`:'0'}</td>${edit?`<td><div class="row" style="flex-wrap:nowrap"><button class="btn sm" data-act="restock" data-id="${p.id}">+ كمية</button><button class="btn sm ghost" data-act="editPart" data-id="${p.id}">تعديل</button></div></td>`:''}</tr>`).join('')}</tbody></table></div>`:'<div class="empty">مفيش أصناف بالفلتر ده</div>'}</div>`;
 }
@@ -2203,13 +2206,13 @@ function custodyBody(uid,manage){
 }
 function viewCustody(){
   const manage=can('custody');
-  const my=`<div class="row between"><h2>العهدة والمصاريف</h2></div>${custodyBody(ME.id,false)}`;
+  const my=`<div class="row between"><h2>العهدة والمصاريف</h2><button class="btn" data-act="hrCust">+ طلب عهدة</button></div>${custodyBody(ME.id,false)}`;
   if(!manage)return my;
   const staff=STAFF().filter(u=>u.id!==ME.id||custOf(u.id).L.length);
   const rows=staff.map(u=>({u,...custOf(u.id)}));
   const pend=(S.custody||[]).filter(x=>x.kind==='expense'&&x.status==='pending'&&x.uid!==ME.id);
   return `<div class="row between"><h2>عهد الموظفين</h2><div class="seg"><button data-ctab2="all" class="${(window._CT2||'all')==='all'?'on':''}">كل الموظفين</button><button data-ctab2="me" class="${window._CT2==='me'?'on':''}">عهدتي أنا</button></div></div>
-  ${window._CT2==='me'?custodyBody(ME.id,true):`
+  ${custReqPanel()}${window._CT2==='me'?custodyBody(ME.id,true):`
   <div class="grid g3"><div class="panel kpi"><span>فلوس مع الموظفين</span><b>${money(rows.reduce((a,r)=>a+Math.max(0,r.bal),0))}</b></div><div class="panel kpi"><span>مصاريف مستنية مراجعة</span><b>${pend.length}</b></div><div class="panel kpi"><span>مصاريف الشهر</span><b>${money((S.custody||[]).filter(x=>x.kind==='expense'&&x.status!=='rejected'&&x.date.startsWith(today().slice(0,7))).reduce((a,x)=>a+n(x.amount),0))}</b></div></div>
   ${pend.length?`<div class="panel"><h3>مصاريف مستنية مراجعتك</h3>${pend.map(x=>{const c=client(x.clientId);return `<div class="row between" style="padding:6px 0;border-bottom:1px solid var(--line)"><span><b>${esc(userName(x.uid))}</b> — ${fd(x.date)} — ${esc(x.type)}: ${esc(x.purpose||'')} ${c?'<span class="muted small">('+esc(c.name)+(x.branch?' – '+esc(x.branch):'')+')</span>':''}</span><span class="row"><b class="num">${money(x.amount)}</b>${x.photo?`<button class="btn sm" data-act="showImg" data-src="cu:${x.id}">الإيصال</button>`:''}${canAct(x,'expense')?`<button class="btn sm pri" data-act="expOk" data-id="${x.id}">اعتماد</button><button class="btn sm ghost" data-act="expNo" data-id="${x.id}">رفض</button>`:chainLine(x)}</span></div>`}).join('')}</div>`:''}
   <div class="panel">${rows.length?`<div class="tbl-wrap"><table class="t"><thead><tr><th>الموظف</th><th>استلم</th><th>صرف</th><th>الباقي معاه</th><th>عدة معاه</th><th>آخر مصروف</th></tr></thead><tbody>${rows.map(r=>{const last=r.L.filter(x=>x.kind==='expense').sort((a,b)=>b.date.localeCompare(a.date))[0];return `<tr class="click" data-go="cust" data-p="${r.u.id}"><td><b>${esc(r.u.name)}</b><div class="muted small">${ROLE[r.u.role]}</div></td><td class="num">${money(r.cash)}</td><td class="num">${money(r.spent)}</td><td class="num"><b>${money(r.bal)}</b></td><td>${r.toolsWith.length}</td><td class="small">${last?fd(last.date)+' — '+esc(last.type):'—'}${r.pending.length?` <span class="pill p-warn">${r.pending.length} جديد</span>`:''}</td></tr>`}).join('')}</tbody></table></div>`:'<div class="empty">مفيش موظفين</div>'}</div>`}`;
@@ -2264,13 +2267,13 @@ const LEAVE_T=['سنوية','اعتيادية','عارضة','مرضية','بدل
 const MISSION_T={in:'مأمورية حضور (بدل بصمة الحضور)',out:'مأمورية انصراف (بدل بصمة الانصراف)',day:'مأمورية خلال اليوم',travel:'مأمورية سفر (محافظة تانية)'};
 const HR_ST={pending:['مستني موافقة','p-warn'],approved:['اتوافق','p-ok'],rejected:['اترفض','p-bad']};
 const leaveDays=x=>leaveDaysX(x);
-function hrDesc(x){if(x.kind==='leave')return `<b>إجازة ${esc(x.type)}</b> — ${fd(x.from)}${x.to!==x.from?' لحد '+fd(x.to):''} <span class="muted small">(${leaveDays(x)} يوم)</span>${x.reason?`<div class="small">${esc(x.reason)}</div>`:''}`;const c=client(x.clientId);return `<b>${esc(MISSION_T[x.type]||'مأمورية')}</b> — ${fd(x.from)}${x.type==='travel'&&x.to&&x.to!==x.from?' لحد '+fd(x.to):''}${x.timeFrom?` <span class="muted small num">${esc(x.timeFrom)}${x.timeTo?' – '+esc(x.timeTo):''}</span>`:''}<div class="small">${c?esc(c.name)+(x.branch?' – '+esc(x.branch):''):''}${x.place?' · '+esc(x.place):''}${x.gov?' · '+esc(x.gov):''}</div>${x.purpose?`<div class="small">الغرض: ${esc(x.purpose)}</div>`:''}`}
-function hrRow(x,manage){const st=HR_ST[x.status]||HR_ST.pending;return `<div style="padding:10px 0;border-bottom:1px solid var(--line);display:grid;gap:4px"><div class="row between"><span>${manage?`<b>${esc(userName(x.uid))}</b> · `:''}${hrDesc(x)}</span><span class="pill ${st[1]}">${st[0]}</span></div>${x.note?`<div class="small muted">رد المدير: ${esc(x.note)}</div>`:''}${chainLine(x)}<div class="row between"><span class="small muted">اتقدم ${fdt(x.createdAt)}</span><span class="row">${canAct(x,x.kind==='leave'?'leave':'mission')?`<button class="btn sm pri" data-act="hrOk" data-id="${x.id}">موافقة</button><button class="btn sm danger" data-act="hrNo" data-id="${x.id}">رفض</button>`:''}${(x.uid===ME.id&&x.status==='pending')||(manage&&can('hr'))?`<button class="btn sm ghost" data-act="hrDel" data-id="${x.id}">حذف</button>`:''}</span></div></div>`}
+function hrDesc(x){{const d=hrDescX(x);if(d)return d}if(x.kind==='leave')return `<b>إجازة ${esc(x.type)}</b> — ${fd(x.from)}${x.to!==x.from?' لحد '+fd(x.to):''} <span class="muted small">(${leaveDays(x)} يوم)</span>${x.reason?`<div class="small">${esc(x.reason)}</div>`:''}`;const c=client(x.clientId);return `<b>${esc(MISSION_T[x.type]||'مأمورية')}</b> — ${fd(x.from)}${x.type==='travel'&&x.to&&x.to!==x.from?' لحد '+fd(x.to):''}${x.timeFrom?` <span class="muted small num">${esc(x.timeFrom)}${x.timeTo?' – '+esc(x.timeTo):''}</span>`:''}<div class="small">${c?esc(c.name)+(x.branch?' – '+esc(x.branch):''):''}${x.place?' · '+esc(x.place):''}${x.gov?' · '+esc(x.gov):''}</div>${x.purpose?`<div class="small">الغرض: ${esc(x.purpose)}</div>`:''}`}
+function hrRow(x,manage){const st=HR_ST[x.status]||HR_ST.pending;return `<div style="padding:10px 0;border-bottom:1px solid var(--line);display:grid;gap:4px"><div class="row between"><span>${manage?`<b>${esc(userName(x.uid))}</b> · `:''}${hrDesc(x)}</span><span class="pill ${st[1]}">${st[0]}</span></div>${x.note?`<div class="small muted">رد المدير: ${esc(x.note)}</div>`:''}${chainLine(x)}<div class="row between"><span class="small muted">اتقدم ${fdt(x.createdAt)}</span><span class="row">${canAct(x,hrT(x))?`<button class="btn sm pri" data-act="hrOk" data-id="${x.id}">موافقة</button><button class="btn sm danger" data-act="hrNo" data-id="${x.id}">رفض</button>`:''}${(x.uid===ME.id&&x.status==='pending')||(manage&&can('hr'))?`<button class="btn sm ghost" data-act="hrDel" data-id="${x.id}">حذف</button>`:''}</span></div></div>`}
 let HRF='pending';
 function viewHR(){
   const my=(S.hr||[]).filter(x=>x.uid===ME.id).sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||''));
   const yr=today().slice(0,4);const usedL=my.filter(x=>x.kind==='leave'&&x.status==='approved'&&x.from.startsWith(yr)).reduce((a,x)=>a+leaveDays(x),0);
-  const mine=`<div class="row"><button class="btn pri" data-act="hrLeave">+ طلب إجازة</button><button class="btn pri" data-act="hrMission">+ طلب مأمورية</button>${can('assign')?'<button class="btn" data-act="assignNew" data-k="mission">+ تكليف موظف بمأمورية</button>':''}</div>
+  const mine=`<div class="row"><button class="btn pri" data-act="hrLeave">+ طلب إجازة</button><button class="btn pri" data-act="hrMission">+ طلب مأمورية</button><button class="btn" data-act="hrLate">+ إذن تأخير / انصراف</button><button class="btn" data-act="hrLoan">+ طلب سلفة</button><button class="btn" data-act="hrCust">+ طلب عهدة</button>${can('assign')?'<button class="btn" data-act="assignNew" data-k="mission">+ تكليف موظف بمأمورية</button>':''}</div>
     <div class="grid g3"><div class="panel kpi"><span>أيام إجازة اتوافق عليها السنة دي</span><b>${usedL}</b></div><div class="panel kpi"><span>مأموريات الشهر</span><b>${my.filter(x=>x.kind==='mission'&&x.from.startsWith(today().slice(0,7))).length}</b></div><div class="panel kpi"><span>طلبات مستنية</span><b>${my.filter(x=>x.status==='pending').length}</b></div></div>
     <div class="panel"><h3>طلباتي</h3>${my.length?my.map(x=>hrRow(x,false)).join(''):'<div class="empty">لسه مقدمتش طلبات</div>'}</div>`;
   if(!can('hr'))return `<h2>الإجازات والمأموريات</h2>${mine}`;
@@ -2369,10 +2372,10 @@ function viewAR(){
   const late=items.filter(i=>daysTo(i.due)<0).reduce((a,i)=>a+i.bal,0);
   const pays=[...S.payments].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,40);
   const refName=p=>{const x=refOf(p.refType,p.refId);if(!x)return '—';const cn=client(x.clientId)?.name||x.buyer||'';if(p.refType==='psale')return `${cn} — فاتورة قطع #${pad(x.no)}`;if(p.refType==='report')return `${cn} — تقرير #${pad(x.no)}`;if(p.refType==='contract')return `${cn} — عقد صيانة`;if(p.refType==='sale')return `${cn} — قسط ${(+p.sub)+1} (${devName(x.device)})`;return `${cn} — إيجار ${monthName(addMonths(x.start,+p.sub))}`};
-  return `<h2>الحسابات الآجلة ومواعيد التحصيل</h2>
+  return `<div class="row between"><h2>الحسابات الآجلة ومواعيد التحصيل</h2>${can('client_pay')?'<button class="btn pri" data-act="pickClientPay">+ دفعة على حساب عميل</button>':''}</div>
   <div class="grid g3"><div class="panel kpi"><span>إجمالي الآجل</span><b style="color:var(--accent)">${money(tot)}</b></div><div class="panel kpi"><span>متأخر عن ميعاده</span><b style="color:var(--bad)">${money(late)}</b></div><div class="panel kpi"><span>تحصيلات الشهر</span><b>${money(S.payments.filter(p=>p.date.startsWith(today().slice(0,7))).reduce((a,p)=>a+n(p.amount),0))}</b></div></div>
   <div class="panel"><h3>المستحقات المفتوحة</h3>${items.length?`<div class="tbl-wrap"><table class="t"><thead><tr><th>ميعاد التحصيل</th><th>العيادة</th><th>البيان</th><th>الإجمالي</th><th>المتبقي</th><th>الحالة</th><th></th></tr></thead><tbody>${items.map(i=>`<tr><td>${fd(i.due)}</td><td><b>${esc(cName(i.client)||'—')}</b><div class="muted num" style="font-size:.8rem">${esc(i.client?.phone||'')}</div></td><td>${i.type==='report'?`<a href="#" data-view="${i.x.id}">${esc(i.label)}</a>`:i.type==='psale'?`<a href="#" data-go="psale" data-p="${i.x.id}">${esc(i.label)}</a>`:(i.type==='sale'||i.type==='rent')?`<a href="#" data-go="dev" data-p="${i.type}:${i.x.id}">${esc(i.label)}</a>`:esc(i.label)}</td><td class="num">${money(i.total)}</td><td class="num"><b>${money(i.bal)}</b></td><td>${dueBadge(i.due)}</td><td><div class="row" style="flex-wrap:nowrap"><button class="btn sm pri" data-act="collect" data-type="${i.type}" data-id="${i.x.id}" data-sub="${i.sub??''}">تحصيل</button>${i.type==='report'||i.type==='contract'?`<button class="btn sm ghost" data-act="redue" data-type="${i.type}" data-id="${i.x.id}">تأجيل</button>`:''}${(i.client?.phone||i.x.phone)?`<button class="btn sm ghost" data-act="waRemind" data-type="${i.type}" data-id="${i.x.id}" data-sub="${i.sub??''}" title="تذكير العميل على الواتساب">واتساب</button>`:''}</div></td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">مفيش مستحقات آجلة</div>'}</div>
-  <div class="panel"><h3>آخر التحصيلات</h3>${pays.length?`<div class="tbl-wrap"><table class="t"><thead><tr><th>التاريخ</th><th>البيان</th><th>الطريقة</th><th>استلمها</th><th>المبلغ</th><th></th></tr></thead><tbody>${pays.map(p=>`<tr><td>${fd(p.date)}</td><td>${esc(refName(p))}</td><td>${esc(p.method)}</td><td>${esc(userName(p.by)||'—')}</td><td class="num">${money(p.amount)}</td><td><div class="row" style="flex-wrap:nowrap">${p.receipt?`<button class="btn sm" data-act="showImg" data-src="p:${p.id}">الإيصال</button>`:''}${can('delete')?`<button class="btn sm ghost" data-act="delPay" data-id="${p.id}">حذف</button>`:''}</div></td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">لسه مفيش تحصيلات</div>'}</div>`;
+  <div class="panel"><h3>آخر التحصيلات</h3>${pays.length?`<div class="tbl-wrap"><table class="t"><thead><tr><th>التاريخ</th><th>البيان</th><th>الطريقة</th><th>استلمها</th><th>المبلغ</th><th></th></tr></thead><tbody>${pays.map(p=>`<tr><td>${fd(p.date)}</td><td>${esc(refName(p))}</td><td>${esc(p.method)}</td><td>${esc(userName(p.by)||(p.lump?'حساب الشركة':'—'))}</td><td class="num">${money(p.amount)}</td><td><div class="row" style="flex-wrap:nowrap">${p.receipt?`<button class="btn sm" data-act="showImg" data-src="p:${p.id}">الإيصال</button>`:''}${can('delete')?`<button class="btn sm ghost" data-act="delPay" data-id="${p.id}">حذف</button>`:''}</div></td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">لسه مفيش تحصيلات</div>'}</div>`;
 }
 function openCollect(type,id,sub){
   const x=refOf(type,id);const bal=itemBal(type,x,sub);const sched=type==='sale'||type==='rent';
@@ -2467,6 +2470,12 @@ service cloud.firestore {
     match /units/{id} { allow read, create, update: if isStaff(); allow delete: if can('stock_edit'); }
     match /returns/{id} { allow read, write: if isStaff(); }
     match /reports/{id} { allow read: if isStaff() || ownClient(); allow create, update: if isStaff(); allow delete: if can('delete'); }
+    match /contractReqs/{id} {
+      allow read: if can('contracts') || can('clients') || ownClient();
+      allow create: if active() && me().role == 'clinic' && request.resource.data.clientId == me().clientId && request.resource.data.status == 'new';
+      allow update: if can('contracts') || (ownClient() && resource.data.status == 'new' && request.resource.data.status == 'cancelled');
+      allow delete: if can('contracts');
+    }
     match /contracts/{id} { allow read: if isStaff() || ownClient(); allow create, update: if isStaff(); allow delete: if can('delete'); }
     match /payments/{id} { allow read: if isStaff() || ownClient(); allow create, update: if isStaff(); allow delete: if can('delete'); }
     match /partReturns/{id} { allow read: if isStaff() || ownClient(); allow write: if can('returns'); }
@@ -2532,9 +2541,9 @@ service cloud.firestore {
       allow delete: if can('custody') || (mineDoc() && resource.data.kind == 'expense' && resource.data.status == 'pending');
     }
     match /hr/{id} {
-      allow read: if can('hr') || can('payroll_prep') || can('payroll_approve') || mineDoc() || approver();
+      allow read: if can('hr') || can('payroll_prep') || can('payroll_approve') || can('loans') || can('custody') || mineDoc() || approver();
       allow create: if (isStaff() && request.resource.data.uid == request.auth.uid && request.resource.data.status == 'pending') || can('assign') || can('hr');
-      allow update: if can('hr') || approver();
+      allow update: if can('hr') || can('loans') || can('custody') || approver();
       allow delete: if can('hr') || (mineDoc() && resource.data.status == 'pending');
     }
   }
@@ -2734,8 +2743,8 @@ document.addEventListener('click',e=>{
     case 'delCust':confirmBox('حذف الحركة دي؟',()=>{S.custody=S.custody.filter(y=>y.id!==id);save();render()});break;
     case 'hrLeave':openLeave();break;
     case 'hrMission':openMission();break;
-    case 'hrOk':{const x=S.hr.find(y=>y.id===id);decideChain(x?.kind==='leave'?'leave':'mission',id,true);break}
-    case 'hrNo':{const x=S.hr.find(y=>y.id===id);decideChain(x?.kind==='leave'?'leave':'mission',id,false);break}
+    case 'hrOk':{const x=S.hr.find(y=>y.id===id);decideChain(hrT(x),id,true);break}
+    case 'hrNo':{const x=S.hr.find(y=>y.id===id);decideChain(hrT(x),id,false);break}
     case 'hrDel':confirmBox('حذف الطلب ده؟',()=>{S.hr=S.hr.filter(y=>y.id!==id);save();render()});break;
     case 'addClinicUser':if(!S.clients.length){toast('ضيف العميل الأول');break}openUserModal(null,'clinic',id||'');break;
     case 'editUser':openUserModal(id);break;
@@ -3187,7 +3196,7 @@ function decidePen(id,ok){
 function viewHR2(){
   const my=(S.hr||[]).filter(x=>x.uid===ME.id).sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||''));
   const myPen=(S.penalties||[]).filter(x=>x.uid===ME.id&&x.status==='approved').sort((a,b)=>(b.date||'').localeCompare(a.date||''));
-  const mine=`<div class="row"><button class="btn pri" data-act="hrLeave">+ طلب إجازة</button><button class="btn pri" data-act="hrMission">+ طلب مأمورية</button>${can('assign')?'<button class="btn" data-act="assignNew" data-k="mission">+ تكليف موظف بمأمورية</button>':''}<button class="btn" data-go="empf" data-p="${ME.id}">ملفي الشخصي</button></div>
+  const mine=`<div class="row"><button class="btn pri" data-act="hrLeave">+ طلب إجازة</button><button class="btn pri" data-act="hrMission">+ طلب مأمورية</button><button class="btn" data-act="hrLate">+ إذن تأخير / انصراف</button><button class="btn" data-act="hrLoan">+ طلب سلفة</button><button class="btn" data-act="hrCust">+ طلب عهدة</button>${can('assign')?'<button class="btn" data-act="assignNew" data-k="mission">+ تكليف موظف بمأمورية</button>':''}<button class="btn" data-go="empf" data-p="${ME.id}">ملفي الشخصي</button></div>
     ${punchCard()}
     ${myPayslips()}
     ${balCards(ME.id)}
@@ -3195,14 +3204,14 @@ function viewHR2(){
     ${myPen.length?`<div class="panel"><h3>الجزاءات اللي عليّا</h3>${myPen.map(x=>`<div style="padding:8px 0;border-bottom:1px solid var(--line)">${penDesc(x)}</div>`).join('')}</div>`:''}`;
   const hrM=can('hr'),penM=can('penalties')||can('penalties_approve'),balM=can('leave_bal')||can('hr');
   const apL=approvalItems();
-  if(!hrM&&!penM&&!balM&&!can('attendance')&&!apL.length)return `<h2>الإجازات والمأموريات</h2>${mine}`;
-  const all=(S.hr||[]).filter(x=>x.uid!==ME.id);const F={pending:x=>x.status==='pending',leave:x=>x.kind==='leave',mission:x=>x.kind==='mission',all:()=>true};
-  const tabs=[['appr',`مستنية موافقتي (${apL.length})`]];if(can('attendance'))tabs.push(['att','الحضور والانصراف (البصمة)']);if(hrM)tabs.push(['pending',`كل المستني (${all.filter(F.pending).length})`],['leave','الإجازات'],['mission','المأموريات'],['all','الكل']);if(hrM)tabs.push(['punch','البصمات']);if(balM)tabs.push(['bal','أرصدة الإجازات']);if(penM)tabs.push(['pen',`الجزاءات${(S.penalties||[]).some(x=>x.status==='pending')?` (${(S.penalties||[]).filter(x=>x.status==='pending').length})`:''}`]);tabs.push(['mine','طلباتي أنا']);
+  const lnM=can('loans')||can('payroll_prep');if(!hrM&&!penM&&!balM&&!lnM&&!can('attendance')&&!apL.length)return `<h2>الإجازات والمأموريات</h2>${mine}`;
+  const all=(S.hr||[]).filter(x=>x.uid!==ME.id);const F={pending:x=>x.status==='pending',leave:x=>x.kind==='leave',mission:x=>x.kind==='mission'||x.kind==='lateperm',all:()=>true};
+  const tabs=[['appr',`مستنية موافقتي (${apL.length})`]];if(can('attendance'))tabs.push(['att','الحضور والانصراف (البصمة)']);if(hrM)tabs.push(['pending',`كل المستني (${all.filter(F.pending).length})`],['leave','الإجازات'],['mission','المأموريات والأذونات'],['all','الكل']);if(hrM)tabs.push(['punch','البصمات']);if(balM)tabs.push(['bal','أرصدة الإجازات']);if(lnM)tabs.push(['loan','السلف']);if(penM)tabs.push(['pen',`الجزاءات${(S.penalties||[]).some(x=>x.status==='pending')?` (${(S.penalties||[]).filter(x=>x.status==='pending').length})`:''}`]);tabs.push(['mine','طلباتي أنا']);
   if(!tabs.some(t=>t[0]===HRF))HRF=tabs[0][0];
   const list=F[HRF]?all.filter(F[HRF]).sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||'')):[];
-  return `<div class="row between"><h2>الإجازات والمأموريات والجزاءات</h2></div>
+  return `<div class="row between"><h2>الإجازات والمأموريات والطلبات</h2></div>
   <div class="seg" style="flex-wrap:wrap">${tabs.map(([k,l])=>`<button data-hrf="${k}" class="${HRF===k?'on':''}">${l}</button>`).join('')}</div>
-  ${HRF==='mine'?mine:HRF==='appr'?viewApprovals():HRF==='att'?viewAttendance():HRF==='punch'?viewPunches():HRF==='bal'?viewLeaveBal():HRF==='pen'?viewPenalties():`<div class="panel">${list.length?list.map(x=>hrRow(x,true)).join(''):'<div class="empty">مفيش طلبات هنا</div>'}</div>`}`;
+  ${HRF==='mine'?mine:HRF==='appr'?viewApprovals():HRF==='att'?viewAttendance():HRF==='punch'?viewPunches():HRF==='bal'?viewLeaveBal():HRF==='loan'?viewLoans():HRF==='pen'?viewPenalties():`<div class="panel">${list.length?list.map(x=>hrRow(x,true)).join(''):'<div class="empty">مفيش طلبات هنا</div>'}</div>`}`;
 }
 
 /* =====================================================================
@@ -3666,9 +3675,10 @@ function dayStatus(u,d){
   let st='',late=0,early=0;
   if(lv)st='leave';else if(full)st='mission';else if(!tin&&!tout)st=off?'off':'absent';else st='present';
   if(st==='present'){const s=hm2min(cfg.start),e=hm2min(cfg.end);if(tin&&!mIn){const v=hm2min(tin)-s;if(v>n(cfg.grace))late=v}if(tout&&!mOut){const v=e-hm2min(tout);if(v>0)early=v}}
-  const miss=st==='present'&&((!tin&&!mIn)||(!tout&&!mOut));
+  const lp=latePermOf(u.id,d);if(lp.some(x=>x.type==='late'))late=0;if(lp.some(x=>x.type==='early'))early=0;
+  const miss=st==='present'&&((!tin&&!mIn)||(!tout&&!mOut&&!lp.some(x=>x.type==='early')));
   let ded=0;if(st==='absent')ded=n(cfg.absDed);else if(st==='present'){if(miss)ded=Math.max(ded,n(cfg.missDed));if(late>n(cfg.lateH))ded=Math.max(ded,0.5);else if(late>n(cfg.lateQ))ded=Math.max(ded,0.25)}
-  return{d,tin,tout,src,st,late,early,miss,lv,ms,off,ded};
+  return{d,tin,tout,src,st,late,early,miss,lv,ms,off,ded,lp};
 }
 const timeOf2=iso=>{const d=new Date(iso);return pad2(d.getHours())+':'+pad2(d.getMinutes())};
 function monthDays(m){const doc=attMonth(m);const out=[];let d=doc?.from||m+'-01';const last=[today(),doc?.to||today()].sort()[0];while(d.startsWith(m)&&d<=last){out.push(d);d=addDays(d,1)}return out}
@@ -3721,8 +3731,8 @@ function calcLine(u,m,keep){
   const L={uid:u.id,name:u.name,job:u.jobTitle||ROLE[u.role]||'',basic,allow,gross,dayRate,
     attDays:keep?.attOverride!=null?n(keep.attOverride):attDays,attAuto:attDays,attOverride:keep?.attOverride??null,late:A?{n:A.lateN,m:A.lateM,absent:A.absent,miss:A.miss}:null,
     unpaid,pens,bons:(S.bonuses||[]).filter(x=>x.uid===u.id&&x.status==='approved'&&x.month===m).map(x=>({type:x.type,reason:x.reason,amount:n(x.amount)})),insurance:n(s.insurance),bonus:n(keep?.bonus),bonusNote:keep?.bonusNote||'',other:n(keep?.other),otherNote:keep?.otherNote||'',ok:!!keep?.ok,okBy:keep?.okBy||'',notes:keep?.notes||''};
-  L.attDed=n(L.attDays*dayRate);L.unpaidDed=n(unpaid*dayRate);L.penDed=n(pens.reduce((a,x)=>a+x.value,0));
-  L.bonSum=n(L.bons.reduce((a,x)=>a+x.amount,0));L.totalDed=n(L.attDed+L.unpaidDed+L.penDed+L.insurance+L.other);L.net=n(gross+L.bonSum+L.bonus-L.totalDed);
+  L.loans=loansFor(u.id,m);L.loanDed=n(L.loans.reduce((a,x)=>a+x.amount,0));L.attDed=n(L.attDays*dayRate);L.unpaidDed=n(unpaid*dayRate);L.penDed=n(pens.reduce((a,x)=>a+x.value,0));
+  L.bonSum=n(L.bons.reduce((a,x)=>a+x.amount,0));L.totalDed=n(L.attDed+L.unpaidDed+L.penDed+L.loanDed+L.insurance+L.other);L.net=n(gross+L.bonSum+L.bonus-L.totalDed);
   return L;
 }
 function viewPayroll(){
@@ -3738,9 +3748,9 @@ function viewPayroll(){
   <div class="row between"><div class="row"><select id="paym" style="width:auto">${months.map(m=>`<option value="${m}" ${m===PAYM?'selected':''}>${monthName(m+'-01')}</option>`).join('')}</select>${st?`<span class="pill ${st[1]}">${st[0]}</span>`:''}</div>
    <div class="row">${prep&&(!P||P.status==='draft')?`<button class="btn" data-act="payCalc">${P?'إعادة الحساب':'احسب مرتبات الشهر'}</button>`:''}${editable?`<button class="btn pri" data-act="paySubmit" ${allOk?'':'disabled title="اعتمد مرتب كل موظف الأول"'}>ابعتها للمدير العام للموافقة</button>`:''}${appr&&P?.status==='submitted'?`<button class="btn pri" data-act="payApprove">موافقة ونزول المرتبات</button><button class="btn danger" data-act="payReturn">رجّعها للمراجعة</button>`:''}${P?`<button class="btn sm" data-act="payXls">تحميل Excel</button>`:''}</div></div>
   ${P?.returnNote&&P.status==='draft'?`<div class="banner">المدير العام رجّعها: ${esc(P.returnNote)}</div>`:''}
-  <div class="muted small">المكافآت المعتمدة للشهر بتنزل لوحدها. الخصم بيتحسب لوحده من البصمة (أيام الخصم × أجر اليوم = الأساسي ÷ 30) + الجزاءات المعتمدة في الشهر + الإجازات بدون مرتب + التأمينات. مدير الحسابات يقدر يضيف مكافأة أو خصم تاني لكل موظف ويعتمده، وبعدين تروح للمدير العام يوافق عليها كلها.</div>
+  <div class="muted small">المكافآت المعتمدة للشهر بتنزل لوحدها. الخصم بيتحسب لوحده من البصمة (أيام الخصم × أجر اليوم = الأساسي ÷ 30) + الجزاءات المعتمدة في الشهر + أقساط السلف + الإجازات بدون مرتب + التأمينات. مدير الحسابات يقدر يضيف مكافأة أو خصم تاني لكل موظف ويعتمده، وبعدين تروح للمدير العام يوافق عليها كلها.</div>
   ${P?`<div class="grid g4"><div class="panel kpi"><span>إجمالي المرتبات</span><b>${tot('gross')}</b></div><div class="panel kpi"><span>إجمالي الخصومات</span><b>${tot('totalDed')}</b></div><div class="panel kpi"><span>المكافآت</span><b>${money(lines.reduce((a,l)=>a+n(l.bonus)+n(l.bonSum),0))}</b></div><div class="panel kpi"><span>الصافي اللي هيتصرف</span><b>${tot('net')}</b></div></div>
-  <div class="panel"><div class="tbl-wrap"><table class="t"><thead><tr><th>الموظف</th><th>المرتب</th><th>خصم البصمة</th><th>جزاءات</th><th>بدون مرتب</th><th>تأمينات</th><th>مكافأة</th><th>خصم تاني</th><th>الصافي</th><th>اعتماد الحسابات</th><th></th></tr></thead><tbody>${lines.map(l=>`<tr><td><b>${esc(l.name)}</b><div class="muted small">${esc(l.job)}</div></td><td class="num">${money(l.gross)}</td><td class="small">${l.attDays?`<b class="num">${money(l.attDed)}</b><div class="muted">${l.attDays} يوم${l.attOverride!=null?' (معدّل)':''}</div>`:'—'}</td><td class="num">${l.penDed?money(l.penDed):'—'}</td><td class="num">${l.unpaidDed?money(l.unpaidDed):'—'}</td><td class="num">${l.insurance?money(l.insurance):'—'}</td><td class="num">${l.bonSum||l.bonus?money(n(l.bonSum)+n(l.bonus)):'—'}</td><td class="num">${l.other?money(l.other):'—'}</td><td class="num"><b>${money(l.net)}</b></td><td>${l.ok?'<span class="pill p-ok">معتمد ✓</span>':'<span class="pill p-warn">لسه</span>'}</td><td><div class="row" style="flex-wrap:nowrap"><button class="btn sm" data-act="payLine" data-id="${l.uid}">${editable?'مراجعة':'التفاصيل'}</button>${editable?`<button class="btn sm ${l.ok?'ghost':'pri'}" data-act="payOk" data-id="${l.uid}">${l.ok?'إلغاء الاعتماد':'اعتماد'}</button>`:''}</div></td></tr>`).join('')}</tbody></table></div></div>
+  <div class="panel"><div class="tbl-wrap"><table class="t"><thead><tr><th>الموظف</th><th>المرتب</th><th>خصم البصمة</th><th>جزاءات</th><th>سلف</th><th>بدون مرتب</th><th>تأمينات</th><th>مكافأة</th><th>خصم تاني</th><th>الصافي</th><th>اعتماد الحسابات</th><th></th></tr></thead><tbody>${lines.map(l=>`<tr><td><b>${esc(l.name)}</b><div class="muted small">${esc(l.job)}</div></td><td class="num">${money(l.gross)}</td><td class="small">${l.attDays?`<b class="num">${money(l.attDed)}</b><div class="muted">${l.attDays} يوم${l.attOverride!=null?' (معدّل)':''}</div>`:'—'}</td><td class="num">${l.penDed?money(l.penDed):'—'}</td><td class="num">${l.loanDed?money(l.loanDed):'—'}</td><td class="num">${l.unpaidDed?money(l.unpaidDed):'—'}</td><td class="num">${l.insurance?money(l.insurance):'—'}</td><td class="num">${l.bonSum||l.bonus?money(n(l.bonSum)+n(l.bonus)):'—'}</td><td class="num">${l.other?money(l.other):'—'}</td><td class="num"><b>${money(l.net)}</b></td><td>${l.ok?'<span class="pill p-ok">معتمد ✓</span>':'<span class="pill p-warn">لسه</span>'}</td><td><div class="row" style="flex-wrap:nowrap"><button class="btn sm" data-act="payLine" data-id="${l.uid}">${editable?'مراجعة':'التفاصيل'}</button>${editable?`<button class="btn sm ${l.ok?'ghost':'pri'}" data-act="payOk" data-id="${l.uid}">${l.ok?'إلغاء الاعتماد':'اعتماد'}</button>`:''}</div></td></tr>`).join('')}</tbody></table></div></div>
   ${P.status==='approved'?`<div class="muted small">اتعتمدت من ${esc(P.approvedByName||'')} ${fdt(P.approvedAt)} — كل موظف شايف تفاصيل مرتبه في حسابه.</div>`:P.submittedAt?`<div class="muted small">اتبعتت للموافقة من ${esc(P.preparedByName||'')} ${fdt(P.submittedAt)}</div>`:''}`
   :`<div class="panel"><div class="empty">${prep?'لسه مرتبات الشهر ده ما اتحسبتش — دوس "احسب مرتبات الشهر".':'لسه مرتبات الشهر ده ما اتجهزتش.'}</div></div>`}`;
 }
@@ -3776,7 +3786,7 @@ function payLineHTML(l){
    <div class="sec-title" style="margin-top:8px">الخصومات</div>
    ${l.attDays?r(`خصم البصمة: ${l.attDays} يوم${l.late?` <span class="muted small">(غياب ${l.late.absent} · تأخير ${l.late.n} مرة · بصمة ناقصة ${l.late.miss})</span>`:''}`,'- '+money(l.attDed)):''}
    ${(l.pens||[]).map(p=>r(`جزاء: ${esc(p.type)}${p.reason?' — '+esc(p.reason):''}`,'- '+money(p.value))).join('')}
-   ${l.unpaidDed?r(`إجازة بدون مرتب ${l.unpaid} يوم`,'- '+money(l.unpaidDed)):''}${l.insurance?r('التأمينات','- '+money(l.insurance)):''}${l.other?r('خصم تاني'+(l.otherNote?' — '+esc(l.otherNote):''),'- '+money(l.other)):''}
+   ${(l.loans||[]).map(x=>r(`قسط سلفة ${x.no} من ${x.months} <span class="muted small">(سلفة ${money(x.total)})</span>`,'- '+money(x.amount))).join('')}${l.unpaidDed?r(`إجازة بدون مرتب ${l.unpaid} يوم`,'- '+money(l.unpaidDed)):''}${l.insurance?r('التأمينات','- '+money(l.insurance)):''}${l.other?r('خصم تاني'+(l.otherNote?' — '+esc(l.otherNote):''),'- '+money(l.other)):''}
    ${!l.totalDed?'<div class="muted small">مفيش خصومات</div>':r('إجمالي الخصومات','- '+money(l.totalDed))}
    <div class="row between" style="padding:10px 0;font-size:1.25rem"><b>الصافي</b><b class="num" style="color:var(--accent)">${money(l.net)}</b></div>${l.notes?`<div class="small muted">ملاحظات: ${esc(l.notes)}</div>`:''}`;
 }
@@ -3786,7 +3796,7 @@ function openPayLine(uidv){
   modal(`<h3>مراجعة مرتب ${esc(l.name)} — ${monthName(PAYM+'-01')}</h3><div id="plPrev">${payLineHTML(l)}</div>
    <div class="grid g2"><label class="f">أيام خصم البصمة (المحسوب ${l.attAuto})<input type="number" step="0.25" min="0" id="pl_ad" value="${l.attDays}"></label><label class="f">ملاحظات<input id="pl_n" value="${esc(l.notes)}"></label>
    <label class="f">مكافأة / حافز<input type="number" min="0" step="any" id="pl_b" value="${l.bonus||''}"></label><label class="f">سبب المكافأة<input id="pl_bn" value="${esc(l.bonusNote)}"></label>
-   <label class="f">خصم تاني (سلفة…)<input type="number" min="0" step="any" id="pl_o" value="${l.other||''}"></label><label class="f">سبب الخصم<input id="pl_on" value="${esc(l.otherNote)}"></label></div>
+   <label class="f">خصم تاني<input type="number" min="0" step="any" id="pl_o" value="${l.other||''}"></label><label class="f">سبب الخصم<input id="pl_on" value="${esc(l.otherNote)}"></label></div>
    <label class="row" style="gap:6px"><input type="checkbox" id="pl_ok" style="width:auto" ${l.ok?'checked':''}> <b>اعتماد مرتب الموظف ده</b></label>`,()=>{
     const ad=n($('#pl_ad').value);const keep={...l,attOverride:ad!==n(l.attAuto)?ad:null,bonus:n($('#pl_b').value),bonusNote:$('#pl_bn').value.trim(),other:n($('#pl_o').value),otherNote:$('#pl_on').value.trim(),notes:$('#pl_n').value.trim(),ok:$('#pl_ok').checked,okBy:ME.name};
     const u=S.users.find(x=>x.id===uidv);P.lines[uidv]=u?calcLine(u,PAYM,keep):Object.assign(l,keep);save();toast('اتحفظ');render();
@@ -3806,8 +3816,8 @@ function payReturn(){const P=payDoc(PAYM);
   modal(`<h3>رجّع المرتبات للمراجعة</h3><label class="f">إيه اللي محتاج يتعدّل؟<textarea id="pr_n" style="min-height:70px"></textarea></label>`,()=>{P.status='draft';P.returnNote=$('#pr_n').value.trim();Object.values(P.lines).forEach(l=>l.ok=false);if(P.preparedBy)notify([P.preparedBy],'المرتبات رجعت للمراجعة',P.returnNote||'','payroll');save();render()})}
 function paySubmit(){const P=payDoc(PAYM);if(!Object.values(P.lines).every(l=>l.ok)){toast('اعتمد مرتب كل موظف الأول');return}
   P.status='submitted';P.submittedAt=new Date().toISOString();P.preparedBy=ME.id;P.preparedByName=ME.name;P.returnNote='';notify(['perm:payroll_approve'],'مرتبات مستنية موافقتك',`${monthName(PAYM+'-01')} — صافي ${money(Object.values(P.lines).reduce((a,l)=>a+l.net,0))}`,'payroll');save();toast('اتبعتت للمدير العام');render()}
-async function payXls(){const P=payDoc(PAYM);const rows=[['الموظف','الوظيفة','الأساسي','البدلات','المستحق','خصم البصمة (يوم)','خصم البصمة','الجزاءات','بدون مرتب','التأمينات','مكافآت معتمدة','مكافأة إضافية','خصم تاني','الصافي','ملاحظات']];
-  Object.values(P.lines).forEach(l=>rows.push([l.name,l.job,l.basic,n(l.gross-l.basic),l.gross,l.attDays,l.attDed,l.penDed,l.unpaidDed,l.insurance,n(l.bonSum),l.bonus,l.other,l.net,[l.bonusNote,l.otherNote,l.notes].filter(Boolean).join(' — ')]));
+async function payXls(){const P=payDoc(PAYM);const rows=[['الموظف','الوظيفة','الأساسي','البدلات','المستحق','خصم البصمة (يوم)','خصم البصمة','الجزاءات','أقساط السلف','بدون مرتب','التأمينات','مكافآت معتمدة','مكافأة إضافية','خصم تاني','الصافي','ملاحظات']];
+  Object.values(P.lines).forEach(l=>rows.push([l.name,l.job,l.basic,n(l.gross-l.basic),l.gross,l.attDays,l.attDed,l.penDed,n(l.loanDed),l.unpaidDed,l.insurance,n(l.bonSum),l.bonus,l.other,l.net,[l.bonusNote,l.otherNote,l.notes].filter(Boolean).join(' — ')]));
   try{await loadXLSX();const ws=XLSX.utils.aoa_to_sheet(rows);ws['!views']=[{RTL:true}];const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'المرتبات');download(new Blob([XLSX.write(wb,{type:'array',bookType:'xlsx'})],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),`مرتبات-${PAYM}.xlsx`)}catch(e){toast('مقدرتش أعمل الملف')}}
 function myPayslips(){const L=(S.payslips||[]).filter(x=>x.uid===ME.id).sort((a,b)=>b.month.localeCompare(a.month));
   return `<div class="panel"><h3>مرتباتي</h3>${L.length?L.map(x=>`<div class="row between" style="padding:8px 0;border-bottom:1px solid var(--line)"><span><b>${monthName(x.month+'-01')}</b>${x.totalDed?` <span class="muted small">خصومات ${money(x.totalDed)}</span>`:''}</span><span class="row"><b class="num">${money(x.net)}</b><button class="btn sm" data-act="mySlip" data-id="${x.id}">التفاصيل</button></span></div>`).join(''):'<div class="empty">لسه مفيش مرتبات نازلة</div>'}</div>`}
@@ -3852,7 +3862,7 @@ function advance(x,ok,note){
 }
 function approvalItems(){
   const L=[];
-  (S.hr||[]).forEach(x=>{const t=x.kind==='leave'?'leave':'mission';if(canAct(x,t))L.push({t,x})});
+  (S.hr||[]).forEach(x=>{const t=hrT(x);if(canAct(x,t))L.push({t,x})});
   (S.custody||[]).forEach(x=>{if(x.kind==='expense'&&canAct(x,'expense'))L.push({t:'expense',x})});
   (S.penalties||[]).forEach(x=>{if(canAct(x,'penalty'))L.push({t:'penalty',x})});
   (S.bonuses||[]).forEach(x=>{if(canAct(x,'bonus'))L.push({t:'bonus',x})});
@@ -3866,7 +3876,7 @@ function apprRow({t,x}){
 function colOfT(t){return t==='expense'?S.custody:t==='penalty'?S.penalties:t==='bonus'?S.bonuses:S.hr}
 function decideChain(t,id,ok){
   const x=colOfT(t).find(y=>y.id===id);if(!x||!canAct(x,t)){toast('مش دورك في الموافقة على الطلب ده');return}
-  const lbl=t==='expense'?`مصروف ${money(x.amount)}`:t==='penalty'?`جزاء ${x.type}`:t==='bonus'?`${x.type} ${money(x.amount)}`:(x.kind==='leave'?'إجازة '+x.type:'مأمورية');
+  const lbl=t==='expense'?`مصروف ${money(x.amount)}`:t==='penalty'?`جزاء ${x.type}`:t==='bonus'?`${x.type} ${money(x.amount)}`:x.kind==='leave'?'إجازة '+x.type:x.kind==='loan'?'سلفة '+money(x.amount):x.kind==='custreq'?'عهدة '+money(x.amount):x.kind==='lateperm'?(LP_T[x.type]||'إذن')+' '+fd(x.date):'مأمورية';
   modal(`<h3>${ok?'موافقة على':'رفض'} ${esc(lbl)} — ${esc(x.name||userName(x.uid))}</h3>${chainLine(x)}<label class="f">ملاحظة (اختياري)<input id="ap_n"></label>`,()=>{
     const note=$('#ap_n').value.trim();const r=advance(x,ok,note);
     if(r==='next'){notify(x.chain[x.step].uids,'طلب مستني موافقتك',`${REQ_T[t].l}: ${x.name||userName(x.uid)} — ${lbl}`,'hr');toast('اتوافق — اتبعت للمستوى اللي بعده');}
@@ -3875,7 +3885,7 @@ function decideChain(t,id,ok){
       if(t==='expense'){x.status=fin?'ok':'rejected';x.reviewedBy=ME.id;x.note=note}
       else if(t==='bonus'){x.status=fin?'approved':'rejected';x.decidedBy=ME.id;x.decidedAt=new Date().toISOString();x.note=note;if(fin)notify([x.uid],'🎉 اتصرفلك '+x.type,`${money(x.amount)} — هتنزل في مرتب ${monthName((x.month||today().slice(0,7))+'-01')}`,'hr');if(x.by)notify([x.by],fin?'المكافأة اتعتمدت':'المكافأة اترفضت',`${x.name}: ${x.type} ${money(x.amount)}`,'payroll')}
       else if(t==='penalty'){x.status=fin?'approved':'rejected';x.decidedBy=ME.id;x.decidedAt=new Date().toISOString();x.note=note;if(fin)notify([x.uid],'اتسجل عليك جزاء',`${x.type} — ${x.reason}`,'hr');if(x.by)notify([x.by],fin?'الجزاء اتعتمد':'الجزاء اترفض',`${x.name}: ${x.type}`,'hr')}
-      else{x.status=fin?'approved':'rejected';x.note=note;x.decidedBy=ME.id;x.decidedAt=new Date().toISOString()}
+      else{x.status=fin?'approved':'rejected';x.note=note;x.decidedBy=ME.id;x.decidedAt=new Date().toISOString();afterHrFinal(x,fin)}
       if(t!=='penalty'&&t!=='bonus')notify([x.uid],fin?'طلبك اتوافق عليه ✓':'طلبك اترفض',`${lbl}${note?' — '+note:''}`,t==='expense'?'custody':'hr');
       toast(fin?'اتوافق نهائي':'اترفض');
     }
@@ -4054,6 +4064,156 @@ function openAssign(kind){
 function missionTarget(m){if(m.loc)return m.loc;if(m.clientId)return locOfClient(m.clientId,m.branch);return null}
 function todayTasks(uidv){const t=today();const ms=todayMissions(uidv).map(m=>({id:m.id,label:`${MISSION_T[m.type]||'مأمورية'}${m.clientId?' — '+cName(client(m.clientId)):''}${m.place?' — '+m.place:''}`,target:missionTarget(m),status:m.status}));
   S.requests.filter(r=>r.engineerId===uidv&&r.status!=='cancelled'&&r.date===t).forEach(r=>ms.push({id:'rq:'+r.id,label:`زيارة صيانة — ${cName(client(r.clientId))}${r.branch?' – '+r.branch:''}`,target:locOfClient(r.clientId,r.branch),status:'approved'}));return ms}
+
+/* =====================================================================
+   v16 — السلف وطلبات العهدة وأذونات التأخير وطلبات عقود العيادات
+   ===================================================================== */
+Object.assign(REQ_T,{loan:{l:'السلف',perm:'loans'},custreq:{l:'طلبات العهدة',perm:'custody'},lateperm:{l:'أذونات التأخير والانصراف',perm:'hr'}});
+const HR_KL={leave:'إجازة',mission:'مأمورية',loan:'سلفة',custreq:'طلب عهدة',lateperm:'إذن'};
+function hrT(x){return ['leave','loan','custreq','lateperm'].includes(x?.kind)?x.kind:'mission'}
+const LP_T={late:'إذن تأخير (حضور متأخر)',early:'إذن انصراف بدري'};
+function hrDescX(x){
+  if(x.kind==='loan'){const L=loanInfo(x);return `<b>سلفة ${money(x.amount)}</b> — تتقسط على ${x.months} شهر (${money(L.inst)} في الشهر) من مرتب ${monthName(x.startMonth+'-01')}${x.status==='approved'?` <span class="muted small">· اتخصم ${money(L.paid)} · الباقي ${money(L.left)}</span>`:''}${x.reason?`<div class="small">${esc(x.reason)}</div>`:''}`}
+  if(x.kind==='custreq')return `<b>طلب عهدة ${money(x.amount)}</b>${x.status==='approved'?(x.delivered?` <span class="pill p-ok">اتسلمت ${fd(x.deliveredAt)}</span>`:' <span class="pill p-warn">مستنية التسليم</span>'):''}${x.purpose?`<div class="small">الغرض: ${esc(x.purpose)}</div>`:''}`;
+  if(x.kind==='lateperm')return `<b>${LP_T[x.type]||'إذن'}</b> — ${fd(x.date)}${x.time?` <span class="num">${x.type==='late'?'هيوصل الساعة':'هيمشي الساعة'} ${esc(x.time)}</span>`:''}${x.reason?`<div class="small">${esc(x.reason)}</div>`:''}`;
+  return null;
+}
+/* السلفة: القسط والمخصوم والباقي */
+function loanInst(x,m){const mi=monthsBetween(x.startMonth,m);if(mi<0||mi>=n(x.months))return 0;const base=Math.floor(n(x.amount)/n(x.months)*100)/100;return mi===n(x.months)-1?n(n(x.amount)-base*(n(x.months)-1)):base}
+function monthsBetween(a,b){if(!a||!b)return -1;const[y1,m1]=a.split('-').map(Number),[y2,m2]=b.split('-').map(Number);return (y2-y1)*12+(m2-m1)}
+function loanInfo(x){const cur=today().slice(0,7);let paid=0;for(let i=0;i<n(x.months);i++){const m=addMonths(x.startMonth+'-01',i).slice(0,7);if(m<cur||(S.payslips||[]).some(p=>p.uid===x.uid&&p.month===m))paid+=loanInst(x,m)}return{inst:loanInst(x,x.startMonth),paid:n(paid),left:n(n(x.amount)-paid)}}
+function loansFor(u,m){return (S.hr||[]).filter(x=>x.uid===u&&x.kind==='loan'&&x.status==='approved').map(x=>({id:x.id,amount:loanInst(x,m),total:n(x.amount),months:n(x.months),no:monthsBetween(x.startMonth,m)+1})).filter(x=>x.amount>0)}
+function openLoanReq(){
+  const nm=addMonths(today().slice(0,7)+'-01',1).slice(0,7);
+  const open=(S.hr||[]).filter(x=>x.uid===ME.id&&x.kind==='loan'&&(x.status==='pending'||(x.status==='approved'&&loanInfo(x).left>0.009)));
+  modal(`<h3>طلب سلفة</h3>${open.length?`<div class="banner">عندك ${open.length} سلفة لسه مخلصتش أو مستنية موافقة.</div>`:''}<div class="grid g2">
+   <label class="f">المبلغ<input type="number" min="1" step="any" id="ln_a"></label>
+   <label class="f">تتقسط على كام شهر<input type="number" min="1" max="36" step="1" id="ln_m" value="1"></label>
+   <label class="f">يبدأ الخصم من مرتب<input type="month" id="ln_s" value="${nm}"></label>
+   <label class="f">القسط الشهري<input id="ln_i" disabled></label>
+   <label class="f span2">السبب<input id="ln_r" placeholder="اختياري"></label></div>`,()=>{
+    const a=n($('#ln_a').value),m=Math.max(1,Math.round(n($('#ln_m').value))),s=$('#ln_s').value;
+    if(a<=0){toast('اكتب مبلغ السلفة');return false}if(!/^\d{4}-\d{2}$/.test(s)){toast('اختار شهر بداية الخصم');return false}
+    const x={id:uid(),uid:ME.id,name:ME.name,kind:'loan',amount:a,months:m,startMonth:s,reason:$('#ln_r').value.trim(),status:'pending',createdAt:new Date().toISOString()};
+    const nx=attachChain(x,'loan',ME.id);S.hr.push(x);notify(nx.length?nx:['perm:loans'],'طلب سلفة جديد',`${ME.name} — ${money(a)} على ${m} شهر`,'hr');save();toast('اتبعت طلب السلفة');render();
+  });
+  const f=()=>{const a=n($('#ln_a').value),m=Math.max(1,n($('#ln_m').value));$('#ln_i').value=a>0?money(a/m):''};$('#ln_a').oninput=f;$('#ln_m').oninput=f;
+}
+function openCustReq(){
+  modal(`<h3>طلب عهدة فلوس</h3><div class="grid g2"><label class="f">المبلغ<input type="number" min="1" step="any" id="cr_a"></label><label class="f">محتاجها إمتى<input type="date" id="cr_d" value="${today()}"></label>
+   <label class="f span2">الغرض من العهدة<input id="cr_p" placeholder="مثلاً: مواصلات مأمورية أسيوط، شراء خامات…"></label></div>`,()=>{
+    const a=n($('#cr_a').value);if(a<=0){toast('اكتب المبلغ');return false}if(!$('#cr_p').value.trim()){toast('اكتب الغرض');return false}
+    const x={id:uid(),uid:ME.id,name:ME.name,kind:'custreq',amount:a,from:$('#cr_d').value,purpose:$('#cr_p').value.trim(),status:'pending',createdAt:new Date().toISOString()};
+    const nx=attachChain(x,'custreq',ME.id);S.hr.push(x);notify(nx.length?nx:['perm:custody'],'طلب عهدة جديد',`${ME.name} — ${money(a)}: ${x.purpose}`,'hr');save();toast('اتبعت طلب العهدة');render();
+  });
+}
+function openLatePerm(){
+  const c=attCfg();
+  modal(`<h3>إذن تأخير / انصراف</h3><div class="grid g2"><label class="f span2">نوع الإذن<select id="lp_t">${Object.entries(LP_T).map(([k,l])=>`<option value="${k}">${l}</option>`).join('')}</select></label>
+   <label class="f">اليوم<input type="date" id="lp_d" value="${today()}"></label><label class="f"><span id="lp_tl">هوصل الساعة</span><input type="time" id="lp_h"></label>
+   <label class="f span2">السبب<input id="lp_r"></label></div><div class="muted small">مواعيد الشغل: من ${esc(c.start)} لـ ${esc(c.end)}. لو الإذن اتوافق عليه، التأخير أو الانصراف بدري في اليوم ده مش هيتخصم.</div>`,()=>{
+    const d=$('#lp_d').value;if(!d){toast('اختار اليوم');return false}if(!$('#lp_r').value.trim()){toast('اكتب السبب');return false}
+    const x={id:uid(),uid:ME.id,name:ME.name,kind:'lateperm',type:$('#lp_t').value,date:d,from:d,time:$('#lp_h').value,reason:$('#lp_r').value.trim(),status:'pending',createdAt:new Date().toISOString()};
+    const nx=attachChain(x,'lateperm',ME.id);S.hr.push(x);notify(nx.length?nx:['perm:hr'],'طلب إذن جديد',`${ME.name} — ${LP_T[x.type]} ${fd(d)}`,'hr');save();toast('اتبعت الإذن');render();
+  });
+  $('#lp_t').onchange=()=>{$('#lp_tl').textContent=$('#lp_t').value==='late'?'هوصل الساعة':'همشي الساعة'};
+}
+function latePermOf(uidv,d){return (S.hr||[]).filter(x=>x.uid===uidv&&x.kind==='lateperm'&&x.status==='approved'&&x.date===d)}
+/* بعد الموافقة النهائية */
+function afterHrFinal(x,fin){
+  if(!fin)return;
+  if(x.kind==='loan')notify(['perm:payroll_prep','perm:loans'],'سلفة اتوافق عليها',`${x.name} — ${money(x.amount)} على ${x.months} شهر من ${monthName(x.startMonth+'-01')} — اصرفها، والأقساط هتتخصم من المرتب لوحدها`,'payroll');
+  if(x.kind==='custreq')notify(['perm:custody'],'طلب عهدة اتوافق عليه — سلّمها',`${x.name} — ${money(x.amount)}: ${x.purpose||''}`,'custody');
+}
+function deliverCustReq(id){
+  const x=(S.hr||[]).find(y=>y.id===id);if(!x)return;
+  modal(`<h3>تسليم عهدة — ${esc(x.name||userName(x.uid))}</h3><div class="small">${esc(x.purpose||'')}</div><div class="grid g2"><label class="f">المبلغ<input type="number" min="0" step="any" id="dc_a" value="${n(x.amount)}"></label><label class="f">التاريخ<input type="date" id="dc_d" value="${today()}"></label><label class="f">الطريقة<select id="dc_m">${S.settings.methods.map(m=>`<option>${esc(m)}</option>`).join('')}</select></label></div>`,()=>{
+    const a=n($('#dc_a').value);if(a<=0)return false;
+    S.custody.push({id:newId(),uid:x.uid,kind:'cash',date:$('#dc_d').value,amount:a,method:$('#dc_m').value,notes:'طلب عهدة: '+(x.purpose||''),reqId:x.id,by:ME.id,createdAt:new Date().toISOString()});
+    x.delivered=true;x.deliveredAt=$('#dc_d').value;x.deliveredBy=ME.id;notify([x.uid],'استلمت العهدة',`${money(a)} — ${x.purpose||''}`,'custody');save();toast('اتسلمت العهدة');render();
+  });
+}
+function custReqPanel(){
+  if(!can('custody'))return '';const L=(S.hr||[]).filter(x=>x.kind==='custreq'&&x.status==='approved'&&!x.delivered);
+  return L.length?`<div class="panel"><h3>طلبات عهدة متوافق عليها مستنية التسليم</h3>${L.map(x=>`<div class="row between" style="padding:6px 0;border-bottom:1px solid var(--line)"><span><b>${esc(x.name||userName(x.uid))}</b> — ${money(x.amount)} — ${esc(x.purpose||'')} <span class="muted small">(محتاجها ${fd(x.from)})</span></span><button class="btn sm pri" data-act="crDeliver" data-id="${x.id}">سلّم العهدة</button></div>`).join('')}</div>`:'';
+}
+function viewLoans(){
+  const L=(S.hr||[]).filter(x=>x.kind==='loan').sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||''));
+  const act=L.filter(x=>x.status==='approved'&&loanInfo(x).left>0.009);
+  return `<div class="grid g3"><div class="panel kpi"><span>سلف شغالة</span><b>${act.length}</b></div><div class="panel kpi"><span>الباقي على الموظفين</span><b>${money(act.reduce((a,x)=>a+loanInfo(x).left,0))}</b></div><div class="panel kpi"><span>أقساط الشهر ده</span><b>${money(act.reduce((a,x)=>a+loanInst(x,today().slice(0,7)),0))}</b></div></div>
+  <div class="panel">${L.length?L.map(x=>hrRow(x,true)).join(''):'<div class="empty">مفيش سلف</div>'}</div><div class="muted small">قسط السلفة بيتخصم لوحده من مرتب كل شهر لحد ما تخلص.</div>`;
+}
+/* طلبات عقود الصيانة من العيادات */
+const CR_ST={new:['جديد','p-warn'],done:['اتعمل العقد','p-ok'],rejected:['اترفض','p-bad'],cancelled:['اتلغى','p-mut']};
+function clinicContractPanel(){
+  const c=client(ME.clientId)||{};const k=activeContract(c.id);const mine=(S.contractReqs||[]).sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||''));const pend=mine.find(x=>x.status==='new');
+  const last=S.contracts.filter(k=>k.clientId===ME.clientId).sort((a,b)=>(b.end||'').localeCompare(a.end||''))[0];
+  return `${cp('contract')?`<div class="row" style="margin-top:8px">${pend?'<span class="pill p-warn">طلبك متبعت ومستني رد الشركة</span>':`<button class="btn pri sm" data-act="clCtReq" data-k="${last?'renew':'new'}">${last?'طلب تجديد عقد الصيانة':'طلب عمل عقد صيانة'}</button>${last?'<button class="btn sm" data-act="clCtReq" data-k="new">طلب عقد جديد (فرع تاني)</button>':''}`}</div>`:''}
+   ${mine.length?`<div class="sec-title" style="margin-top:8px">طلباتك</div>${mine.slice(0,5).map(x=>`<div class="row between small" style="padding:4px 0;border-bottom:1px solid var(--line)"><span>${x.kind==='renew'?'تجديد':'عقد جديد'}${x.branch?' — '+esc(x.branch):''} — ${fd((x.createdAt||'').slice(0,10))}${x.reply?` <span class="muted">· ${esc(x.reply)}</span>`:''}</span><span class="row"><span class="pill ${CR_ST[x.status]?.[1]||'p-mut'}">${CR_ST[x.status]?.[0]||''}</span>${x.status==='new'?`<button class="btn sm ghost" data-act="clCtCancel" data-id="${x.id}">إلغاء</button>`:''}</span></div>`).join('')}`:''}`;
+}
+function openClinicCtReq(kind){
+  const c=client(ME.clientId)||{};const br=branchesOf(c);
+  modal(`<h3>${kind==='renew'?'طلب تجديد عقد الصيانة':'طلب عمل عقد صيانة'}</h3><div class="grid g2">${br.length?`<label class="f">الفرع<select id="ct_b"><option value="">كل الفروع</option>${br.map(b=>`<option>${esc(b.name)}</option>`).join('')}</select></label>`:''}<label class="f">تحب يبدأ من<input type="date" id="ct_s" value="${today()}"></label>
+   <label class="f span2">عدد الأجهزة أو أي تفاصيل<textarea id="ct_n" style="min-height:70px" placeholder="مثلاً: عايزين العقد يشمل جهازين، وعدد زيارات أكتر…"></textarea></label></div>`,async()=>{
+    const x={id:uid(),uid:ME.id,clientId:ME.clientId,clientName:cName(c)||c.name||'',kind,branch:$('#ct_b')?.value||'',start:$('#ct_s').value,notes:$('#ct_n').value.trim(),status:'new',createdAt:new Date().toISOString()};
+    if(ONLINE){try{await FB.db.collection('contractReqs').doc(x.id).set(x)}catch(e){toast('الطلب متبعتش: '+fbErr(e));return}}else{S.contractReqs.push(x);save()}
+    notify(['perm:contracts'],kind==='renew'?'طلب تجديد عقد صيانة':'طلب عقد صيانة جديد',`${x.clientName}${x.branch?' – '+x.branch:''}${x.notes?': '+x.notes:''}`,'contracts');toast('اتبعت الطلب — هنكلمك قريب');render();
+  });
+}
+function contractReqsPanel(){
+  const L=(S.contractReqs||[]).filter(x=>x.status==='new').sort((a,b)=>(a.createdAt||'').localeCompare(b.createdAt||''));
+  return L.length?`<div class="panel" style="border-color:var(--accent)"><h3>طلبات عقود من العيادات (${L.length})</h3>${L.map(x=>`<div class="row between" style="padding:8px 0;border-bottom:1px solid var(--line)"><span><b>${x.kind==='renew'?'تجديد عقد':'عقد جديد'}</b> — <a href="#" data-go="client" data-p="${x.clientId}">${esc(cName(client(x.clientId))||x.clientName||'')}</a>${x.branch?' – '+esc(x.branch):''} <span class="muted small">· يبدأ ${fd(x.start)} · اتبعت ${fdt(x.createdAt)}</span>${x.notes?`<div class="small">${esc(x.notes)}</div>`:''}</span><span class="row"><button class="btn sm pri" data-act="ctReqDo" data-id="${x.id}">اعمل العقد</button><button class="btn sm danger" data-act="ctReqNo" data-id="${x.id}">رفض</button></span></div>`).join('')}</div>`:'';
+}
+function ctReqDo(id){
+  const x=S.contractReqs.find(y=>y.id===id);if(!x)return;
+  const last=S.contracts.filter(k=>k.clientId===x.clientId&&(!x.branch||(k.branch||'')===x.branch)).sort((a,b)=>(b.end||'').localeCompare(a.end||''))[0];
+  const before=S.contracts.length;
+  if(x.kind==='renew'&&last)openContractModal(x.clientId,last.id,true);else openContractModal(x.clientId);
+  $('#modalForm').addEventListener('submit',()=>setTimeout(()=>{if(S.contracts.length>before){x.status='done';x.doneAt=new Date().toISOString();x.by=ME.id;x.contractId=S.contracts[S.contracts.length-1].id;notify([x.uid],'عقد الصيانة اتعمل ✓',`${x.kind==='renew'?'تجديد العقد':'العقد'} اتسجل — تقدر تشوفه في "حسابي"`,'contracts');save();render()}},60));
+}
+function ctReqNo(id){
+  const x=S.contractReqs.find(y=>y.id===id);if(!x)return;
+  modal(`<h3>رفض طلب العقد</h3><label class="f">رد على العيادة (اختياري)<input id="cq_r"></label>`,()=>{x.status='rejected';x.reply=$('#cq_r').value.trim();x.by=ME.id;notify([x.uid],'طلب العقد اترفض',x.reply||'كلمنا للتفاصيل','contracts');save();render()});
+}
+Object.assign(X9,{
+  hrLoan:()=>openLoanReq(),hrCust:()=>openCustReq(),hrLate:()=>openLatePerm(),crDeliver:(t,id)=>deliverCustReq(id),
+  clCtReq:(t)=>openClinicCtReq(t.dataset.k),
+  clCtCancel:(t,id)=>{const x=(S.contractReqs||[]).find(y=>y.id===id);if(!x)return;confirmBox('تلغي الطلب؟',async()=>{if(ONLINE){try{await FB.db.collection('contractReqs').doc(id).update({status:'cancelled'})}catch(e){toast(fbErr(e))}}else{x.status='cancelled';save()}render()})},
+  ctReqDo:(t,id)=>ctReqDo(id),ctReqNo:(t,id)=>ctReqNo(id)
+});
+Object.assign(NEED9,{crDeliver:'custody',ctReqDo:'contracts',ctReqNo:'contracts'});
+
+/* دفعة على حساب العميل — بتتوزع على أقدم المستحقات */
+function openClientPay(cid){
+  const c=client(cid);const items=openItems(cid);const debt=n(items.reduce((a,i)=>a+i.bal,0));
+  if(debt<=0.009){toast('العميل ده مفيش عليه مديونية');return}
+  let receipt='';
+  modal(`<h3>تسجيل دفعة على حساب ${esc(cName(c))}</h3><div class="muted">المديونية الحالية <b class="num">${money(debt)}</b> — الدفعة بتتخصم من أقدم المستحقات الأول.</div><div class="grid g2">
+   <label class="f">المبلغ<input type="number" min="0" step="any" id="cp_a"></label><label class="f">التاريخ<input type="date" id="cp_d" value="${today()}"></label>
+   <label class="f">الطريقة<select id="cp_m">${S.settings.methods.map(m=>`<option>${esc(m)}</option>`).join('')}</select></label>
+   <label class="f">مين استلمها<select id="cp_by"><option value="">محدش — دخلت حساب الشركة (تحويل / إيداع)</option>${STAFF().map(u=>`<option value="${u.id}">${esc(u.name)}</option>`).join('')}</select></label>
+   <label class="f span2">ملاحظات<input id="cp_n" placeholder="مثلاً: رقم التحويل"></label></div>
+   <div id="cp_prev" class="small"></div>
+   <div class="row"><div class="photos" id="cp_box"></div><label class="btn">📷 صورة الإيصال أو التحويل<input type="file" id="cp_ph" accept="image/*" hidden></label></div>`,()=>{
+    const a=n($('#cp_a').value);if(a<=0){toast('اكتب المبلغ');return false}if(a>debt+0.009){toast('المبلغ أكبر من المديونية ('+money(debt)+')');return false}
+    const g=uid(),by=$('#cp_by').value;let left=a;
+    for(const i of items){if(left<=0.009)break;const take=n(Math.min(left,i.bal));left=n(left-take);
+      const pay={id:uid(),refType:i.type,refId:i.x.id,clientId:cid,date:$('#cp_d').value,amount:take,method:$('#cp_m').value,by,recBy:ME.id,recByName:ME.name,lump:g,notes:$('#cp_n').value.trim(),receipt:i===items[0]?receipt:''};if(i.sub!=null)pay.sub=+i.sub;S.payments.push(pay)}
+    save();toast(`اتسجلت الدفعة ${money(a)} — المديونية بقت ${money(debt-a)}`);render();
+  });
+  const pv=()=>{let left=n($('#cp_a').value);const L=[];for(const i of items){if(left<=0.009)break;const t=n(Math.min(left,i.bal));left=n(left-t);L.push(`${esc(i.label)}: <b class="num">${money(t)}</b>${t<i.bal-0.009?' (جزء)':' ✓'}`)}$('#cp_prev').innerHTML=L.length?'هتتخصم من: '+L.join(' · '):''};
+  $('#cp_a').oninput=pv;
+  $('#cp_ph').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{receipt=await compress(f,900,.6);$('#cp_box').innerHTML=`<figure><img src="${receipt}" alt="الإيصال"></figure>`}catch(_){toast('معرفتش أقرا الصورة')}};
+}
+Object.assign(X9,{clientPay:(t,id)=>openClientPay(id)});
+Object.assign(NEED9,{clientPay:'client_pay'});
+function pickClientPay(){
+  const L=CL().map(c=>({c,b:n(openItems(c.id).reduce((a,i)=>a+i.bal,0))})).filter(x=>x.b>0.009).sort((a,b)=>b.b-a.b);
+  if(!L.length){toast('مفيش عملاء عليهم مديونية');return}
+  modal(`<h3>دفعة على حساب عميل</h3><label class="f">العميل<select id="pk_c">${L.map(x=>`<option value="${x.c.id}">${esc(cName(x.c))} — ${money(x.b)}</option>`).join('')}</select></label>`,()=>{const id=$('#pk_c').value;setTimeout(()=>openClientPay(id),0)});
+  const ok=$('#mOk');if(ok)ok.textContent='التالي';
+}
+Object.assign(X9,{pickClientPay:()=>pickClientPay()});Object.assign(NEED9,{pickClientPay:'client_pay'});
 
 /* =====================================================================
    التشغيل

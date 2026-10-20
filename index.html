@@ -307,11 +307,11 @@ const DEFAULT_SETTINGS={
   ]
 };
 const COLS=['users','clients','parts','reports','contracts','payments','requests','units','partReturns','returns','catalog','tests','offers','meetings'];
-const PERM_COLS={suppliers:['suppliers','accounts','devices'],purchases:['suppliers','accounts','devices','treasury','treasury_view'],supplierPayments:['suppliers','accounts','treasury','treasury_view'],sales:['devices','ar','accounts','treasury','treasury_view'],rentals:['devices','ar','accounts'],stockDevices:['devices','accounts'],partSales:['part_sales','cons_sales','ar','accounts','orders_manage','orders_work','treasury','treasury_view'],orders:['orders_manage','orders_work','ar','accounts'],testKeys:['tests'],attendance:['attendance','payroll_prep','payroll_approve'],salaries:['salary_set','payroll_prep','payroll_approve'],payroll:['payroll_prep','payroll_approve','treasury','treasury_view'],treasury:['treasury','treasury_view','accounts'],contractReqs:['contracts','clients']};
-const OWN_COLS={custody:['custody','accounts','treasury','treasury_view'],vouchers:['vouchers_approve','accounts','treasury','treasury_view'],hr:['hr','payroll_prep','payroll_approve','loans','custody'],evals:['evals'],punches:['hr','payroll_prep','payroll_approve'],payslips:['payroll_approve'],testAnswers:['tests'],empFiles:['emp_files']};
+const PERM_COLS={suppliers:['suppliers','accounts','devices','treasury','treasury_view','suppay_req','suppay_approve'],purchases:['suppliers','accounts','devices','suppay_req','suppay_approve','treasury','treasury_view'],supplierPayments:['suppliers','accounts','suppay_req','suppay_approve','treasury','treasury_view'],sales:['devices','ar','accounts','treasury','treasury_view'],rentals:['devices','ar','accounts'],stockDevices:['devices','accounts'],partSales:['part_sales','cons_sales','ar','accounts','orders_manage','orders_work','treasury','treasury_view'],orders:['orders_manage','orders_work','ar','accounts'],testKeys:['tests'],attendance:['attendance','payroll_prep','payroll_approve'],salaries:['salary_set','payroll_prep','payroll_approve'],inspections:['inspections'],payroll:['payroll_prep','payroll_approve','treasury','treasury_view'],treasury:['treasury','treasury_view','accounts'],contractReqs:['contracts','clients']};
+const OWN_COLS={custody:['custody','accounts','treasury','treasury_view'],notes:[],vouchers:['vouchers_approve','accounts','treasury','treasury_view'],hr:['hr','payroll_prep','payroll_approve','loans','custody'],evals:['evals'],punches:['hr','payroll_prep','payroll_approve'],payslips:['payroll_approve'],testAnswers:['tests'],empFiles:['emp_files']};
 const SPECIAL_COLS=['notifs','ratings','penalties','empDocs','bonuses'];
-const ALL_COLS=[...COLS,...Object.keys(PERM_COLS),...Object.keys(OWN_COLS),...SPECIAL_COLS];
-const DEL_PERM={vouchers:'treasury',treasury:'treasury',parts:'stock_edit',units:'stock_edit',returns:'stock_edit',reports:'delete',contracts:'delete',payments:'delete',requests:'requests',partReturns:'returns',purchases:'suppliers',supplierPayments:'suppliers',sales:'devices',rentals:'devices',stockDevices:'devices',partSales:'part_sales',custody:'custody',hr:'hr',orders:'orders_manage',evals:'evals',penalties:'penalties_approve',catalog:'stock_edit',ratings:'evals',punches:'hr',tests:'tests',testKeys:'tests',testAnswers:'tests',empFiles:'emp_files',attendance:'attendance',salaries:'salary_set',payroll:'payroll_approve',payslips:'payroll_approve',bonuses:'bonuses_approve'};
+const ALL_COLS=[...COLS,...Object.keys(PERM_COLS),...Object.keys(OWN_COLS),...SPECIAL_COLS,'secrets'];
+const DEL_PERM={secrets:'users',inspections:'inspections',vouchers:'treasury',treasury:'treasury',parts:'stock_edit',units:'stock_edit',returns:'stock_edit',reports:'delete',contracts:'delete',payments:'delete',requests:'requests',partReturns:'returns',purchases:'suppliers',supplierPayments:'suppliers',sales:'devices',rentals:'devices',stockDevices:'devices',partSales:'part_sales',custody:'custody',hr:'hr',orders:'orders_manage',evals:'evals',penalties:'penalties_approve',catalog:'stock_edit',ratings:'evals',punches:'hr',tests:'tests',testKeys:'tests',testAnswers:'tests',empFiles:'emp_files',attendance:'attendance',salaries:'salary_set',payroll:'payroll_approve',payslips:'payroll_approve',bonuses:'bonuses_approve'};
 function emptyState(){const s={v:3,demo:false,settings:JSON.parse(JSON.stringify(DEFAULT_SETTINGS))};ALL_COLS.forEach(c=>s[c]=[]);return s}
 function demoState(){
   const s=emptyState(); s.demo=true; s.settings.nextNo=4; s.settings.next_unit=4; s.settings.next_psale=2;
@@ -469,10 +469,12 @@ const PERMS=[
  ['requests','توزيع طلبات العيادات على المهندسين','الشغل'],
  ['reports_write','كتابة تقارير الصيانة','الشغل'],
  ['reports_all','يشوف ويعدّل تقارير كل المهندسين','الشغل'],
+ ['inspections','الكشف على الأجهزة وإرسال تقرير الكشف','الشغل'],
  ['prices_edit','يغيّر سعر القطعة في التقرير','الشغل'],
  ['clients','العيادات / العملاء (عرض وإضافة وتعديل)','العيادات'],
  ['clients_delete','حذف عيادة','العيادات'],
  ['contracts','عقود الصيانة','العيادات'],
+ ['contract_grace','يحسب زيارة على عقد صيانة منتهي (سماح)','العيادات'],
  ['stock','يشوف المخزن','المخزن'],
  ['stock_edit','يضيف ويعدّل أصناف المخزن والقطع المكوّدة','المخزن'],
  ['stock_costs','يشوف أسعار الشراء والتكلفة','المخزن'],
@@ -482,6 +484,8 @@ const PERMS=[
  ['devices','أجهزة الشركة وبيعها وإيجارها','المبيعات'],
  ['suppliers','الموردين والمشتريات','المالية'],
  ['suppliers_delete','حذف مورد','المالية'],
+ ['suppay_req','طلب سداد مديونية لمورد','المالية'],
+ ['suppay_approve','اعتماد طلبات سداد الموردين','المالية'],
  ['ar','الآجل والتحصيل من العملاء','المالية'],
  ['client_pay','تسجيل دفعة على حساب العميل (بتتخصم من مديونيته)','المالية'],
  ['accounts','حسابات الشركة','المالية'],
@@ -516,7 +520,7 @@ const PERMS=[
  ['settings','الإعدادات','الإدارة']
 ];
 const ROLE_PERMS={
- engineer:{reports_write:1,clients:1,stock:1},
+ engineer:{inspections:1,reports_write:1,clients:1,stock:1},
  accountant:{vouchers:1,treasury:1,treasury_view:1,home_money:1,client_pay:1,reports_all:1,clients:1,contracts:1,stock:1,stock_costs:1,part_sales:1,returns:1,devices:1,suppliers:1,ar:1,accounts:1,custody:1},
  staff:{},
  manager:{},
@@ -554,6 +558,7 @@ async function createUser({name,username,pw,role,clientId,perms}){
     u.id=cred.user.uid;await sec.auth().signOut();
     await FB.db.doc('users/'+u.id).set(u);
   }else{u.id=uid();u.hash=pwHash(username,pw);S.users.push(u);save()}
+  keepSecret(u.id,username,pw);
   return u;
 }
 async function saveUserDoc(u){if(ONLINE){const {id,...d}=u;delete d.hash;await FB.db.doc('users/'+id).set(d)}else save()}
@@ -613,6 +618,7 @@ function startListeners(){
   })};
   for(const c of COLS)sub(c,FB.db.collection(c));
   for(const c in PERM_COLS)if(PERM_COLS[c].some(can))sub(c,FB.db.collection(c));
+  if(isOwnerU(ME))sub('secrets',FB.db.collection('secrets'));
   const subMulti=(c,qs)=>{SUBS.push(c);const parts=qs.map(()=>[]);qs.forEach((q,i)=>L(q,snap=>{parts[i]=snap.docs.map(d=>({...d.data(),id:d.id}));const m=new Map();parts.flat().forEach(x=>m.set(x.id,x));S[c]=[...m.values()];SYNCED[c]=new Map(S[c].map(x=>[x.id,JSON.stringify(x)]));liveRender()}))};
   const apQ=c=>FB.db.collection(c).where('approvers','array-contains',ME.id);
   for(const c in OWN_COLS){if(OWN_COLS[c].some(can))sub(c,FB.db.collection(c));else if(c==='hr'||c==='custody'||c==='vouchers')subMulti(c,[FB.db.collection(c).where('uid','==',ME.id),apQ(c)]);else sub(c,FB.db.collection(c).where('uid','==',ME.id))}
@@ -621,7 +627,7 @@ function startListeners(){
   if(can('bonuses')||can('bonuses_approve')||can('payroll_prep')||can('payroll_approve'))sub('bonuses',FB.db.collection('bonuses'));else subMulti('bonuses',[FB.db.collection('bonuses').where('uid','==',ME.id).where('status','==','approved'),apQ('bonuses')]);
   if(can('penalties')||can('penalties_approve')||can('payroll_prep')||can('payroll_approve'))sub('penalties',FB.db.collection('penalties'));else subMulti('penalties',[FB.db.collection('penalties').where('uid','==',ME.id).where('status','==','approved'),apQ('penalties')]);
 }
-function canDel(c,x){if(c==='bonuses'&&x&&x.status==='pending'&&x.by===ME?.id&&can('bonuses'))return true;if(c==='penalties'&&x&&x.status==='pending'&&x.by===ME?.id&&can('penalties'))return true;if((c==='custody'||c==='hr'||c==='vouchers')&&x&&x.uid===ME?.id&&x.status==='pending')return true;return !!DEL_PERM[c]&&can(DEL_PERM[c])}
+function canDel(c,x){if(c==='notes'&&x&&x.uid===ME?.id)return true;if(c==='bonuses'&&x&&x.status==='pending'&&x.by===ME?.id&&can('bonuses'))return true;if(c==='penalties'&&x&&x.status==='pending'&&x.by===ME?.id&&can('penalties'))return true;if((c==='custody'||c==='hr'||c==='vouchers')&&x&&x.uid===ME?.id&&x.status==='pending')return true;return !!DEL_PERM[c]&&can(DEL_PERM[c])}
 async function persistOnline(){
   if(!ME||!FB)return;
   const cols=isClinic()?[]:SUBS.filter(c=>c!=='users');
@@ -640,7 +646,7 @@ function liveRender(){clearTimeout(lrTimer);lrTimer=setTimeout(()=>{
   if(!ME)return;
   if(isClinic()){const ae=document.activeElement,typing=ae&&$('#main')?.contains(ae)&&/INPUT|TEXTAREA|SELECT/.test(ae.tagName);if(CL_WAIT||((CTAB==='acc'||CTAB==='shop')&&!$('#modal')&&!typing)){const y=window.scrollY;render();window.scrollTo(0,y)}else renderClinicList();return}
   const ae=document.activeElement;
-  if($('#modal')||VIEW==='new'||VIEW==='edit'||(ae&&$('#main').contains(ae)&&/INPUT|TEXTAREA|SELECT/.test(ae.tagName))){PENDING=true;return}
+  if($('#modal')||VIEW==='new'||VIEW==='edit'||VIEW==='inspf'||(ae&&$('#main').contains(ae)&&/INPUT|TEXTAREA|SELECT/.test(ae.tagName))){PENDING=true;return}
   const y=window.scrollY;render();window.scrollTo(0,y);
 },120)}
 async function takeReportNo(){
@@ -696,6 +702,7 @@ const TABS=[
  ['requests','الطلبات',()=>can('requests')],
  ['new','تقرير جديد',()=>can('reports_write')],
  ['reports','التقارير',()=>can('reports_write')||can('reports_all')],
+ ['insp','الكشف على الأجهزة',()=>can('inspections')],
  ['clients','العيادات (العملاء)',()=>can('clients'),'العيادات والمخزن'],
  ['contracts','عقود الصيانة',()=>can('contracts')],
  ['stock','المخزن',()=>can('stock')],
@@ -717,13 +724,14 @@ const TABS=[
  ['users','المستخدمين',()=>can('users'),'الإدارة'],
  ['settings','الإعدادات',()=>can('settings')]
 ];
-const SUBVIEW={test:'tests',tgrade:'tests',empf:'emps',devh:'clients',perfu:'perf',view:'reports',edit:'new',client:'clients',dev:'devices',sdev:'devices',supplier:'suppliers',cust:'custody',psale:'psales'};
+const SUBVIEW={inspf:'insp',inspv:'insp',test:'tests',tgrade:'tests',empf:'emps',devh:'clients',perfu:'perf',view:'reports',edit:'new',client:'clients',dev:'devices',sdev:'devices',supplier:'suppliers',cust:'custody',psale:'psales'};
 const tabOf=v=>SUBVIEW[v]||v;
 function allowed(v,p){if(v==='empf')return can('emp_files')||p===ME?.id;if(v==='test')return isStaff();if(v==='tgrade')return can('tests');if(v==='view')return can('reports_write')||can('reports_all');if(v==='edit')return can('reports_write')||can('reports_all');const t=TABS.find(x=>x[0]===tabOf(v));return !t||t[2]()}
 const ICONS={
  home:'<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',
  requests:'<path d="M6 9a6 6 0 1 1 12 0c0 6 3 8 3 8H3s3-2 3-8"/><path d="M10 21h4"/>',
  new:'<path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8z"/><path d="M14 3v5h5M12 11v6M9 14h6"/>',
+ insp:'<circle cx="10.5" cy="10.5" r="6.5"/><path d="m20 20-4.8-4.8M8 10.5l1.8 1.8 3.4-3.6"/>',
  reports:'<path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/>',
  clients:'<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.5 3.4-5.5 6.5-5.5s5.7 2 6.5 5.5M16 4.5a3.5 3.5 0 0 1 0 7M18 14.8c1.8.8 3 2.5 3.5 5.2"/>',
  stock:'<path d="M3 7.5 12 3l9 4.5v9L12 21l-9-4.5z"/><path d="M3 7.5 12 12l9-4.5M12 12v9"/>',
@@ -778,17 +786,18 @@ function render(){
   if(isClinic()){$('#tabs').innerHTML='';document.body.classList.add('nonav');m.classList.add('narrow');m.innerHTML=viewClinic();initClinic();return}
   if(!allowed(VIEW,PARAM))VIEW='home';
   const badge={requests:can('requests')?S.requests.filter(r=>r.status==='new').length:0,hr:can('hr')?(S.hr||[]).filter(x=>x.status==='pending'&&x.uid!==ME.id).length:0,custody:can('custody')?(S.custody||[]).filter(x=>x.kind==='expense'&&x.status==='pending'&&x.uid!==ME.id).length:0,orders:(S.orders||[]).filter(o=>can('orders_manage')?o.status==='new':o.assignedTo===ME.id&&['assigned','preparing','out'].includes(o.status)).length};
-  badge.hr=approvalItems().filter(a=>a.t!=='voucher').length;badge.treasury=can('treasury')?(S.vouchers||[]).filter(x=>x.status==='approved').length+approvalItems().filter(a=>a.t==='voucher').length:0;badge.custody=can('custody')?(S.custody||[]).filter(x=>x.kind==='expense'&&x.status==='pending').length:0;
+  badge.hr=approvalItems().filter(a=>a.t!=='voucher'&&a.t!=='suppay').length;badge.treasury=can('treasury')?(S.vouchers||[]).filter(x=>x.status==='approved').length+approvalItems().filter(a=>a.t==='voucher'||a.t==='suppay').length:0;badge.custody=can('custody')?(S.custody||[]).filter(x=>x.kind==='expense'&&x.status==='pending').length:0;
   const cur=tabOf(VIEW);
   $('#tabs').innerHTML=TABS.filter(t=>t[2]()).map(([k,l,,sec])=>`${sec?`<div class="navsec">${sec}</div>`:''}<button class="tab ${cur===k?'on':''}" data-go="${k}"><svg viewBox="0 0 24 24" aria-hidden="true">${ICONS[k]||''}</svg><span>${l}</span>${badge[k]?`<span class="cnt">${badge[k]}</span>`:''}</button>`).join('');
   document.body.classList.remove('nonav');
   const banner=S.demo&&isAdmin()?`<div class="banner row between no-print"><span>دي بيانات تجريبية. فيه مهندس (karim)، ومحاسب (amr)، ومدير المستهلكات (nader)، ومندوب توصيل (sayed)، وعيادة (skinline) — كلهم بكلمة سر 123456 علشان تجرب شاشاتهم.</span><button class="btn sm" data-act="clearDemo">امسح البيانات التجريبية وابدأ</button></div>`:'';
-  const V={devices:viewDevices,dev:()=>viewDev(PARAM),sdev:()=>viewSdev(PARAM),suppliers:viewSuppliers,supplier:()=>viewSupplier(PARAM),home:viewHome,requests:viewRequests,new:()=>viewForm(null),edit:()=>viewForm(PARAM),reports:viewReports,view:()=>viewReport(PARAM),clients:viewClients,client:()=>viewClient(PARAM),contracts:viewContracts,stock:viewStock,psales:viewPartSales,psale:()=>viewPartSale(PARAM),ar:viewAR,accounts:viewAccounts,custody:viewCustody,cust:()=>viewCustodyOf(PARAM),hr:viewHR2,devh:()=>viewDevHistory(PARAM),orders:viewOrders,perf:viewPerf,perfu:()=>viewPerfUser(PARAM),tests:viewTests,test:()=>viewTakeTest(PARAM),tgrade:()=>viewGrade(PARAM),emps:viewEmps,payroll:viewPayroll,offers:viewOffers,meetings:viewMeetings,treasury:()=>viewTreasury(),empf:()=>viewEmpFile(PARAM),users:viewUsers,settings:viewSettings};
+  const V={devices:viewDevices,dev:()=>viewDev(PARAM),sdev:()=>viewSdev(PARAM),suppliers:viewSuppliers,supplier:()=>viewSupplier(PARAM),home:viewHome,requests:viewRequests,new:()=>viewForm(null),edit:()=>viewForm(PARAM),reports:viewReports,view:()=>viewReport(PARAM),clients:viewClients,client:()=>viewClient(PARAM),contracts:viewContracts,stock:viewStock,psales:viewPartSales,psale:()=>viewPartSale(PARAM),ar:viewAR,accounts:viewAccounts,custody:viewCustody,cust:()=>viewCustodyOf(PARAM),hr:viewHR2,devh:()=>viewDevHistory(PARAM),orders:viewOrders,perf:viewPerf,perfu:()=>viewPerfUser(PARAM),tests:viewTests,test:()=>viewTakeTest(PARAM),tgrade:()=>viewGrade(PARAM),emps:viewEmps,payroll:viewPayroll,offers:viewOffers,meetings:viewMeetings,insp:()=>viewInsp(),inspf:()=>viewInspForm(PARAM),inspv:()=>viewInspView(PARAM),treasury:()=>viewTreasury(),empf:()=>viewEmpFile(PARAM),users:viewUsers,settings:viewSettings};
   m.innerHTML=banner+(V[VIEW]||viewHome)();
   if(VIEW==='new'||VIEW==='edit')initForm();
   if(VIEW==='settings')bindSettings();
   if(VIEW==='test')bindTakeTest(PARAM);
   if(VIEW==='tgrade')bindGrade(PARAM);
+  if(VIEW==='inspf')inspBindAfter();
 }
 /* ---------- الإعداد الأول وتسجيل الدخول ---------- */
 function connLine(){return ONLINE?`<div class="muted small row between"><span>متصل بـ Firebase: <span class="num">${esc(CFG.projectId)}</span></span><button class="btn sm ghost" data-act="disconnect">إلغاء الربط</button></div>`:''}
@@ -816,14 +825,14 @@ document.addEventListener('submit',async e=>{
         const u=cred.user.uid;const b=FB.db.batch();
         b.set(FB.db.doc('users/'+u),{name,username:un,role:'admin',owner:true,active:true,clientId:''});
         b.set(FB.db.doc('meta/admin'),{uid:u});
-        await b.commit();
+        await b.commit();keepSecret(u,un,pw);
         await FB.db.doc('meta/settings').set({...DEFAULT_SETTINGS,engineer:name});
         await FB.db.doc('meta/counter').set({next:1},{merge:true});
         NEEDS_SETUP=false;
         const d=await FB.db.doc('users/'+u).get();ME={...d.data(),id:u};stopListeners();startListeners();go('home');
       }else{
         const u={id:uid(),name,username:un,role:'admin',owner:true,active:true,clientId:'',hash:pwHash(un,pw)};
-        S.users.push(u);S.settings.engineer=S.settings.engineer||name;save();ME=u;setSession(u.id);go('home');
+        S.users.push(u);keepSecret(u.id,un,pw);S.settings.engineer=S.settings.engineer||name;save();ME=u;setSession(u.id);go('home');
       }
     }catch(er){toast(typeof er==='string'?er:fbErr(er));btn.disabled=false}
   }
@@ -962,7 +971,8 @@ function renderClinicList(){
 /* =====================================================================
    الرئيسية
    ===================================================================== */
-function viewHome(){const mg=can('accounts')||can('requests')||can('ar');if(ME.role==='engineer')return viewHomeEng()+(mg?'<div style="margin-top:18px"></div>'+viewHomeAdmin(true):'');return mg?viewHomeAdmin():viewHomeEng()}
+function viewHome(){const mg0=can('accounts')||can('requests')||can('ar');return gsBox()+(officeOpen()&&ME.role!=='engineer'&&mg0?punchCard():'')+viewHome0()+notesPanel()}
+function viewHome0(){const mg=can('accounts')||can('requests')||can('ar');if(ME.role==='engineer')return viewHomeEng()+(mg?'<div style="margin-top:18px"></div>'+viewHomeAdmin(true):'');return mg?viewHomeAdmin():viewHomeEng()}
 function orderCard(r,forEng){
   const c=client(r.clientId)||{};const st=RSTATUS[r.status]||RSTATUS.new;
   const late=r.status!=='done'&&r.status!=='cancelled'&&daysTo(r.date)<0;
@@ -1154,7 +1164,8 @@ function viewForm(id){
     <div id="f_last" class="muted small" style="grid-column:1/-1"></div>
     <label class="f">نوع الزيارة<select id="f_visit">${opt(Object.entries(VISIT),VISIT[pre?.visitType]?pre.visitType:'emergency')}</select></label>
     <label class="f">نوع العمل<select id="f_work">${opt(WORK.map(w=>[w,w]),pre?.work||'صيانة')}</select></label>
-    <div id="f_cinfo" class="muted" style="grid-column:1/-1;font-size:.85rem"></div>
+    <div id="f_cinfo" class="muted" style="grid-column:1/-1;font-size:.85rem"></div><div id="f_kwarn" style="grid-column:1/-1"></div>
+    <label id="f_graceL" class="row" style="gap:6px;grid-column:1/-1" hidden><input type="checkbox" id="f_grace" style="width:auto"> احسب الزيارة دي على العقد رغم إن العقد منتهي (سماح)</label>
   </div>
   <div class="panel grid">
     <label class="f">العطل <span class="muted small">(اكتبه بإيدك — بيتسجل لوحده في ملف الجهاز وسجل أعطال العميل)</span><textarea id="f_complaint" placeholder="مثلاً: الجهاز بيطلع إيرور Low Flow">${esc(pre?.complaint||'')}</textarea></label>
@@ -1219,7 +1230,9 @@ function initForm(){
   const rows=$('#partRows');
   (r?.parts||[]).forEach(it=>rows.insertAdjacentHTML('beforeend',partRowHTML(it)));
   if(!S.parts.length)rows.innerHTML='<div class="muted" style="font-size:.9rem">المخزن فاضي — ضيف قطع الغيار من تبويب "المخزن".</div>';
-  const setFee=()=>{$('#f_fee').value=$('#f_visit').value==='contract'?S.settings.contractVisitFee:S.settings.visitFee;calc()};
+  const fBr=()=>$('#f_branch')?.disabled?'':($('#f_branch')?.value||'');const kNow=()=>contractOn($('#f_client').value,$('#f_date').value||today(),fBr());
+  const kOk=()=>!!kNow()||(can('contract_grace')&&!!$('#f_grace')?.checked);
+  const setFee=()=>{const isK=$('#f_visit').value==='contract';const gl=$('#f_graceL');if(gl)gl.hidden=!(isK&&can('contract_grace')&&!kNow());const ok=!isK||kOk();const w=$('#f_kwarn');if(w)w.innerHTML=isK&&!ok?`<span class="pill p-bad">عقد العيادة ${lastContract($('#f_client').value)?'منتهي من '+fd(lastContract($('#f_client').value).end):'مش موجود'} — الزيارة بتتحسب بسعر الزيارة العادي</span>`:'';$('#f_fee').value=isK&&ok?S.settings.contractVisitFee:S.settings.visitFee;calc()};
   const fillDevices=(keep)=>{
     const c=client($('#f_client').value);
     const devs=c?clientDevices(c):[];
@@ -1229,15 +1242,15 @@ function initForm(){
     else if(devs[0]){$('#f_dbrand').value=devs[0].brand||'';$('#f_dname').value=devs[0].name||'';$('#f_dmodel').value=devs[0].model||'';$('#f_dserial').value=devs[0].serial||'';if(devs[0].branch)$('#f_branch').value=devs[0].branch}
     else{['f_dbrand','f_dname','f_dmodel','f_dserial'].forEach(i=>$('#'+i).value='')}
     let info='';
-    if(c){info=`نوع العميل: <b>${CTYPE[c.type]}</b>`;if(c.type==='contract'){const k=activeContract(c.id);info+=k?` — العقد ساري لحد ${fd(k.end)}`:' — <span style="color:var(--bad)">مفيش عقد ساري</span>'}const b=S.reports.filter(x=>x.clientId===c.id).reduce((a,x)=>a+balOf('report',x),0);if(can('ar')&&b>0.009)info+=` — عليه آجل ${money(b)}`}
+    if(c){info=`نوع العميل: <b>${CTYPE[c.type]}</b>`;if(c.type==='contract'||lastContract(c.id)){const k=contractOn(c.id,$('#f_date').value||today(),'');const lk=lastContract(c.id);info+=k?` — العقد ساري لحد ${fd(k.end)}`:lk?` — <span style="color:var(--bad)">عقد الصيانة انتهى ${fd(lk.end)} — أي زيارة بعده بتتحسب بسعر الزيارة (${money(S.settings.visitFee)})</span>`:' — <span style="color:var(--bad)">مفيش عقد ساري</span>'}const b=S.reports.filter(x=>x.clientId===c.id).reduce((a,x)=>a+balOf('report',x),0);if(can('ar')&&b>0.009)info+=` — عليه آجل ${money(b)}`}
     $('#f_cinfo').innerHTML=info;
-    if(!keep&&c){$('#f_visit').value=c.type==='contract'?'contract':'emergency';setFee()}
+    if(!keep&&c){$('#f_visit').value=contractOn(c.id,$('#f_date').value||today(),'')?'contract':'emergency';setFee()}
   };
   const lastRead=()=>{const sr=$('#f_dserial').value.trim();const el=$('#f_last');if(!el)return;const prev=S.reports.filter(x=>x.id!==FORM.id&&sr&&x.device?.serial===sr&&(x.tx||x.pp||x.hv)).sort((a,b)=>b.date.localeCompare(a.date))[0];el.innerHTML=prev?`آخر قراءة للجهاز ده (${fd(prev.date)}): TX <b class="num">${esc(prev.tx||'—')}</b> · PP <b class="num">${esc(prev.pp||'—')}</b> · H.V <b class="num">${esc(prev.hv||'—')}</b>`:''};
   $('#f_dserial').addEventListener('input',lastRead);
   $('#f_client').onchange=()=>{fillDevices(false);lastRead()};
   $('#f_dev').onchange=()=>{const c=client($('#f_client').value);const d=c?clientDevices(c)[$('#f_dev').value]:null;$('#f_dbrand').value=d?.brand||'';$('#f_dname').value=d?.name||'';$('#f_dmodel').value=d?.model||'';$('#f_dserial').value=d?.serial||'';if(d?.branch)$('#f_branch').value=d.branch;lastRead()};
-  $('#f_visit').onchange=setFee;
+  $('#f_visit').onchange=setFee;$('#f_grace').onchange=setFee;$('#f_date').addEventListener('change',()=>{fillDevices(true);if($('#f_visit').value==='contract'||kNow())setFee()});$('#f_branch').addEventListener('change',()=>{if($('#f_visit').value==='contract')setFee()});
   fillDevices(!!pre?.device);lastRead();
   if(!r)setFee();
   const setTerm=t=>{FORM.term=t;$$('#f_term button').forEach(b=>b.classList.toggle('on',b.dataset.term===t));$('#creditBox').hidden=t!=='credit';calc()};
@@ -1296,7 +1309,7 @@ async function saveReport(){
   const r={id:rid,no,date:g('f_date'),clientId:cid,branch:$('#f_branch').disabled?'':g('f_branch'),
     device:{brand:g('f_dbrand'),name:g('f_dname'),model:g('f_dmodel'),serial:g('f_dserial')},
     tx:g('f_tx'),pp:ppNow,hv:g('f_hv'),faults,
-    visitType:g('f_visit'),work:g('f_work'),complaint:g('f_complaint'),done:g('f_done'),parts,oldReceived:$('#f_old').checked,
+    visitType:g('f_visit')==='contract'&&!contractOn(cid,g('f_date'),$('#f_branch').disabled?'':g('f_branch'))&&!(can('contract_grace')&&$('#f_grace')?.checked)?'emergency':g('f_visit'),graceContract:g('f_visit')==='contract'&&!contractOn(cid,g('f_date'),$('#f_branch').disabled?'':g('f_branch'))&&can('contract_grace')&&!!$('#f_grace')?.checked,work:g('f_work'),complaint:g('f_complaint'),done:g('f_done'),parts,oldReceived:$('#f_old').checked,
     visitFee:fee,discount:disc,total:tot,method:g('f_method'),term:FORM.term,
     paid:FORM.term==='cash'?tot:Math.min(tot,n(g('f_paid'))),due:FORM.term==='credit'?g('f_due'):'',
     by:old?.by||ME.id,payReceived:$('#f_recv_ok').checked,payPhoto:FORM.payPhoto,requestId:old?.requestId||FORM.reqId||'',
@@ -1610,7 +1623,7 @@ function viewStock(){
   return head+`
   ${costs?`<div class="grid g2"><div class="panel kpi"><span>عدد الأصناف</span><b>${SPARES().length}</b></div><div class="panel kpi"><span>قيمة الأصناف (بسعر الشراء)</span><b>${money(val)}</b></div></div>`:''}
   <div class="row between"><div class="row"><input id="sq" placeholder="بحث باسم القطعة أو الكود" value="${esc(SQ)}" style="max-width:300px"><select id="scf" style="width:auto"><option value="">كل الحالات</option>${Object.entries(CONDS).map(([k,[l]])=>`<option value="${k}" ${k===SCF?'selected':''}>${l}</option>`).join('')}</select></div>${edit?'<button class="btn pri" data-act="addPart">+ صنف جديد</button>':''}</div>
-  <div class="panel">${list.length?`<div class="tbl-wrap"><table class="t"><thead><tr><th>القطعة</th><th>الكود</th><th>الحالة</th>${costs?'<th>سعر الشراء</th>':''}<th>سعر البيع</th><th>الضمان للعميل</th><th>المتاح</th><th>اتركب</th>${edit?'<th></th>':''}</tr></thead><tbody>${list.map(p=>`<tr><td><b>${esc(p.name)}</b></td><td class="num">${esc(p.code)}${p.ref?`<div class="muted small">${esc(p.ref)}</div>`:''}</td><td>${condPill(p.condition)}</td>${costs?`<td class="num">${money(p.buy)}</td>`:''}<td class="num">${money(p.sell)}</td><td class="small">${wLabel(p)||'—'}</td><td>${n(p.qty)<=n(p.min)?`<span class="pill p-bad">${n(p.qty)}</span>`:`<span class="pill p-ok">${n(p.qty)}</span>`}</td><td>${sold[p.id]?`<a href="#" data-act="mvPart" data-id="${p.id}">${sold[p.id]} ← فين؟</a>`:'0'}</td>${edit?`<td><div class="row" style="flex-wrap:nowrap"><button class="btn sm" data-act="restock" data-id="${p.id}">+ كمية</button><button class="btn sm ghost" data-act="editPart" data-id="${p.id}">تعديل</button></div></td>`:''}</tr>`).join('')}</tbody></table></div>`:'<div class="empty">مفيش أصناف بالفلتر ده</div>'}</div>`;
+  <div class="panel">${list.length?`<div class="tbl-wrap"><table class="t"><thead><tr><th>القطعة</th><th>الكود</th><th>الحالة</th>${costs?'<th>سعر الشراء</th>':''}<th>سعر البيع</th><th>الضمان للعميل</th><th>المتاح</th><th>اتركب</th>${edit?'<th></th>':''}</tr></thead><tbody>${list.map(p=>`<tr><td><div class="row" style="flex-wrap:nowrap;gap:8px">${p.photo?`<img src="${p.photo}" data-act="showImg" data-src="pt:${p.id}" alt="" style="width:44px;height:44px;object-fit:cover;border-radius:6px;cursor:zoom-in">`:'<span style="width:44px;height:44px;border-radius:6px;border:1px dashed var(--line);display:inline-block"></span>'}<b>${esc(p.name)}</b></div></td><td class="num">${esc(p.code)}${p.ref?`<div class="muted small">${esc(p.ref)}</div>`:''}</td><td>${condPill(p.condition)}</td>${costs?`<td class="num">${money(p.buy)}</td>`:''}<td class="num">${money(p.sell)}</td><td class="small">${wLabel(p)||'—'}</td><td>${n(p.qty)<=n(p.min)?`<span class="pill p-bad">${n(p.qty)}</span>`:`<span class="pill p-ok">${n(p.qty)}</span>`}</td><td>${sold[p.id]?`<a href="#" data-act="mvPart" data-id="${p.id}">${sold[p.id]} ← فين؟</a>`:'0'}</td>${edit?`<td><div class="row" style="flex-wrap:nowrap"><button class="btn sm" data-act="restock" data-id="${p.id}">+ كمية</button><button class="btn sm ghost" data-act="editPart" data-id="${p.id}">تعديل</button></div></td>`:''}</tr>`).join('')}</tbody></table></div>`:'<div class="empty">مفيش أصناف بالفلتر ده</div>'}</div>`;
 }
 let UF='in_stock';
 function unitSrc(u){if(u.source==='client'){const r=S.reports.find(x=>x.id===u.srcReportId);const c=client(u.srcClientId);return `قديمة من ${esc(c?.name||'عميل')}${u.srcBranch?' – '+esc(u.srcBranch):''}${r?` <a href="#" data-view="${r.id}" class="num">#${pad(r.no)}</a>`:''}`}if(u.source==='repair')return 'اتصلحت بره';if(u.source==='return')return 'مرتجع';return esc(u.srcNote||'إضافة يدوي')}
@@ -1693,7 +1706,7 @@ function viewMoves(){
   <div class="panel"><h3>كل حركة بالتفصيل</h3>${rows.length?`<div class="tbl-wrap"><table class="t"><thead><tr><th>التاريخ</th><th>تقرير</th><th>العيادة</th><th>القطعة</th><th>العدد</th><th>السعر</th><th>المهندس</th><th>صورة</th></tr></thead><tbody>${rows.map(x=>`<tr class="click" data-view="${x.r.id}"><td>${fd(x.r.date)}</td><td class="num">#${pad(x.r.no)}</td><td>${esc(x.c?.name||'—')}<div class="muted small">${esc(x.c?.clinic||'')}</div></td><td>${esc(x.p.name)}</td><td>${x.p.qty}</td><td class="num">${money(x.p.price)}</td><td>${esc(x.r.engineer||'')}</td><td>${x.p.photo?'📷':''}</td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">—</div>'}</div>`;
 }
 function openPartModal(id){
-  const p=id?part(id):{name:'',code:'',buy:'',sell:'',qty:0,min:1,condition:'new',wMonths:'',wPulses:''};
+  const p=id?part(id):{name:'',code:'',buy:'',sell:'',qty:0,min:1,condition:'new',wMonths:'',wPulses:''};let pPhoto=p.photo||'';
   const lastSup=id?S.purchases.filter(x=>(x.lines||[]).some(l=>l.partId===id)).sort((a,b)=>b.date.localeCompare(a.date))[0]:null;const ll=lastSup?.lines.find(l=>l.partId===id);
   modal(`<h3>${id?'تعديل صنف':'صنف جديد'}</h3><div class="grid g2">
    <label class="f span2">اسم القطعة<input id="p_name" value="${esc(p.name)}"></label>
@@ -1705,13 +1718,14 @@ function openPartModal(id){
    <label class="f">سعر الشراء<input type="number" min="0" step="any" id="p_buy" value="${p.buy}"></label>
    <label class="f">سعر البيع<input type="number" min="0" step="any" id="p_sell" value="${p.sell}"></label>
    <label class="f">ضمان للعميل (شهور)<input type="number" min="0" step="1" id="p_wm" value="${p.wMonths||''}"></label>
-   <label class="f">ضمان للعميل (نبضات)<input type="number" min="0" step="1000" id="p_wp" value="${p.wPulses||''}"></label></div>
+   <label class="f">ضمان للعميل (نبضات)<input type="number" min="0" step="1000" id="p_wp" value="${p.wPulses||''}"></label>${partPhotoField(p)}</div>
    ${ll&&(ll.supWMonths||ll.supWPulses)?`<div class="muted small">آخر ضمان من المورد (${esc(S.suppliers.find(x=>x.id===lastSup.supplierId)?.name||'')} — ${fd(lastSup.date)}): ${wLabel({wMonths:ll.supWMonths,wPulses:ll.supWPulses})}</div>`:''}
    ${id?`<div><button type="button" class="btn sm danger" id="p_del">حذف الصنف</button></div>`:''}`,()=>{
     const name=$('#p_name').value.trim();if(!name){toast('اكتب اسم القطعة');return false}
-    const d={name,ref:$('#p_ref').value.trim(),condition:$('#p_cond').value,buy:n($('#p_buy').value),sell:n($('#p_sell').value),qty:n($('#p_qty').value),min:n($('#p_min').value),wMonths:n($('#p_wm').value),wPulses:n($('#p_wp').value)};
+    const d={name,ref:$('#p_ref').value.trim(),condition:$('#p_cond').value,buy:n($('#p_buy').value),sell:n($('#p_sell').value),qty:n($('#p_qty').value),min:n($('#p_min').value),wMonths:n($('#p_wm').value),wPulses:n($('#p_wp').value),photo:pPhoto};
     if(id)Object.assign(p,d);else S.parts.push({id:uid(),code:nextCode('spare'),cat:'spare',...d});save();toast('اتحفظ الصنف');render();
   });
+  $('#p_ph').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{pPhoto=await compress(f,700,.6);$('#p_box').innerHTML=`<figure><img src="${pPhoto}" alt=""></figure>`}catch(_){toast('معرفتش أقرا الصورة')}};if($('#p_phd'))$('#p_phd').onclick=()=>{pPhoto='';$('#p_box').innerHTML=''};
   if(id)$('#p_del').onclick=()=>confirmBox(`حذف "${p.name}" من المخزن؟ التقارير القديمة هتفضل زي ما هي.`,()=>{S.parts=S.parts.filter(x=>x.id!==id);save();render()});
 }
 function openRestock(id){
@@ -1733,7 +1747,7 @@ function viewSuppliers(){
   const rows=SUPS().map(s=>({s,...supBal(s.id)})).sort((a,b)=>b.bal-a.bal);
   const totBal=rows.reduce((a,r)=>a+r.bal,0);
   const due=supDueItems().filter(i=>daysTo(i.due)<=14);
-  return `<div class="row between"><h2>الموردين <span class="muted" style="font-size:1rem">(${rows.length})</span></h2><button class="btn pri" data-act="addSupplier">+ مورد جديد</button></div>
+  return `<div class="row between"><h2>الموردين <span class="muted" style="font-size:1rem">(${rows.length})</span></h2><div class="row">${can('suppay_req')?'<button class="btn" data-act="supPayReq">طلب سداد لمورد</button>':''}<button class="btn pri" data-act="addSupplier">+ مورد جديد</button></div></div>
   <div class="grid g3"><div class="panel kpi"><span>إجمالي المستحق للموردين</span><b>${money(totBal)}</b></div><div class="panel kpi"><span>مشتريات الشهر</span><b>${money(S.purchases.filter(p=>p.date.startsWith(today().slice(0,7))).reduce((a,p)=>a+n(p.total),0))}</b></div><div class="panel kpi"><span>مستحق خلال أسبوعين</span><b>${money(due.reduce((a,i)=>a+i.bal,0))}</b></div></div>
   ${due.length?`<div class="panel"><h3>اللي عليك قريب</h3>${due.map(i=>`<div class="row between" style="padding:6px 0;border-bottom:1px solid var(--line)"><span><a href="#" data-go="supplier" data-p="${i.p.supplierId}"><b>${esc(S.suppliers.find(x=>x.id===i.p.supplierId)?.name||'')}</b></a> — ${esc(i.label)}</span><span class="row"><b class="num">${money(i.bal)}</b>${dueBadge(i.due)}</span></div>`).join('')}</div>`:''}
   <div class="panel">${rows.length?`<div class="tbl-wrap"><table class="t"><thead><tr><th>المورد</th><th>التليفون</th><th>إجمالي المشتريات</th><th>المدفوع</th><th>المتبقي عليك</th></tr></thead><tbody>${rows.map(r=>`<tr class="click" data-go="supplier" data-p="${r.s.id}"><td><b>${esc(r.s.name)}</b><div class="muted small">${esc(r.s.company||'')}</div></td><td class="num">${esc(r.s.phone||'')}</td><td class="num">${money(r.tot)}</td><td class="num">${money(r.paid)}</td><td class="num">${r.bal>0.009?`<b style="color:var(--accent)">${money(r.bal)}</b>`:'—'}</td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">لسه مفيش موردين. ضيف أول مورد.</div>'}</div>`;
@@ -1745,7 +1759,7 @@ function viewSupplier(id){
   const B=supBal(id);const AL=supAlloc(id);
   const pu=[...B.pu].filter(p=>p.kind!=='device').sort((a,b)=>b.date.localeCompare(a.date)),dv=B.pu.filter(p=>p.kind==='device').sort((a,b)=>b.date.localeCompare(a.date)),pa=[...B.pa].sort((a,b)=>b.date.localeCompare(a.date));
   const wEnd=(d,m)=>m?addMonths(d,m):'';
-  return `<div class="row between"><h2>${esc(s.name)} <span class="muted" style="font-size:1rem">${esc(s.company||'')}</span>${s.deleted?' <span class="pill p-bad">محذوف</span>':''}</h2><div class="row"><button class="btn pri" data-act="addPurchase" data-id="${s.id}">+ فاتورة قطع غيار</button>${can('devices')?`<button class="btn" data-act="addSdevSup" data-id="${s.id}">+ شراء جهاز</button>`:''}<button class="btn" data-act="addSupPay" data-id="${s.id}">+ دفعة للمورد</button><button class="btn" data-act="editSupplier" data-id="${s.id}">تعديل</button></div></div>
+  return `<div class="row between"><h2>${esc(s.name)} <span class="muted" style="font-size:1rem">${esc(s.company||'')}</span>${s.deleted?' <span class="pill p-bad">محذوف</span>':''}</h2><div class="row">${can('suppay_req')&&!s.deleted?`<button class="btn" data-act="supPayReq" data-id="${s.id}">طلب سداد</button>`:''}<button class="btn pri" data-act="addPurchase" data-id="${s.id}">+ فاتورة قطع غيار</button>${can('devices')?`<button class="btn" data-act="addSdevSup" data-id="${s.id}">+ شراء جهاز</button>`:''}<button class="btn" data-act="addSupPay" data-id="${s.id}">+ دفعة للمورد</button><button class="btn" data-act="editSupplier" data-id="${s.id}">تعديل</button></div></div>
   <div class="grid g3"><div class="panel kpi"><span>إجمالي المشتريات</span><b>${money(B.tot)}</b></div><div class="panel kpi"><span>المدفوع</span><b>${money(B.paid)}</b></div><div class="panel kpi"><span>المتبقي عليك للمورد</span><b>${money(B.bal)}</b></div></div>
   <div class="panel small muted">التليفون: <span class="num" style="color:var(--ink)">${esc(s.phone||'—')}</span> · العنوان: <span style="color:var(--ink)">${esc(s.address||'—')}</span>${s.notes?` · ${esc(s.notes)}`:''}</div>
   ${dv.length?`<div class="panel"><h3>أجهزة اشتريتها من المورد</h3>${dv.map(p=>{const sc=purSched(p);const sd=sdevById(p.deviceId);return `<div style="padding:10px 0;border-bottom:1px solid var(--line);display:grid;gap:6px"><div class="row between"><span><b>${esc(devName(p.device||{}))}</b> — ${fd(p.date)}${sd?` <a href="#" data-go="sdev" data-p="${sd.id}" class="small">(صفحة الجهاز)</a>`:''}</span><span class="row"><span class="num">${money(p.total)}</span>${AL[p.id]>0.009?`<span class="pill p-warn">باقي ${money(AL[p.id])}</span>`:'<span class="pill p-ok">خالص</span>'}</span></div>
@@ -2331,7 +2345,7 @@ function viewAccounts(){
   const revenue=repVisits+repParts+ksV+slV+rentV+psV-retCredit;
   // التكاليف
   const exps=(S.custody||[]).filter(x=>x.kind==='expense'&&x.status!=='rejected'&&inR(x.date)),expV=exps.reduce((a,x)=>a+n(x.amount),0);
-  const vch=(S.vouchers||[]).filter(x=>x.status==='paid'&&inR(x.payDate)),vchV=vch.reduce((a,x)=>a+n(x.amount),0);
+  const vch=(S.vouchers||[]).filter(x=>x.status==='paid'&&x.kind!=='suppay'&&inR(x.payDate)),vchV=vch.reduce((a,x)=>a+n(x.amount),0);
   const extRep=(S.units||[]).reduce((a,u)=>a+(u.repairs||[]).filter(r=>inR(r.backAt)).reduce((b,r)=>b+n(r.cost),0),0);
   const cogs=repPartsCost+slC+psC;
   const profit=revenue-cogs-expV-vchV-partnerShare;
@@ -2410,6 +2424,7 @@ function showImg(src){
   const [t,id,i]=src.split(':');let d='';
   if(t==='r')d=S.reports.find(x=>x.id===id)?.payPhoto;
   else if(t==='p')d=S.payments.find(x=>x.id===id)?.receipt;
+  else if(t==='pt')d=part(id)?.photo;
   else if(t==='q')d=S.requests.find(x=>x.id===id)?.photos?.[+i];
   else if(t==='pu')d=S.purchases.find(x=>x.id===id)?.photo;
   else if(t==='sp')d=S.supplierPayments.find(x=>x.id===id)?.photo;
@@ -2435,7 +2450,7 @@ function openMyPass(){
   modal(`<h3>تغيير كلمة السر</h3><label class="f">كلمة السر الجديدة (6 على الأقل)<input id="mp" type="password" minlength="6" required></label>`,async()=>{
     const pw=normD($('#mp').value);if(pw.length<6){toast('6 على الأقل');return false}
     if(ONLINE){await FB.auth.currentUser.updatePassword(pw).catch(e=>{throw fbErr(e)})}else{ME.hash=pwHash(ME.username,pw);save()}
-    toast('اتغيرت كلمة السر');
+    keepSecret(ME.id,ME.username,pw);toast('اتغيرت كلمة السر');
   });
 }
 
@@ -2492,9 +2507,9 @@ service cloud.firestore {
       allow update: if isStaff();
       allow delete: if can('requests');
     }
-    match /suppliers/{id} { allow read: if can('suppliers') || can('accounts') || can('devices'); allow create, update: if can('suppliers'); allow delete: if can('suppliers_delete'); }
-    match /purchases/{id} { allow read: if can('suppliers') || can('accounts') || can('devices') || can('treasury') || can('treasury_view'); allow write: if can('suppliers') || can('devices'); }
-    match /supplierPayments/{id} { allow read: if can('suppliers') || can('accounts') || can('treasury') || can('treasury_view'); allow write: if can('suppliers'); }
+    match /suppliers/{id} { allow read: if can('suppliers') || can('accounts') || can('devices') || can('treasury') || can('treasury_view') || can('suppay_req') || can('suppay_approve'); allow create, update: if can('suppliers'); allow delete: if can('suppliers_delete'); }
+    match /purchases/{id} { allow read: if can('suppliers') || can('accounts') || can('devices') || can('treasury') || can('treasury_view') || can('suppay_req') || can('suppay_approve'); allow write: if can('suppliers') || can('devices'); }
+    match /supplierPayments/{id} { allow read: if can('suppliers') || can('accounts') || can('treasury') || can('treasury_view') || can('suppay_req') || can('suppay_approve'); allow write: if can('suppliers') || can('treasury'); }
     match /sales/{id} { allow read: if can('devices') || can('ar') || can('accounts') || can('treasury') || can('treasury_view') || ownClient(); allow write: if can('devices'); }
     match /rentals/{id} { allow read: if can('devices') || can('ar') || can('accounts') || ownClient(); allow write: if can('devices'); }
     match /stockDevices/{id} { allow read: if can('devices') || can('accounts'); allow write: if can('devices'); }
@@ -2541,11 +2556,14 @@ service cloud.firestore {
       allow update: if can('penalties_approve') || approver();
       allow delete: if can('penalties_approve') || (can('penalties') && resource.data.status == 'pending' && resource.data.by == request.auth.uid);
     }
+    match /inspections/{id} { allow read: if can('inspections'); allow create, update: if can('inspections'); allow delete: if can('inspections'); }
+    match /secrets/{id} { allow read: if isAdmin(); allow create, update: if can('users') || request.auth.uid == id; allow delete: if isAdmin(); }
+    match /notes/{id} { allow read, update, delete: if isStaff() && resource.data.uid == request.auth.uid; allow create: if isStaff() && request.resource.data.uid == request.auth.uid; }
     match /treasury/{id} { allow read: if can('treasury') || can('treasury_view') || can('accounts'); allow write: if can('treasury'); }
     match /vouchers/{id} {
-      allow read: if can('vouchers_approve') || can('treasury') || can('treasury_view') || can('accounts') || mineDoc() || approver();
-      allow create: if can('treasury') || (can('vouchers') && request.resource.data.uid == request.auth.uid && request.resource.data.status == 'pending');
-      allow update: if can('treasury') || can('vouchers_approve') || approver();
+      allow read: if can('vouchers_approve') || can('suppay_approve') || can('treasury') || can('treasury_view') || can('accounts') || mineDoc() || approver();
+      allow create: if can('treasury') || ((can('vouchers') || can('suppay_req')) && request.resource.data.uid == request.auth.uid && request.resource.data.status == 'pending');
+      allow update: if can('treasury') || can('vouchers_approve') || can('suppay_approve') || approver();
       allow delete: if can('treasury') || (mineDoc() && resource.data.status == 'pending');
     }
     match /custody/{id} {
@@ -2587,6 +2605,10 @@ function viewSettings(){
     <label class="f">رقم التقرير الجاي<input type="number" min="1" step="1" id="s_no" value="${s.nextNo}"></label>
     <label class="f">رصيد الإجازات السنوي الافتراضي (يوم)<input type="number" min="0" step="1" id="s_lbal" value="${n(s.leaveBal??21)}"></label>
     <label class="f">بصمة الموبايل: أقصى بُعد عن مكان المأمورية (متر)<input type="number" min="50" step="10" id="s_rad" value="${n(s.punchRadius||300)}"></label>
+    <div class="sec-title" style="grid-column:1/-1">البصمة من السيستم في مقر الشركة (لما جهاز البصمة يعطل)</div>
+    ${locField('s_oloc',s.officeLoc,'موقع مقر الشركة')}
+    <label class="f">أقصى بُعد عن المقر (متر)<input type="number" min="20" step="10" id="s_orad" value="${n(s.officeRadius||100)}"></label>
+    <label class="f">البصمة من السيستم في المقر<select id="s_opm"><option value="date" ${s.officePunch!=='always'&&s.officePunch!=='off'?'selected':''}>بتتفتح يوم بيوم (من زرار "افتح البصمة النهارده")</option><option value="always" ${s.officePunch==='always'?'selected':''}>مفتوحة على طول</option><option value="off" ${s.officePunch==='off'?'selected':''}>مقفولة</option></select></label>
     <label class="row" style="gap:6px;grid-column:1/-1"><input type="checkbox" id="s_pneed" style="width:auto" ${s.punchNeedMission!==false?'checked':''}> بصمة الموبايل مسموحة بس للي عنده مأمورية أو تكليف النهارده</label>
     <label class="row" style="gap:6px;grid-column:1/-1"><input type="checkbox" id="s_awa" style="width:auto" ${s.autoWa!==false?'checked':''}> أول ما التقرير أو الفاتورة تتحفظ، افتح الواتساب على طول علشان تتبعت للعميل</label>
     <label class="row" style="gap:6px;grid-column:1/-1"><input type="checkbox" id="s_prices" style="width:auto" ${s.showPrices?'checked':''}> إظهار الأسعار والحساب في التقرير اللي بيتسلم للعميل</label>
@@ -2630,7 +2652,7 @@ function bindSettings(){
   if(ONLINE)FB.db.doc('meta/counter').get().then(d=>{if(d.exists&&$('#s_no'))$('#s_no').value=d.data().next}).catch(()=>{});
   f.onsubmit=e=>{e.preventDefault();const s=S.settings;
     const ws=Math.max(0,Math.min(23,parseInt($('#s_ws').value)||12)),we=Math.max(ws+1,Math.min(24,parseInt($('#s_we').value)||20));
-    Object.assign(s,{company:$('#s_company').value.trim()||'Pioneer',sub:$('#s_sub').value.trim(),phone:$('#s_phone').value.trim(),visitFee:n($('#s_fee').value),contractVisitFee:n($('#s_cfee').value),showPrices:$('#s_prices').checked,chains:readChainsSettings(),leaveBal:n($('#s_lbal').value),punchRadius:Math.max(50,n($('#s_rad').value)||300),punchNeedMission:$('#s_pneed').checked,autoWa:$('#s_awa').checked,
+    Object.assign(s,{company:$('#s_company').value.trim()||'Pioneer',sub:$('#s_sub').value.trim(),phone:$('#s_phone').value.trim(),visitFee:n($('#s_fee').value),contractVisitFee:n($('#s_cfee').value),showPrices:$('#s_prices').checked,chains:readChainsSettings(),leaveBal:n($('#s_lbal').value),punchRadius:Math.max(50,n($('#s_rad').value)||300),officeLoc:parseLoc($('#s_oloc')?.value)||null,officeRadius:Math.max(20,n($('#s_orad').value)||100),officePunch:$('#s_opm').value,punchNeedMission:$('#s_pneed').checked,autoWa:$('#s_awa').checked,
       workStart:ws,workEnd:we,slotHours:Math.max(.5,n($('#s_sh').value)||2),crews:Math.max(1,parseInt($('#s_crews').value)||1),offDays:$$('.s_off').filter(x=>x.checked).map(x=>+x.value),
       methods:$('#s_methods').value.split('\n').map(x=>x.trim()).filter(Boolean),terms:$('#s_terms').value.split('\n').map(x=>x.trim()).filter(Boolean)});
     const no=Math.max(1,parseInt($('#s_no').value)||1);
@@ -2841,7 +2863,7 @@ function derivedNotifs(){
   }
   if(can('ar'))openItems().filter(i=>dueSoon(i.due)).forEach(i=>out.push({key:'du'+i.type+i.x.id+(i.sub??'')+i.due,title:daysTo(i.due)===0?'فيه تحصيل النهارده':'بكره فيه تحصيل',body:`${i.client?.name||''} — ${i.label} — ${money(i.bal)}`,v:'ar',ts:Date.parse(i.due)||0}));
   if(can('suppliers'))supDueItems().filter(i=>dueSoon(i.due)).forEach(i=>out.push({key:'sd'+i.p.id+i.due,title:daysTo(i.due)===0?'دفعة لمورد النهارده':'بكره دفعة لمورد',body:`${S.suppliers.find(x=>x.id===i.p.supplierId)?.name||''} — ${i.label} — ${money(i.bal)}`,v:'suppliers',ts:Date.parse(i.due)||0}));
-  out.push(...meetingNotifs());
+  out.push(...meetingNotifs());out.push(...noteNotifs());
   S.requests.filter(r=>r.engineerId===ME.id&&r.status==='assigned'&&r.date===today()).forEach(r=>{const c=client(r.clientId)||{};out.push({key:'tv'+r.id+r.date,title:'عندك زيارة النهارده',body:`${c.clinic||c.name||''}${r.branch?' – '+r.branch:''} — ${slotLabel(r.slot)}`,v:'home',ts:Date.parse(r.date)||0})});
   return out;
 }
@@ -3273,25 +3295,26 @@ const timeOf=iso=>{const d=new Date(iso);return d.toLocaleTimeString('ar-EG',{ho
 function getPos(){return new Promise(res=>{if(!navigator.geolocation)return res(null);let done=false;const t=setTimeout(()=>{if(!done){done=true;res(null)}},15000);navigator.geolocation.getCurrentPosition(p=>{if(done)return;done=true;clearTimeout(t);res({lat:+p.coords.latitude.toFixed(6),lng:+p.coords.longitude.toFixed(6),acc:Math.round(p.coords.accuracy)})},()=>{if(done)return;done=true;clearTimeout(t);res(null)},{enableHighAccuracy:true,timeout:14000,maximumAge:0})})}
 function todayMissions(uidv){const t=today();return (S.hr||[]).filter(x=>x.uid===uidv&&x.kind==='mission'&&x.status!=='rejected'&&x.from<=t&&(x.to||x.from)>=t)}
 function punchCard(){
-  const t=today();const mine=(S.punches||[]).filter(x=>x.uid===ME.id&&x.date===t).sort((a,b)=>a.at.localeCompare(b.at));const ts=todayTasks(ME.id);const need=S.settings.punchNeedMission!==false;
-  return `<div class="panel grid" style="gap:8px"><div class="row between"><h3 style="margin:0">البصمة من الموبايل</h3><span class="row"><button class="btn pri" data-act="punch" data-t="in">👆 بصمة حضور</button><button class="btn" data-act="punch" data-t="out">👆 بصمة انصراف</button></span></div>
-   <div class="muted small">للمأموريات والتكليفات بس: لازم تكون في مكان المأمورية (في حدود ${n(S.settings.punchRadius||300)} متر) والـ GPS مفتوح.${ts.length?` النهارده: ${ts.map(x=>esc(x.label)).join(' · ')}`:need?' <b>مفيش مأمورية أو تكليف ليك النهارده — اطلب مأمورية الأول.</b>':''}</div>
+  const t=today();const mine=(S.punches||[]).filter(x=>x.uid===ME.id&&x.date===t).sort((a,b)=>a.at.localeCompare(b.at));const ts=[...todayTasks(ME.id),...officeTask()];const need=S.settings.punchNeedMission!==false;
+  return `<div class="panel grid" style="gap:8px"><div class="row between"><h3 style="margin:0">البصمة من الموبايل</h3><span class="row">${can('settings')?`<button class="btn sm ${officeOpen()?'danger':''}" data-act="offToggle">${S.settings.officePunchDate===today()?'اقفل بصمة المقر':'افتح البصمة من السيستم النهارده'}</button>`:''}<button class="btn pri" data-act="punch" data-t="in">👆 بصمة حضور</button><button class="btn" data-act="punch" data-t="out">👆 بصمة انصراف</button></span></div>
+   ${officeOpen()?`<div class="banner info small">البصمة من السيستم في مقر الشركة مفتوحة${S.settings.officePunch==='always'?'':' النهارده'} — لازم تكون جوه الشركة (في حدود ${n(S.settings.officeRadius||100)} متر) والـ GPS مفتوح.</div>`:''}
+   <div class="muted small">للمأموريات والتكليفات: لازم تكون في مكان المأمورية (في حدود ${n(S.settings.punchRadius||300)} متر) والـ GPS مفتوح.${ts.length?` النهارده: ${ts.map(x=>esc(x.label)).join(' · ')}`:need?' <b>مفيش مأمورية أو تكليف ليك النهارده — اطلب مأمورية الأول.</b>':''}</div>
    ${mine.length?mine.map(x=>`<div class="row between small" style="border-top:1px solid var(--line);padding-top:6px"><span><b>${PUNCH_T[x.type]}</b> الساعة <b>${timeOf(x.at)}</b>${x.place?' · '+esc(x.place):''}${x.dist!=null?` · على بعد ${x.dist} م`:''}</span>${x.lat!=null?`<a href="${mapUrl(x)}" target="_blank" rel="noopener">المكان على الخريطة</a>`:'<span class="pill p-warn">من غير موقع</span>'}</div>`).join(''):''}</div>`;
 }
 async function doPunch(type){
-  const tasks=todayTasks(ME.id);const R=n(S.settings.punchRadius||300);const need=S.settings.punchNeedMission!==false;
-  if(need&&!tasks.length){toast('مينفعش تبصم من الموبايل من غير مأمورية أو تكليف النهارده');return}
+  const tasks=[...todayTasks(ME.id),...officeTask()];const R0=n(S.settings.punchRadius||300),RR=t=>t?.office?n(S.settings.officeRadius||100):R0,R=R0;const need=S.settings.punchNeedMission!==false;
+  if(need&&!tasks.length){toast('مينفعش تبصم من الموبايل من غير مأمورية أو تكليف النهارده — والبصمة من السيستم في المقر مقفولة');return}
   toast('بيتم تحديد مكانك…');const pos=await getPos();const now=new Date();
   const info=tasks.map(t=>({...t,dist:pos&&t.target?distM(pos,t.target):null}));
-  const st=t=>!t.target?'<span class="pill p-mut">المكان ملوش موقع متسجل</span>':!pos?'<span class="pill p-bad">مقدرتش أحدد مكانك</span>':t.dist<=R?`<span class="pill p-ok">إنت في المكان (${t.dist} م)</span>`:`<span class="pill p-bad">بعيد ${t.dist>=1000?(t.dist/1000).toFixed(1)+' كم':t.dist+' م'}</span>`;
+  const st=t=>!t.target?'<span class="pill p-mut">المكان ملوش موقع متسجل</span>':!pos?'<span class="pill p-bad">مقدرتش أحدد مكانك</span>':t.dist<=RR(t)?`<span class="pill p-ok">إنت في المكان (${t.dist} م)</span>`:`<span class="pill p-bad">بعيد ${t.dist>=1000?(t.dist/1000).toFixed(1)+' كم':t.dist+' م'}</span>`;
   modal(`<h3>بصمة ${PUNCH_T[type]} — ${now.toLocaleTimeString('ar-EG',{hour:'numeric',minute:'2-digit'})}</h3>
    ${pos?`<div class="muted small">مكانك اتحدد بدقة حوالي ${pos.acc} متر — <a href="${mapUrl(pos)}" target="_blank" rel="noopener">شوفه</a></div>`:'<div class="banner">مقدرتش أحدد مكانك — افتح الـ GPS واسمح للسيستم بالموقع وجرّب تاني.</div>'}
    <div class="grid" style="gap:6px">${info.map((t,i)=>`<label class="row between" style="gap:8px;padding:6px;border:1px solid var(--line);border-radius:8px"><span class="row" style="gap:6px;flex-wrap:nowrap"><input type="radio" name="pu_m" value="${t.id}" ${i===0?'checked':''} style="width:auto"> ${esc(t.label)}</span>${st(t)}</label>`).join('')}${!need?`<label class="row" style="gap:6px"><input type="radio" name="pu_m" value="" ${!info.length?'checked':''} style="width:auto"> من غير مأمورية</label>`:''}</div>
    <label class="f">ملاحظة (اختياري)<input id="pu_n"></label>`,()=>{
     const sel=$('input[name=pu_m]:checked')?.value||'';const t=info.find(x=>x.id===sel);
     if(need&&!t){toast('اختار المأمورية');return false}
-    if(t&&t.target){if(!pos){toast('لازم تفتح الـ GPS — المكان ده ليه موقع متحدد');return false}if(t.dist>R){toast(`البصمة مرفوضة: إنت بعيد عن مكان المأمورية بحوالي ${t.dist>=1000?(t.dist/1000).toFixed(1)+' كم':t.dist+' متر'} — لازم تكون في حدود ${R} متر`);return false}}
-    const x={id:uid(),uid:ME.id,name:ME.name,type,at:now.toISOString(),date:ymd(now),lat:pos?.lat??null,lng:pos?.lng??null,acc:pos?.acc??null,missionId:sel,place:t?.label||'',dist:t?.dist??null,checked:!!(t&&t.target),note:$('#pu_n').value.trim(),createdAt:new Date().toISOString()};
+    if(t&&t.target){if(!pos){toast('لازم تفتح الـ GPS — المكان ده ليه موقع متحدد');return false}if(t.dist>RR(t)){toast(`البصمة مرفوضة: إنت بعيد عن ${t.office?'مقر الشركة':'مكان المأمورية'} بحوالي ${t.dist>=1000?(t.dist/1000).toFixed(1)+' كم':t.dist+' متر'} — لازم تكون في حدود ${RR(t)} متر`);return false}}
+    const x={id:uid(),uid:ME.id,name:ME.name,type,at:now.toISOString(),date:ymd(now),lat:pos?.lat??null,lng:pos?.lng??null,acc:pos?.acc??null,missionId:sel==='office'?'':sel,office:sel==='office',place:t?.label||'',dist:t?.dist??null,checked:!!(t&&t.target),note:$('#pu_n').value.trim(),createdAt:new Date().toISOString()};
     S.punches.push(x);notify(['perm:hr'],`بصمة ${PUNCH_T[type]} من الموبايل`,`${ME.name} — ${timeOf(x.at)} — ${x.place||'من غير مأمورية'}${x.dist!=null?` (${x.dist} م)`:''}`,'hr');
     save();toast(`اتسجلت بصمة ال${PUNCH_T[type]} ✓`);render();
   });
@@ -3317,7 +3340,7 @@ function viewUsers(){
   const own=S.users.filter(u=>u.owner),staff=S.users.filter(u=>u.role!=='clinic'&&!u.owner),clin=S.users.filter(u=>u.role==='clinic');
   const order=STAFF_ROLE_LIST;
   const groups=Object.keys(DEPTS).map(d=>[d,staff.filter(u=>deptOf(u)===d)]).concat([['',staff.filter(u=>!DEPTS[deptOf(u)])]]).filter(g=>g[1].length);
-  const row=u=>{const pm=permsOf(u);const on=PERMS.filter(p=>pm[p[0]]);if(u.owner)return `<tr><td><b>${esc(u.name)}</b><div class="muted small">صاحب السيستم</div></td><td class="num">${esc(u.username)}</td><td><span class="pill p-acc">المطوّر / المالك</span></td><td class="small">كل حاجة — محدش يقدر يمسحه أو يشيل صلاحياته</td><td><span class="pill p-ok">نشط</span></td><td>${u.id===ME.id?`<button class="btn sm" data-act="editUser" data-id="${u.id}">تعديل الاسم</button>`:''}</td></tr>`;return `<tr><td><b>${esc(u.name)}</b>${u.jobTitle?`<div class="muted small">${esc(u.jobTitle)}</div>`:''}${u.managerId?`<div class="muted small">مديره: ${esc(userName(u.managerId))}</div>`:''}</td><td class="num">${esc(u.username)}</td><td><span class="pill ${u.role==='admin'?'p-acc':u.role==='clinic'?'p-info':'p-mut'}">${ROLE[u.role]||u.role}</span></td><td class="small">${u.role==='clinic'?`<a href="#" data-go="client" data-p="${u.clientId}">${esc(cName(client(u.clientId))||'—')}</a><div class="muted">${CPERMS.filter(([k])=>cpOf(client(u.clientId),k)).map(x=>x[1]).slice(0,3).join('، ')}${CPERMS.filter(([k])=>cpOf(client(u.clientId),k)).length>3?' …':''}</div>`:u.role==='admin'?'كل حاجة':on.length?on.map(p=>p[1]).slice(0,3).join('، ')+(on.length>3?` و${on.length-3} كمان`:''):'العهدة والإجازات بس'}</td><td>${u.active===false?'<span class="pill p-bad">موقوف</span>':'<span class="pill p-ok">نشط</span>'}</td><td><div class="row" style="flex-wrap:nowrap">${u.role!=='clinic'&&can('emp_files')?`<button class="btn sm" data-go="empf" data-p="${u.id}">الملف</button>`:''}<button class="btn sm" data-act="editUser" data-id="${u.id}">تعديل${' والصلاحيات'}</button>${u.id!==ME.id?`<button class="btn sm ghost" data-act="toggleUser" data-id="${u.id}">${u.active===false?'تفعيل':'إيقاف'}</button><button class="btn sm danger" data-act="delUser" data-id="${u.id}">حذف</button>`:''}</div></td></tr>`};
+  const row=u=>{const pm=permsOf(u);const on=PERMS.filter(p=>pm[p[0]]);if(u.owner)return `<tr><td><b>${esc(u.name)}</b><div class="muted small">صاحب السيستم</div></td><td class="num">${esc(u.username)}${pwCell(u)}</td><td><span class="pill p-acc">المطوّر / المالك</span></td><td class="small">كل حاجة — محدش يقدر يمسحه أو يشيل صلاحياته</td><td><span class="pill p-ok">نشط</span></td><td>${u.id===ME.id?`<button class="btn sm" data-act="editUser" data-id="${u.id}">تعديل الاسم</button>`:''}</td></tr>`;return `<tr><td><b>${esc(u.name)}</b>${u.jobTitle?`<div class="muted small">${esc(u.jobTitle)}</div>`:''}${u.managerId?`<div class="muted small">مديره: ${esc(userName(u.managerId))}</div>`:''}</td><td class="num">${esc(u.username)}${pwCell(u)}</td><td><span class="pill ${u.role==='admin'?'p-acc':u.role==='clinic'?'p-info':'p-mut'}">${ROLE[u.role]||u.role}</span></td><td class="small">${u.role==='clinic'?`<a href="#" data-go="client" data-p="${u.clientId}">${esc(cName(client(u.clientId))||'—')}</a><div class="muted">${CPERMS.filter(([k])=>cpOf(client(u.clientId),k)).map(x=>x[1]).slice(0,3).join('، ')}${CPERMS.filter(([k])=>cpOf(client(u.clientId),k)).length>3?' …':''}</div>`:u.role==='admin'?'كل حاجة':on.length?on.map(p=>p[1]).slice(0,3).join('، ')+(on.length>3?` و${on.length-3} كمان`:''):'العهدة والإجازات بس'}</td><td>${u.active===false?'<span class="pill p-bad">موقوف</span>':'<span class="pill p-ok">نشط</span>'}</td><td><div class="row" style="flex-wrap:nowrap">${u.role!=='clinic'&&can('emp_files')?`<button class="btn sm" data-go="empf" data-p="${u.id}">الملف</button>`:''}<button class="btn sm" data-act="editUser" data-id="${u.id}">تعديل${' والصلاحيات'}</button>${u.id!==ME.id?`<button class="btn sm ghost" data-act="toggleUser" data-id="${u.id}">${u.active===false?'تفعيل':'إيقاف'}</button><button class="btn sm danger" data-act="delUser" data-id="${u.id}">حذف</button>`:''}</div></td></tr>`};
   const tbl=list=>`<div class="tbl-wrap"><table class="t"><thead><tr><th>الاسم</th><th>اسم المستخدم</th><th>الوظيفة</th><th>الصلاحيات</th><th>الحالة</th><th></th></tr></thead><tbody>${[...list].sort((a,b)=>order.indexOf(a.role)-order.indexOf(b.role)||a.name.localeCompare(b.name,'ar')).map(row).join('')}</tbody></table></div>`;
   return `<div class="row between"><h2>المستخدمين</h2><div class="row"><button class="btn pri" data-act="addUser" data-role="engineer">+ موظف جديد</button><button class="btn" data-act="addClinicUser">+ حساب عيادة</button></div></div>
   <div class="panel small muted">كل موظف ليه وظيفة وإدارة وصلاحيات بتختارها له. كل وظيفة بتيجي بصلاحيات جاهزة، وتقدر تزوّد أو تشيل منها.</div>
@@ -3355,7 +3378,7 @@ function openUserModal(id,role='engineer',clientId=''){
       if(S.users.some(x=>x.username===un&&x.id!==u.id)){toast('اسم المستخدم ده موجود');return false}
       if(un!==u.username&&!pw){toast('لما تغير اسم المستخدم لازم تكتب كلمة سر جديدة');return false}
       if(pw&&pw.length<6){toast('كلمة السر 6 على الأقل');return false}
-      u.username=un;if(pw)u.hash=pwHash(un,pw);
+      u.username=un;if(pw){u.hash=pwHash(un,pw);keepSecret(u.id,un,pw)}
     }
     if(isCl){const cc=client(cid);readCpBox(cc);save()}
     u.name=name;if(cid)u.clientId=cid;if(!isCl&&!isOw){u.role=role2;if(perms)u.perms=perms;Object.assign(u,extra)}
@@ -3865,7 +3888,7 @@ function buildChain(type,subjectId,exclude=[]){
   if(!steps.length){const ad=activeStaff().filter(x=>x.role==='admin'&&!exclude.includes(x.id)&&x.id!==subjectId).map(x=>x.id);if(ad.length)steps.push({lvl:'admin',uids:ad})}
   return steps;
 }
-function attachChain(x,type,subjectId,exclude){x.chain=buildChain(type,subjectId,exclude);x.step=0;x.hist=[];x.approvers=[...new Set(x.chain.flatMap(s=>s.uids))];return x.chain[0]?.uids||[]}
+function attachChain(x,type,subjectId,exclude){x.chain=buildChain(type,subjectId,exclude);x.step=0;x.hist=[];x.approvers=[...new Set(x.chain.flatMap(s=>s.uids))];if(!x.chain.length&&isOwnerU(S.users.find(u=>u.id===subjectId)||ME)&&x.status==='pending'){x.status='approved';x.autoOk=true;x.decidedBy=ME.id;x.decidedAt=new Date().toISOString();x.hist=[{step:0,lvl:'admin',by:ME.id,byName:ME.name,ok:true,note:'المدير العام — من غير موافقات',at:x.decidedAt}];setTimeout(()=>{try{afterHrFinal(x,true)}catch(e){}},0)}return x.chain[0]?.uids||[]}
 function canAct(x,type){if(x.status!=='pending')return false;if(!x.chain||!x.chain.length)return can(REQ_T[type].perm)&&x.uid!==ME.id;const st=x.chain[x.step];if(!st)return false;return st.uids.includes(ME.id)||(isAdmin()&&x.uid!==ME.id)}
 function chainLine(x){if(!x.chain||!x.chain.length)return '';return `<div class="small muted chainl">${x.chain.map((s,i)=>{const h=(x.hist||[]).find(y=>y.step===i);const cls=h?(h.ok?'p-ok':'p-bad'):i===x.step&&x.status==='pending'?'p-warn':'p-mut';const who=h?h.byName:s.uids.map(userName).join(' / ');return `<span class="pill ${cls}">${LEVELS[s.lvl]}${who?': '+esc(who):''}${h?(h.ok?' ✓':' ✗'):''}</span>`}).join(' ← ')}</div>`}
 function advance(x,ok,note){
@@ -3880,7 +3903,7 @@ function approvalItems(){
   (S.custody||[]).forEach(x=>{if(x.kind==='expense'&&canAct(x,'expense'))L.push({t:'expense',x})});
   (S.penalties||[]).forEach(x=>{if(canAct(x,'penalty'))L.push({t:'penalty',x})});
   (S.bonuses||[]).forEach(x=>{if(canAct(x,'bonus'))L.push({t:'bonus',x})});
-  (S.vouchers||[]).forEach(x=>{if(canAct(x,'voucher'))L.push({t:'voucher',x})});
+  (S.vouchers||[]).forEach(x=>{const t=x.kind==='suppay'?'suppay':'voucher';if(canAct(x,t))L.push({t,x})});
   return L.sort((a,b)=>(a.x.createdAt||'').localeCompare(b.x.createdAt||''));
 }
 function apprRow({t,x}){
@@ -3888,10 +3911,10 @@ function apprRow({t,x}){
   const desc=t==='bonus'?`<b>${esc(x.type)}</b> لـ ${who} <b class="num" style="color:var(--ok)">${money(x.amount)}</b> — مرتب ${monthName((x.month||'')+'-01')}${x.reason?`<div class="small">${esc(x.reason)}</div>`:''}<div class="small muted">كتبها ${esc(x.byName||'')}</div>`:t==='expense'?`<b>مصروف من العهدة</b> — ${fd(x.date)} — ${esc(x.type)}: ${esc(x.purpose||'')} <b class="num">${money(x.amount)}</b>${x.photo?` <button class="btn sm" data-act="showImg" data-src="cu:${x.id}">الإيصال</button>`:''}`:t==='penalty'?`<b>جزاء</b> على ${who} — ${penDesc(x)}<div class="small muted">كتبه ${esc(x.byName||'')}</div>`:hrDesc(x);
   return `<div style="padding:10px 0;border-bottom:1px solid var(--line);display:grid;gap:4px"><div class="row between"><span>${t!=='penalty'&&t!=='bonus'?`<b>${who}</b> · `:''}${desc}</span><span class="pill p-mut">${REQ_T[t].l}</span></div>${chainLine(x)}<div class="row" style="justify-content:flex-end"><button class="btn sm pri" data-act="apOk" data-t="${t}" data-id="${x.id}">موافقة</button><button class="btn sm danger" data-act="apNo" data-t="${t}" data-id="${x.id}">رفض</button></div></div>`;
 }
-function colOfT(t){return t==='voucher'?S.vouchers:t==='expense'?S.custody:t==='penalty'?S.penalties:t==='bonus'?S.bonuses:S.hr}
+function colOfT(t){return t==='voucher'||t==='suppay'?S.vouchers:t==='expense'?S.custody:t==='penalty'?S.penalties:t==='bonus'?S.bonuses:S.hr}
 function decideChain(t,id,ok){
   const x=colOfT(t).find(y=>y.id===id);if(!x||!canAct(x,t)){toast('مش دورك في الموافقة على الطلب ده');return}
-  const lbl=t==='expense'?`مصروف ${money(x.amount)}`:t==='penalty'?`جزاء ${x.type}`:t==='bonus'?`${x.type} ${money(x.amount)}`:x.kind==='voucher'?'إذن صرف '+money(x.amount):x.kind==='leave'?'إجازة '+x.type:x.kind==='loan'?'سلفة '+money(x.amount):x.kind==='custreq'?'عهدة '+money(x.amount):x.kind==='lateperm'?(LP_T[x.type]||'إذن')+' '+fd(x.date):'مأمورية';
+  const lbl=t==='expense'?`مصروف ${money(x.amount)}`:t==='penalty'?`جزاء ${x.type}`:t==='bonus'?`${x.type} ${money(x.amount)}`:x.kind==='suppay'?'سداد لمورد '+(x.supName||'')+' '+money(x.amount):x.kind==='voucher'?'إذن صرف '+money(x.amount):x.kind==='leave'?'إجازة '+x.type:x.kind==='loan'?'سلفة '+money(x.amount):x.kind==='custreq'?'عهدة '+money(x.amount):x.kind==='lateperm'?(LP_T[x.type]||'إذن')+' '+fd(x.date):'مأمورية';
   modal(`<h3>${ok?'موافقة على':'رفض'} ${esc(lbl)} — ${esc(x.name||userName(x.uid))}</h3>${chainLine(x)}<label class="f">ملاحظة (اختياري)<input id="ap_n"></label>`,()=>{
     const note=$('#ap_n').value.trim();const r=advance(x,ok,note);
     if(r==='next'){notify(x.chain[x.step].uids,'طلب مستني موافقتك',`${REQ_T[t].l}: ${x.name||userName(x.uid)} — ${lbl}`,'hr');toast('اتوافق — اتبعت للمستوى اللي بعده');}
@@ -4088,6 +4111,7 @@ const HR_KL={leave:'إجازة',mission:'مأمورية',loan:'سلفة',custreq
 function hrT(x){return ['leave','loan','custreq','lateperm'].includes(x?.kind)?x.kind:'mission'}
 const LP_T={late:'إذن تأخير (حضور متأخر)',early:'إذن انصراف بدري'};
 function hrDescX(x){
+  if(x.kind==='suppay')return `<b>طلب سداد لمورد #${pad(x.no)} — <span class="num">${money(x.amount)}</span></b> — ${esc(x.supName||'')}${x.purchaseId?` <span class="muted small">(فاتورة ${esc((S.purchases||[]).find(p=>p.id===x.purchaseId)?.invoiceNo||'')})</span>`:''} · مطلوب ${fd(x.date)}${x.reason?`<div class="small">${esc(x.reason)}</div>`:''}`;
   if(x.kind==='voucher')return `<b>إذن صرف #${pad(x.no)} — <span class="num">${money(x.amount)}</span></b> — ${esc(x.cat||'')}: ${esc(x.reason||'')}${x.to?` <span class="muted small">· لـ ${esc(x.to)}</span>`:''}`;
   if(x.kind==='loan'){const L=loanInfo(x);return `<b>سلفة ${money(x.amount)}</b> — تتقسط على ${x.months} شهر (${money(L.inst)} في الشهر) من مرتب ${monthName(x.startMonth+'-01')}${x.status==='approved'?` <span class="muted small">· اتخصم ${money(L.paid)} · الباقي ${money(L.left)}</span>`:''}${x.reason?`<div class="small">${esc(x.reason)}</div>`:''}`}
   if(x.kind==='custreq')return `<b>طلب عهدة ${money(x.amount)}</b>${x.status==='approved'?(x.delivered?` <span class="pill p-ok">اتسلمت ${fd(x.deliveredAt)}</span>`:' <span class="pill p-warn">مستنية التسليم</span>'):''}${x.purpose?`<div class="small">الغرض: ${esc(x.purpose)}</div>`:''}`;
@@ -4139,6 +4163,7 @@ function latePermOf(uidv,d){return (S.hr||[]).filter(x=>x.uid===uidv&&x.kind==='
 function afterHrFinal(x,fin){
   if(!fin)return;
   if(x.kind==='loan')notify(['perm:payroll_prep','perm:loans'],'سلفة اتوافق عليها',`${x.name} — ${money(x.amount)} على ${x.months} شهر من ${monthName(x.startMonth+'-01')} — اصرفها، والأقساط هتتخصم من المرتب لوحدها`,'payroll');
+  if(x.kind==='suppay')notify(['perm:treasury'],'سداد مورد اتوافق عليه — ادفعه',`${x.supName} — ${money(x.amount)}`,'treasury');
   if(x.kind==='voucher')notify(['perm:treasury'],'إذن صرف اتوافق عليه — اصرفه',`#${pad(x.no)} — ${x.name} — ${money(x.amount)}: ${x.reason||''}`,'treasury');
   if(x.kind==='custreq')notify(['perm:custody'],'طلب عهدة اتوافق عليه — سلّمها',`${x.name} — ${money(x.amount)}: ${x.purpose||''}`,'custody');
 }
@@ -4256,11 +4281,11 @@ function trLedger(){
     (S.partSales||[]).forEach(x=>add(x.date,x.paid,x.method,`${psTitle(x)} #${pad(x.no)} — ${x.buyer||''}`,'in'));
     S.payments.forEach(p=>add(p.date,p.amount,p.method,`تحصيل من ${cName(client(p.clientId))||'عميل'}${p.lump?' (دفعة على الحساب)':''}`,'in'));
     (S.purchases||[]).forEach(p=>add(p.date,-n(p.paid),p.method,`مدفوع لمورد — ${S.suppliers.find(s=>s.id===p.supplierId)?.name||''}`,'out'));
-    (S.supplierPayments||[]).forEach(p=>add(p.date,-n(p.amount),p.method,`دفعة لمورد — ${S.suppliers.find(s=>s.id===p.supplierId)?.name||''}`,'out'));
+    (S.supplierPayments||[]).forEach(p=>add(p.date,-n(p.amount),p.method,`دفعة لمورد — ${S.suppliers.find(s=>s.id===p.supplierId)?.name||''}${p.reqId?' (طلب سداد)':''}`,'out',p.safe));
     (S.custody||[]).forEach(x=>{if(x.kind==='cash')add(x.date,-n(x.amount),x.method,`عهدة لـ ${userName(x.uid)}`,'out');if(x.kind==='settle')add(x.date,n(x.amount),x.method,`رجوع عهدة من ${userName(x.uid)}`,'in')});
     (S.partReturns||[]).forEach(x=>{if(x.creditMode==='refund')add(x.date,-n(x.credit),x.method,`رد فلوس مرتجع — ${x.name||''}`,'out')});
   }
-  VCH().filter(x=>x.status==='paid').forEach(x=>add(x.payDate,-n(x.amount),x.method,`إذن صرف #${pad(x.no)} — ${x.cat}${x.to?' — '+x.to:''}`,'vch',x.safe));
+  VCH().filter(x=>x.status==='paid'&&!(x.kind==='suppay'&&C.auto)).forEach(x=>add(x.payDate,-n(x.amount),x.method,`إذن صرف #${pad(x.no)} — ${x.cat}${x.to?' — '+x.to:''}`,'vch',x.safe));
   (S.treasury||[]).filter(x=>x.id!=='cfg').forEach(x=>{
     if(x.kind==='transfer'){add(x.date,-n(x.amount),'',`تحويل لـ ${safeName(x.to)}${x.notes?' — '+x.notes:''}`,'tr',x.from);add(x.date,n(x.amount),'',`تحويل من ${safeName(x.from)}${x.notes?' — '+x.notes:''}`,'tr',x.to)}
     else add(x.date,x.kind==='in'||(x.kind==='adjust'&&n(x.amount)>0)?Math.abs(n(x.amount)):-Math.abs(n(x.amount)),'',`${TR_K[x.kind]||''}${x.month?' '+monthName(x.month+'-01'):''}${x.notes?' — '+x.notes:''}`,'man:'+x.id,x.safe)});
@@ -4289,21 +4314,23 @@ function payVoucher(id){
   const x=VCH().find(y=>y.id===id);if(!x)return;
   modal(`<h3>صرف إذن #${pad(x.no)} — ${money(x.amount)}</h3><div class="small">${esc(x.name)} — ${esc(x.cat)}: ${esc(x.reason)}${x.to?' — لـ '+esc(x.to):''}</div><div class="grid g2"><label class="f">من خزينة<select id="pv_s">${safeOpts()}</select></label><label class="f">الطريقة<select id="pv_m">${S.settings.methods.map(m=>`<option>${esc(m)}</option>`).join('')}</select></label><label class="f">تاريخ الصرف<input type="date" id="pv_d" value="${today()}"></label><label class="f" id="pv_b"></label></div>`,()=>{
     x.status='paid';x.safe=$('#pv_s').value;x.method=$('#pv_m').value;x.payDate=$('#pv_d').value||today();x.paidBy=ME.id;x.paidByName=ME.name;
+    if(x.kind==='suppay'){const sp={id:uid(),supplierId:x.supplierId,purchaseId:x.purchaseId||'',date:x.payDate,amount:n(x.amount),method:x.method,safe:x.safe,notes:'طلب سداد #'+pad(x.no)+(x.reason?' — '+x.reason:''),by:ME.id,reqId:x.id};S.supplierPayments.push(sp);x.payId=sp.id}
     notify([x.uid],'إذن الصرف اتصرف ✓',`#${pad(x.no)} — ${money(x.amount)}`,'treasury');save();toast('اتصرف');render();
   });
+  if(x.prefMethod)$('#pv_m').value=x.prefMethod;
   const f=()=>{$('#pv_b').innerHTML=`<span class="muted small">رصيد الخزينة دي دلوقتي</span><b class="num">${money(trBal($('#pv_s').value))}</b>`};$('#pv_s').onchange=f;f();
 }
 function vchRow(x,full){
-  const st=VCH_ST[x.status]||VCH_ST.pending;const t='voucher';
+  const st=VCH_ST[x.status]||VCH_ST.pending;const t=x.kind==='suppay'?'suppay':'voucher';
   return `<div style="padding:10px 0;border-bottom:1px solid var(--line);display:grid;gap:4px"><div class="row between"><span>${full?`<b>${esc(x.name||userName(x.uid))}</b> · `:''}${hrDescX(x)}</span><span class="pill ${st[1]}">${st[0]}</span></div>${chainLine(x)}${x.note?`<div class="small muted">ملاحظة: ${esc(x.note)}</div>`:''}
-   <div class="row between"><span class="small muted">اتعمل ${fdt(x.createdAt)}${x.status==='paid'?` · اتصرف ${fd(x.payDate)} من ${esc(safeName(x.safe))} (${esc(x.method||'')}) بواسطة ${esc(x.paidByName||'')}`:''}</span><span class="row">${x.photo?`<button class="btn sm" data-act="vchImg" data-id="${x.id}">الإيصال</button>`:''}${canAct(x,t)?`<button class="btn sm pri" data-act="apOk" data-t="voucher" data-id="${x.id}">موافقة</button><button class="btn sm danger" data-act="apNo" data-t="voucher" data-id="${x.id}">رفض</button>`:''}${x.status==='approved'&&can('treasury')?`<button class="btn sm pri" data-act="vchPay" data-id="${x.id}">اصرف</button>`:''}${(x.uid===ME.id&&x.status==='pending')||(can('treasury')&&x.status!=='paid')?`<button class="btn sm ghost" data-act="vchDel" data-id="${x.id}">حذف</button>`:''}</span></div></div>`;
+   <div class="row between"><span class="small muted">اتعمل ${fdt(x.createdAt)}${x.status==='paid'?` · اتصرف ${fd(x.payDate)} من ${esc(safeName(x.safe))} (${esc(x.method||'')}) بواسطة ${esc(x.paidByName||'')}`:''}</span><span class="row">${x.photo?`<button class="btn sm" data-act="vchImg" data-id="${x.id}">الإيصال</button>`:''}${canAct(x,t)?`<button class="btn sm pri" data-act="apOk" data-t="${t}" data-id="${x.id}">موافقة</button><button class="btn sm danger" data-act="apNo" data-t="${t}" data-id="${x.id}">رفض</button>`:''}${x.status==='approved'&&can('treasury')?`<button class="btn sm pri" data-act="vchPay" data-id="${x.id}">اصرف</button>`:''}${(x.uid===ME.id&&x.status==='pending')||(can('treasury')&&x.status!=='paid')?`<button class="btn sm ghost" data-act="vchDel" data-id="${x.id}">حذف</button>`:''}</span></div></div>`;
 }
 function vouchersPanel(){
   const all=can('treasury')||can('vouchers_approve')||can('treasury_view')||can('accounts');
   const mine=VCH().filter(x=>x.uid===ME.id).sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||''));
   const wait=VCH().filter(x=>x.status==='approved').sort((a,b)=>(a.createdAt||'').localeCompare(b.createdAt||''));
-  if(!can('vouchers')&&!all&&!mine.length)return '';
-  return `<div class="panel"><div class="row between"><h3 style="margin:0">أذون الصرف</h3><span class="row">${can('vouchers')?'<button class="btn sm pri" data-act="vchNew">+ إذن صرف</button>':''}${all?'<button class="btn sm" data-act="goVch">كل الأذون</button>':''}</span></div>
+  if(!can('vouchers')&&!can('suppay_req')&&!all&&!mine.length)return '';
+  return `<div class="panel"><div class="row between"><h3 style="margin:0">أذون الصرف</h3><span class="row">${can('vouchers')?'<button class="btn sm pri" data-act="vchNew">+ إذن صرف</button>':''}${can('suppay_req')?'<button class="btn sm" data-act="supPayReq">+ طلب سداد لمورد</button>':''}${all?'<button class="btn sm" data-act="goVch">كل الأذون</button>':''}</span></div>
    ${can('treasury')&&wait.length?`<div class="sec-title" style="margin-top:8px">متوافق عليها ومستنية الصرف (${wait.length})</div>${wait.map(x=>vchRow(x,true)).join('')}`:''}
    ${mine.length?`<div class="sec-title" style="margin-top:8px">أذوناتي</div>${mine.slice(0,8).map(x=>vchRow(x,false)).join('')}`:(can('vouchers')?'<div class="muted small" style="margin-top:6px">لو محتاج تصرف أي حاجة من فلوس الشركة اعمل إذن صرف.</div>':'')}</div>`;
 }
@@ -4332,7 +4359,7 @@ function viewTreasury(){
     return head+`<div class="row between"><div class="seg">${[['all','الكل'],['pending','مستني الموافقة'],['approved','مستني الصرف'],['paid','اتصرف'],['rejected','اترفض']].map(([k,l])=>`<button data-vf="${k}" class="${F===k?'on':''}">${l}</button>`).join('')}</div>${can('vouchers')?'<button class="btn pri" data-act="vchNew">+ إذن صرف</button>':''}</div><div class="panel">${V.length?V.map(x=>vchRow(x,true)).join(''):'<div class="empty">مفيش أذون</div>'}</div>`;
   }
   if(TRT==='cat'){
-    const m=window._VM||mo;const P=VCH().filter(x=>x.status==='paid'&&(m==='all'||(x.payDate||'').startsWith(m)));const by={};P.forEach(x=>by[x.cat]=(by[x.cat]||0)+n(x.amount));
+    const m=window._VM||mo;const P=VCH().filter(x=>x.status==='paid'&&x.kind!=='suppay'&&(m==='all'||(x.payDate||'').startsWith(m)));const by={};P.forEach(x=>by[x.cat]=(by[x.cat]||0)+n(x.amount));
     const months=[...new Set([mo,...VCH().map(x=>(x.payDate||'').slice(0,7)).filter(Boolean)])].sort().reverse();
     return head+`<div class="row"><select id="vm" style="width:auto"><option value="all" ${m==='all'?'selected':''}>من الأول</option>${months.map(x=>`<option value="${x}" ${x===m?'selected':''}>${monthName(x+'-01')}</option>`).join('')}</select></div>
      <div class="grid g2"><div class="panel"><h3>المصروفات بالبند</h3>${Object.entries(by).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<div class="stat-line"><span>${esc(k)}</span><b class="num">${money(v)}</b></div>`).join('')||'<div class="empty">مفيش مصروفات</div>'}${P.length?`<div class="stat-line tot"><span>الإجمالي</span><b class="num">${money(P.reduce((a,x)=>a+n(x.amount),0))}</b></div>`:''}</div>
@@ -4404,6 +4431,236 @@ document.addEventListener('click',e=>{const t=e.target.closest('[data-trt]');if(
   if(e.target.classList?.contains('ts-d'))e.target.closest('.tr-safe').remove();
 });
 document.addEventListener('change',e=>{if(e.target.id==='trs'){TRS=e.target.value;render()}if(e.target.id==='trf'){TRF=e.target.value;render()}if(e.target.id==='trto'){TRTo=e.target.value;render()}if(e.target.id==='vm'){window._VM=e.target.value;render()}});
+
+/* =====================================================================
+   v18 — الكشف على جهاز (لعميل جديد أو قديم) وتقرير الكشف
+   ===================================================================== */
+const INSP_CHECKS=['الشكل الخارجي والهيكل','الشاشة واللمس','التشغيل والإقلاع','الكهرباء ومصدر الطاقة','نظام التبريد (المياه / الفلتر / المروحة)','الهاند بيس (Handpiece)','الفايبر / الألياف','الطاقة الخارجة (Output)','عداد النبضات','الكابلات والوصلات','الدواسة (Footswitch)','أنظمة الأمان والإنذارات','الإكسسوارات والملحقات'];
+const INSP_ST={ok:['سليم','#1d7a46','p-ok'],warn:['ملاحظة','#a8650a','p-warn'],bad:['عطل','#b1243f','p-bad'],na:['مش متاح','#6b7785','p-mut']};
+const INSP_PUR={buy:'كشف قبل شراء الجهاز',sell:'كشف قبل بيع الجهاز',repair:'تقييم حالة وصيانة',install:'كشف قبل التركيب',contract:'كشف قبل عقد صيانة',other:'كشف عام'};
+const INSP_V={good:['حالة الجهاز ممتازة / جيدة','#1d7a46'],fair:['حالة متوسطة — محتاج صيانة','#a8650a'],bad:['حالة سيئة — مش ننصح بيه','#b1243f']};
+const INSPS=()=>S.inspections||[];
+let INSP_ID=null,INSP_PH=[],IQ='';
+function inspClient(x){const c=x.clientId&&client(x.clientId);return c?{name:cName(c),sub:cSub(c),phone:c.phone||'',address:c.address||'',linked:true}:{name:x.cl?.clinic||x.cl?.name||'',sub:x.cl?.clinic?x.cl?.name:'',phone:x.cl?.phone||'',address:[x.cl?.address,x.cl?.gov].filter(Boolean).join(' – '),linked:false}}
+function viewInsp(){
+  const q=IQ.trim().toLowerCase();
+  const L=INSPS().filter(x=>{const c=inspClient(x);return !q||[pad(x.no),c.name,c.sub,c.phone,x.device?.serial,x.device?.name,x.device?.brand].join(' ').toLowerCase().includes(q)}).sort((a,b)=>(b.date||'').localeCompare(a.date||'')||n(b.no)-n(a.no));
+  return `<div class="row between"><h2>الكشف على الأجهزة <span class="muted" style="font-size:1rem">(${INSPS().length})</span></h2><button class="btn pri" data-act="inspNew">+ كشف جديد</button></div>
+  <div class="muted small">اعمل كشف على أي جهاز — لعميل جديد مش متسجل أو عميل عندك — واكتب حالة كل جزء والمشاكل والتعليقات وصور، وبعدين ابعته تقرير لأي حد على الواتساب.</div>
+  <input id="iq" placeholder="بحث برقم الكشف أو العميل أو التليفون أو السيريال" value="${esc(IQ)}" style="max-width:360px">
+  <div class="panel">${L.length?`<div class="tbl-wrap"><table class="t"><thead><tr><th>رقم</th><th>التاريخ</th><th>العميل</th><th>الجهاز</th><th>الغرض</th><th>النتيجة</th><th>المهندس</th><th></th></tr></thead><tbody>${L.map(x=>{const c=inspClient(x);const v=INSP_V[x.verdict];return `<tr class="click" data-go="inspv" data-p="${x.id}"><td class="num">${pad(x.no)}</td><td>${fd(x.date)}</td><td><b>${esc(c.name||'—')}</b>${c.linked?'':' <span class="pill p-info">عميل جديد</span>'}<div class="muted small num">${esc(c.phone)}</div></td><td class="small">${esc(devName(x.device))}</td><td class="small">${esc(INSP_PUR[x.purpose]||'')}</td><td>${v?`<span class="pill" style="background:${v[1]}22;color:${v[1]}">${v[0].split(' — ')[0]}</span>`:'—'}</td><td class="small">${esc(x.byName||'')}</td><td>${x.sentAt?'<span class="pill p-ok">اتبعت</span>':''}</td></tr>`}).join('')}</tbody></table></div>`:'<div class="empty">لسه مفيش كشوفات</div>'}</div>`;
+}
+function viewInspForm(id){
+  const x=id?INSPS().find(y=>y.id===id):null;if(id&&!x)return '<div class="empty">الكشف مش موجود</div>';
+  if(INSP_ID!==(id||'new')){INSP_ID=id||'new';INSP_PH=[...(x?.photos||[])]}
+  const d=x?.device||{},cl=x?.cl||{};
+  const checks=x?.checks?.length?x.checks:INSP_CHECKS.map(l=>({label:l,st:'',note:''}));
+  const chRow=(c)=>`<div class="ins-ch" style="display:grid;grid-template-columns:1fr auto auto;gap:6px;align-items:center;padding:6px 0;border-bottom:1px solid var(--line)"><input class="ic-l" value="${esc(c.label)}"><select class="ic-s" style="width:auto"><option value="">—</option>${Object.entries(INSP_ST).map(([k,[l]])=>`<option value="${k}" ${c.st===k?'selected':''}>${l}</option>`).join('')}</select><button type="button" class="btn sm ghost ic-d">✕</button><input class="ic-n" placeholder="ملاحظة (اختياري)" value="${esc(c.note||'')}" style="grid-column:1/-1"></div>`;
+  window._icRow=chRow;
+  return `<div class="row between"><h2>${x?'تعديل كشف #'+pad(x.no):'كشف جديد على جهاز'}</h2><button class="btn" data-go="${x?'inspv':'insp'}" data-p="${x?x.id:''}">رجوع</button></div>
+  <div class="panel grid"><h3 style="margin:0">العميل</h3>
+   <label class="f">عميل متسجل عندنا؟<select id="in_c"><option value="">عميل جديد (مش متسجل)</option>${CL().map(c=>`<option value="${c.id}" ${x?.clientId===c.id?'selected':''}>${esc(cName(c))}${cSub(c)?' – '+esc(cSub(c)):''}</option>`).join('')}</select></label>
+   <div class="grid g2" id="in_new" ${x?.clientId?'hidden':''}><label class="f">اسم العيادة / المركز<input id="in_cc" value="${esc(cl.clinic||'')}"></label><label class="f">اسم الدكتور / المسؤول<input id="in_cn" value="${esc(cl.name||'')}"></label><label class="f">التليفون<input id="in_cp" inputmode="tel" value="${esc(cl.phone||'')}"></label><label class="f">المحافظة<input id="in_cg" value="${esc(cl.gov||'')}"></label><label class="f span2">العنوان<input id="in_ca" value="${esc(cl.address||'')}"></label></div>
+   <div class="grid g2"><label class="f">التاريخ<input type="date" id="in_d" value="${x?.date||today()}"></label><label class="f">الغرض من الكشف<select id="in_pu">${Object.entries(INSP_PUR).map(([k,l])=>`<option value="${k}" ${x?.purpose===k?'selected':''}>${l}</option>`).join('')}</select></label></div></div>
+  <div class="panel grid"><div class="row between"><h3 style="margin:0">بيانات الجهاز</h3><select id="in_dv" style="width:auto" ${x?.clientId?'':'hidden'}><option value="">اختار جهاز من أجهزة العميل</option></select></div>
+   <div class="grid g3"><label class="f">الماركة<input id="in_b" value="${esc(d.brand||'')}" placeholder="Candela, Alma…"></label><label class="f">نوع الجهاز<input id="in_n" value="${esc(d.name||'')}" placeholder="GentleLase, Soprano…"></label><label class="f">الموديل<input id="in_m" value="${esc(d.model||'')}"></label>
+   <label class="f">الرقم المسلسل<input id="in_s" value="${esc(d.serial||'')}"></label><label class="f">سنة الصنع<input id="in_y" inputmode="numeric" value="${esc(d.year||'')}"></label><label class="f">بلد المنشأ<input id="in_o" value="${esc(d.origin||'')}"></label>
+   <label class="f">عداد النبضات (PP)<input id="in_pp" inputmode="numeric" value="${esc(d.pulses||'')}"></label><label class="f">إصدار السوفت وير<input id="in_sw" value="${esc(d.sw||'')}"></label><label class="f">الفرع / مكان الجهاز<input id="in_br" value="${esc(x?.branch||'')}"></label></div>
+   <label class="f">بيانات تانية عن الجهاز (الهاند بيسز، الإكسسوارات، الجهاز اتصلّح قبل كده…)<textarea id="in_dx" style="min-height:60px">${esc(d.extra||'')}</textarea></label></div>
+  <div class="panel grid"><h3 style="margin:0">حالة أجزاء الجهاز</h3><div class="muted small">حدد حالة كل جزء واكتب ملاحظتك — تقدر تعدّل اسم أي بند أو تمسحه أو تزود بنود.</div>
+   <div id="in_ch">${checks.map(chRow).join('')}</div><div><button type="button" class="btn sm" id="in_chAdd">+ بند</button> <button type="button" class="btn sm ghost" id="in_allOk">علّم الباقي سليم</button></div></div>
+  <div class="panel grid"><h3 style="margin:0">المشاكل والتعليقات</h3>
+   <label class="f">المشاكل اللي لقيتها في الجهاز<textarea id="in_pr" style="min-height:80px" placeholder="كل مشكلة في سطر">${esc(x?.problems||'')}</textarea></label>
+   <label class="f">تعليقات وملاحظات<textarea id="in_cm" style="min-height:70px">${esc(x?.comments||'')}</textarea></label>
+   <label class="f">التوصية<textarea id="in_rc" style="min-height:60px" placeholder="مثلاً: الجهاز ينفع يتشرى بعد تغيير الفلتر والفلاش لامب">${esc(x?.recommend||'')}</textarea></label>
+   <div class="grid g3"><label class="f">النتيجة العامة<select id="in_v"><option value="">—</option>${Object.entries(INSP_V).map(([k,[l]])=>`<option value="${k}" ${x?.verdict===k?'selected':''}>${l}</option>`).join('')}</select></label><label class="f">تكلفة الإصلاح المتوقعة (اختياري)<input type="number" min="0" step="any" id="in_ec" value="${x?.estCost||''}"></label><label class="row" style="gap:6px;align-self:end"><input type="checkbox" id="in_sc" style="width:auto" ${x?.showCost===false?'':'checked'}> اكتب التكلفة في التقرير</label></div></div>
+  <div class="panel grid"><h3 style="margin:0">صور الجهاز</h3><div class="photos" id="in_box">${INSP_PH.map((p,i)=>`<figure data-i="${i}"><img src="${p}" alt=""><button type="button" class="btn sm ghost in-phd" data-i="${i}">✕</button></figure>`).join('')}</div><div><label class="btn">📷 ضيف صور<input type="file" id="in_ph" accept="image/*" multiple hidden></label> <span class="muted small">لحد 8 صور</span></div></div>
+  <div class="row" style="justify-content:flex-end"><button class="btn" data-act="inspSave" data-k="draft">حفظ كمسودة</button><button class="btn pri" data-act="inspSave" data-k="done">خلصت الكشف — اعمل التقرير</button></div>`;
+}
+function inspBindAfter(){
+  if(VIEW!=='inspf')return;
+  const fillDev=()=>{const c=client($('#in_c').value);const sel=$('#in_dv');if(!c){sel.hidden=true;return}sel.hidden=false;sel.innerHTML='<option value="">اختار جهاز من أجهزة العميل</option>'+clientDevices(c).map((d,i)=>`<option value="${i}">${esc(devLabel(d))} — ${esc(d.serial||'بدون سيريال')}</option>`).join('')};
+  if($('#in_c').value)fillDev();
+  $('#in_c').onchange=()=>{$('#in_new').hidden=!!$('#in_c').value;fillDev()};
+  $('#in_dv').onchange=()=>{const c=client($('#in_c').value);const d=clientDevices(c)[+$('#in_dv').value];if(!d)return;$('#in_b').value=d.brand||'';$('#in_n').value=d.name||'';$('#in_m').value=d.model||'';$('#in_s').value=d.serial||'';if(d.branch)$('#in_br').value=d.branch};
+  $('#in_chAdd').onclick=()=>$('#in_ch').insertAdjacentHTML('beforeend',window._icRow({label:'',st:'',note:''}));
+  $('#in_allOk').onclick=()=>$$('#in_ch .ic-s').forEach(s=>{if(!s.value)s.value='ok'});
+  $('#in_ch').onclick=e=>{if(e.target.classList.contains('ic-d'))e.target.closest('.ins-ch').remove()};
+  const drawPh=()=>{$('#in_box').innerHTML=INSP_PH.map((p,i)=>`<figure data-i="${i}"><img src="${p}" alt=""><button type="button" class="btn sm ghost in-phd" data-i="${i}">✕</button></figure>`).join('')};
+  $('#in_box').onclick=e=>{const b=e.target.closest('.in-phd');if(b){INSP_PH.splice(+b.dataset.i,1);drawPh()}};
+  $('#in_ph').onchange=async e=>{for(const f of [...e.target.files]){if(INSP_PH.length>=8){toast('أقصى حاجة 8 صور');break}try{INSP_PH.push(await compress(f,900,.6))}catch(_){}}e.target.value='';drawPh()};
+}
+function inspSave(k){
+  const id=INSP_ID&&INSP_ID!=='new'?INSP_ID:null;const old=id?INSPS().find(y=>y.id===id):null;
+  const cid=$('#in_c').value;
+  const cl=cid?null:{clinic:$('#in_cc').value.trim(),name:$('#in_cn').value.trim(),phone:$('#in_cp').value.trim(),gov:$('#in_cg').value.trim(),address:$('#in_ca').value.trim()};
+  if(!cid&&!cl.clinic&&!cl.name){toast('اكتب اسم العميل أو اختار عميل متسجل');return}
+  const device={brand:$('#in_b').value.trim(),name:$('#in_n').value.trim(),model:$('#in_m').value.trim(),serial:$('#in_s').value.trim(),year:$('#in_y').value.trim(),origin:$('#in_o').value.trim(),pulses:$('#in_pp').value.trim(),sw:$('#in_sw').value.trim(),extra:$('#in_dx').value.trim()};
+  if(!device.name&&!device.brand){toast('اكتب نوع الجهاز');return}
+  const checks=$$('#in_ch .ins-ch').map(r=>({label:r.querySelector('.ic-l').value.trim(),st:r.querySelector('.ic-s').value,note:r.querySelector('.ic-n').value.trim()})).filter(c=>c.label);
+  const d={clientId:cid,cl,date:$('#in_d').value||today(),purpose:$('#in_pu').value,branch:$('#in_br').value.trim(),device,checks,problems:$('#in_pr').value.trim(),comments:$('#in_cm').value.trim(),recommend:$('#in_rc').value.trim(),verdict:$('#in_v').value,estCost:n($('#in_ec').value),showCost:$('#in_sc').checked,photos:[...INSP_PH],status:k,updatedAt:new Date().toISOString()};
+  if(k==='done'&&!d.verdict){toast('اختار النتيجة العامة للكشف');return}
+  let x;if(old){x=Object.assign(old,d)}else{x={id:uid(),no:INSPS().reduce((a,y)=>Math.max(a,n(y.no)),0)+1,by:ME.id,byName:ME.name,createdAt:new Date().toISOString(),...d};S.inspections.push(x)}
+  const sz=JSON.stringify(x).length;if(sz>900000){toast('الصور كبيرة قوي — شيل صورة أو اتنين');return}
+  INSP_ID=null;save();toast(k==='done'?'اتحفظ الكشف ✓':'اتحفظت المسودة');
+  if(k==='done'){window.JUST_INSP=x.id;go('inspv',x.id)}else go('insp');
+}
+function inspHTML(x){
+  const s=S.settings,c=inspClient(x),d=x.device||{};
+  const lab='color:#5b6876;font-size:12px',td='padding:5px 7px;border:1px solid #c4ccd4';
+  const logo=s.logo?`<img src="${s.logo}" style="height:46px;max-width:160px;object-fit:contain" alt="">`:`<div style="background:#1b2530;color:#fff;padding:8px 16px;border-radius:4px;font-size:22px;font-weight:700;direction:ltr;font-family:Arial,sans-serif">${esc(s.company)}</div>`;
+  const kv=(l,v)=>v?`<div style="display:flex;gap:6px;border-bottom:1px dotted #9aa5b1;padding:4px 0"><span style="${lab};white-space:nowrap">${l} :</span><b>${esc(v)}</b></div>`:'';
+  const v=INSP_V[x.verdict];const box=(t,body)=>body?`<div style="margin-top:12px"><div style="font-weight:700;margin-bottom:4px">${t}</div><div style="border:1px solid #9aa5b1;border-radius:4px;padding:8px 10px;white-space:pre-wrap">${esc(body)}</div></div>`:'';
+  return `<div dir="rtl" style="width:794px;background:#fff;color:#16202b;font-family:Tahoma,'Segoe UI',Arial,sans-serif;font-size:13.5px;line-height:1.55;padding:30px 34px;box-sizing:border-box"><div style="border:2px solid #1b2530;padding:18px 20px">
+   <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px"><div><div style="font-size:19px;font-weight:700">تقرير كشف على جهاز</div><div style="${lab}">${esc(INSP_PUR[x.purpose]||'')}</div>
+    <div style="margin-top:8px;display:flex;gap:18px"><span><span style="${lab}">التاريخ : </span><b>${fd(x.date)}</b></span><span><span style="${lab}">رقم : </span><b style="color:#b1243f;font-size:16px;font-family:Arial,sans-serif">K-${pad(x.no)}</b></span></div></div>
+    <div style="text-align:left">${logo}<div style="direction:ltr;font-family:Arial,sans-serif;font-size:13px;margin-top:4px">${esc(s.sub||'')}</div>${s.phone?`<div style="font-size:12px;color:#5b6876">${esc(s.phone)}</div>`:''}</div></div>
+   <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 24px;margin-top:12px">${kv('العميل',c.name)}${kv('المسؤول',c.sub)}${kv('التليفون',c.phone)}${kv('العنوان',c.address)}${kv('المهندس',x.byName)}${kv('الفرع / المكان',x.branch)}</div>
+   <div style="font-weight:700;margin-top:14px;margin-bottom:4px">بيانات الجهاز</div>
+   <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px 18px">${kv('الماركة',d.brand)}${kv('النوع',d.name)}${kv('الموديل',d.model)}${kv('السيريال',d.serial)}${kv('سنة الصنع',d.year)}${kv('المنشأ',d.origin)}${kv('عداد النبضات',d.pulses)}${kv('السوفت وير',d.sw)}</div>
+   ${d.extra?`<div style="margin-top:6px;white-space:pre-wrap"><span style="${lab}">بيانات تانية : </span>${esc(d.extra)}</div>`:''}
+   ${(x.checks||[]).filter(c=>c.st||c.note).length?`<div style="font-weight:700;margin-top:14px;margin-bottom:4px">حالة أجزاء الجهاز</div><table style="width:100%;border-collapse:collapse"><thead><tr style="background:#eef1f4"><th style="${td};text-align:right">البند</th><th style="${td};width:90px">الحالة</th><th style="${td};text-align:right">الملاحظة</th></tr></thead><tbody>${x.checks.filter(c=>c.st||c.note).map(c=>{const st=INSP_ST[c.st];return `<tr><td style="${td}">${esc(c.label)}</td><td style="${td};text-align:center;font-weight:700;color:${st?st[1]:'#16202b'}">${st?st[0]:'—'}</td><td style="${td}">${esc(c.note||'')}</td></tr>`}).join('')}</tbody></table>`:''}
+   ${box('المشاكل اللي اتلاقت',x.problems)}${box('تعليقات وملاحظات',x.comments)}${box('التوصية',x.recommend)}
+   ${v||(x.estCost&&x.showCost!==false)?`<div style="display:flex;gap:12px;margin-top:14px;align-items:stretch">${v?`<div style="flex:1;border:2px solid ${v[1]};border-radius:6px;padding:10px 12px;color:${v[1]};font-weight:700;font-size:15px">النتيجة: ${v[0]}</div>`:''}${x.estCost&&x.showCost!==false?`<div style="border:1px solid #9aa5b1;border-radius:6px;padding:10px 12px"><span style="${lab}">تكلفة الإصلاح المتوقعة : </span><b>${money(x.estCost)}</b></div>`:''}</div>`:''}
+   ${(x.photos||[]).length?`<div style="font-weight:700;margin-top:14px;margin-bottom:6px">صور الجهاز</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">${x.photos.map(p=>`<img src="${p}" style="width:100%;height:220px;object-fit:cover;border:1px solid #c4ccd4;border-radius:4px" alt="">`).join('')}</div>`:''}
+   <div style="display:flex;justify-content:space-between;margin-top:22px"><div><span style="${lab}">توقيع المهندس : </span>${esc(x.byName||'')}</div><div><span style="${lab}">توقيع العميل : </span>..................</div></div>
+   <div style="margin-top:10px;font-size:11px;color:#5b6876">التقرير ده بيوضح حالة الجهاز وقت الكشف بس، ومش بيعتبر ضمان لأي جزء.</div>
+  </div></div>`;
+}
+function viewInspView(id){
+  const x=INSPS().find(y=>y.id===id);if(!x)return '<div class="empty">الكشف مش موجود</div>';
+  const c=inspClient(x);const just=window.JUST_INSP===id;window.JUST_INSP=null;
+  return `<div class="row between no-print"><h2>كشف K-${pad(x.no)} ${x.status==='draft'?'<span class="pill p-warn">مسودة</span>':''}</h2><div class="row"><button class="btn" data-go="insp">رجوع</button><button class="btn" data-act="inspEdit" data-id="${x.id}">تعديل</button>${can('inspections')&&(x.by===ME.id||isAdmin())?`<button class="btn ghost" data-act="inspDel" data-id="${x.id}">حذف</button>`:''}</div></div>
+  ${just?'<div class="done-card no-print"><b>اتحفظ الكشف ✓</b><div>دلوقتي ابعته للعميل أو لأي حد على الواتساب.</div></div>':''}
+  <div class="panel row no-print" style="flex-wrap:wrap">
+   <button class="btn pri" data-act="inspWa" data-id="${x.id}">📤 ابعت على الواتساب لرقم</button>
+   <button class="btn" data-act="inspShare" data-id="${x.id}">مشاركة التقرير (صورة) — اختار أي حد</button>
+   <button class="btn" data-act="inspImg" data-id="${x.id}">حفظ صورة</button>
+   ${!c.linked&&can('clients')?`<button class="btn" data-act="inspToClient" data-id="${x.id}">سجّله عميل في السيستم</button>`:''}
+   ${x.sentAt?`<span class="muted small">آخر إرسال ${fdt(x.sentAt)}${x.sentTo?' لـ '+esc(x.sentTo):''}</span>`:''}</div>
+  <div class="sheet-wrap"><div style="width:794px">${inspHTML(x)}</div></div>`;
+}
+const inspFile=x=>`كشف-${pad(x.no)}-${(inspClient(x).name||'جهاز').replace(/[\\/:*?"<>|]/g,'')}.png`;
+function inspText(x){const c=inspClient(x),d=x.device||{};const bad=(x.checks||[]).filter(k=>k.st==='bad'||k.st==='warn');const v=INSP_V[x.verdict];
+  return `${S.settings.company||'Pioneer'} — تقرير كشف على جهاز رقم K-${pad(x.no)}\nالتاريخ: ${fd(x.date)}\nالعميل: ${c.name}${c.sub?' – '+c.sub:''}\nالجهاز: ${devName(d)}${d.pulses?'\nعداد النبضات: '+d.pulses:''}${v?'\nالنتيجة: '+v[0]:''}${bad.length?'\n\nالملاحظات:\n'+bad.map(k=>`• ${k.label}: ${INSP_ST[k.st][0]}${k.note?' — '+k.note:''}`).join('\n'):''}${x.problems?'\n\nالمشاكل:\n'+x.problems:''}${x.recommend?'\n\nالتوصية: '+x.recommend:''}${x.estCost&&x.showCost!==false?'\nتكلفة الإصلاح المتوقعة: '+money(x.estCost):''}\n\nالمهندس: ${x.byName||''}`}
+async function inspSend(id,mode){
+  const x=INSPS().find(y=>y.id===id);if(!x)return;
+  if(mode==='wa'){const c=inspClient(x);
+    modal(`<h3>ابعت تقرير الكشف على الواتساب</h3><label class="f">رقم الواتساب<input id="iw_p" inputmode="tel" value="${esc(c.phone)}" placeholder="01xxxxxxxxx"></label><div class="muted small">هيتحفظ التقرير صورة على الموبايل وهيتفتح الواتساب على الرقم ده برسالة فيها ملخص الكشف — ابعت الصورة معاها. ولو عايز تختار جهة اتصال من الواتساب نفسه استخدم زرار "مشاركة التقرير".</div>`,async()=>{
+      const p=$('#iw_p').value.trim();if(!waPhone(p)){toast('اكتب الرقم');return false}
+      toast('بيتم تجهيز التقرير…');let b=null;try{b=await htmlBlob(inspHTML(x))}catch(e){}
+      let done=false;if(b&&!IN_ART()){const f=new File([b],inspFile(x),{type:'image/png'});try{if(navigator.canShare&&navigator.canShare({files:[f]})&&/Android|iPhone|iPad/i.test(navigator.userAgent)){await navigator.share({files:[f],text:inspText(x)});done=true}}catch(e){}}
+      if(!done){if(b)await download(b,inspFile(x));openWa(p,inspText(x))}
+      x.sentAt=new Date().toISOString();x.sentTo=p;save();render();
+    });const ok=$('#mOk');if(ok)ok.textContent='ابعت';return}
+  toast('بيتم تجهيز التقرير…');
+  try{const b=await htmlBlob(inspHTML(x));
+    if(mode==='img'){await download(b,inspFile(x));return}
+    const f=new File([b],inspFile(x),{type:'image/png'});
+    if(navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],text:inspText(x),title:'تقرير كشف K-'+pad(x.no)});x.sentAt=new Date().toISOString();x.sentTo='';save();render()}
+    else{toast('المشاركة مش مدعومة هنا — هحفظ الصورة وأفتح الواتساب');await download(b,inspFile(x));openWa('',inspText(x))}
+  }catch(e){if(e?.name!=='AbortError')toast('معرفتش أعمل التقرير — جرب تاني')}
+}
+function inspToClient(id){
+  const x=INSPS().find(y=>y.id===id);if(!x||x.clientId)return;const cl=x.cl||{};
+  confirmBox(`تسجيل "${cl.clinic||cl.name}" كعميل جديد في السيستم ومعاه الجهاز ده؟`,()=>{
+    const d=x.device||{};const c={id:uid(),name:cl.name||cl.clinic,clinic:cl.clinic||'',phone:cl.phone||'',address:[cl.address,cl.gov].filter(Boolean).join(' – '),type:'visit',notes:'اتسجل من كشف K-'+pad(x.no),branches:[],devices:[{brand:d.brand||'',name:d.name||'',model:d.model||'',serial:d.serial||'',branch:x.branch||''}],createdAt:new Date().toISOString()};
+    S.clients.push(c);x.clientId=c.id;save();toast('اتسجل العميل ✓');go('client',c.id);
+  });
+}
+Object.assign(X9,{
+  inspNew:()=>{INSP_ID=null;go('inspf','')},inspEdit:(t,id)=>{INSP_ID=null;go('inspf',id)},inspSave:(t)=>inspSave(t.dataset.k),
+  inspDel:(t,id)=>confirmBox('تمسح الكشف ده؟',()=>{S.inspections=S.inspections.filter(x=>x.id!==id);save();go('insp')}),
+  inspWa:(t,id)=>inspSend(id,'wa'),inspShare:(t,id)=>inspSend(id,'share'),inspImg:(t,id)=>inspSend(id,'img'),inspToClient:(t,id)=>inspToClient(id)
+});
+Object.assign(NEED9,{inspNew:'inspections',inspEdit:'inspections',inspSave:'inspections',inspDel:'inspections',inspToClient:'clients'});
+document.addEventListener('input',e=>{if(e.target.id==='iq'){IQ=e.target.value;const p=e.target.selectionStart;render();const i=$('#iq');if(i){i.focus();try{i.setSelectionRange(p,p)}catch(_){}}}});
+/* صورة قطعة الغيار */
+function partPhotoField(p){return `<div class="row span2" style="align-items:center"><div class="photos" id="p_box">${p.photo?`<figure><img src="${p.photo}" alt=""></figure>`:''}</div><label class="btn">📷 ${p.photo?'غيّر صورة القطعة':'صورة القطعة'}<input type="file" id="p_ph" accept="image/*" hidden></label>${p.photo?'<button type="button" class="btn sm ghost" id="p_phd">شيل الصورة</button>':''}</div>`}
+
+/* =====================================================================
+   v19 — كلمات السر للمطوّر، البحث، النوتة، عقد منتهي، سداد الموردين، بصمة المقر
+   ===================================================================== */
+/* ---------- كلمات السر (للمطوّر بس) ---------- */
+function keepSecret(id,username,pw){
+  const x={id,username,pw,at:new Date().toISOString(),by:ME?.id||id};
+  if(ONLINE){FB.db.doc('secrets/'+id).set(x).catch(()=>{});const i=(S.secrets||[]).findIndex(y=>y.id===id);if(isOwnerU(ME)){if(i>=0)S.secrets[i]=x;else S.secrets.push(x);SYNCED.secrets?.set(id,JSON.stringify(x))}}
+  else{S.secrets=S.secrets||[];const i=S.secrets.findIndex(y=>y.id===id);if(i>=0)S.secrets[i]=x;else S.secrets.push(x)}
+}
+function pwCell(u){
+  if(!isOwnerU(ME))return '';const s=(S.secrets||[]).find(x=>x.id===u.id);
+  return s?`<div class="small">🔑 <span class="pwv num" data-pw="${esc(s.pw)}">••••••</span> <button class="btn sm ghost" data-act="pwShow" type="button">إظهار</button></div>`:'<div class="small muted">كلمة السر مش متسجلة</div>';
+}
+/* ---------- البحث في السيستم ---------- */
+const nz=s=>normD(String(s||'')).toLowerCase().replace(/[أإآ]/g,'ا').replace(/ة/g,'ه').replace(/ى/g,'ي').replace(/[ًٌٍَُِّْـ]/g,'');
+let GSQ='';
+function gsBox(){return `<div class="panel" style="padding:10px 12px"><input id="gs" type="search" autocomplete="off" placeholder="🔍 ابحث في السيستم: عيادة، تليفون، سيريال جهاز، رقم تقرير، قطعة غيار، فاتورة، مورد، موظف…" value="${esc(GSQ)}"><div id="gsr">${GSQ.trim().length>=2?gsResults(GSQ):''}</div></div>`}
+function gsResults(q){
+  const t=nz(q.trim());if(t.length<2)return '';const has=(...a)=>a.some(v=>nz(v).includes(t));const G=[];
+  const grp=(title,items)=>{if(items.length)G.push(`<div class="sec-title" style="margin-top:8px">${title} <span class="muted small">(${items.length})</span></div>${items.slice(0,6).map(x=>`<a href="#" class="row between gs-it" data-go="${x.go}" data-p="${esc(x.p||'')}" ${x.sq!=null?`data-sq="${esc(x.sq)}"`:''} style="padding:6px 4px;border-bottom:1px solid var(--line);text-decoration:none;color:inherit"><span>${x.l}</span><span class="muted small">${x.s||''} ›</span></a>`).join('')}${items.length>6?`<div class="muted small">و${items.length-6} كمان…</div>`:''}`)};
+  if(can('clients')){
+    grp('العيادات والعملاء',CL().filter(c=>has(c.name,c.clinic,c.phone,c.address,...branchesOf(c).map(b=>b.name+' '+b.phone))).map(c=>({go:'client',p:c.id,l:`<b>${esc(cName(c))}</b> ${esc(cSub(c))}`,s:esc(c.phone||'')})));
+    const D=[];CL().forEach(c=>clientDevices(c).forEach(d=>{if(has(d.serial,d.name,d.model,d.brand))D.push({go:'devh',p:c.id+'|'+(d.serial||''),l:`<b>${esc(devLabel(d))}</b> <span class="num">${esc(d.serial||'')}</span>`,s:esc(cName(c))})}));grp('الأجهزة عند العملاء',D);
+  }
+  if(can('reports_write')||can('reports_all'))grp('تقارير الصيانة',S.reports.filter(mine).filter(r=>has(pad(r.no),r.no,cName(client(r.clientId)),r.device?.serial,r.device?.name,r.engineer,r.done,r.complaint,...(r.faults||[]))).sort((a,b)=>b.date.localeCompare(a.date)).map(r=>({go:'view',p:r.id,l:`تقرير <b class="num">#${pad(r.no)}</b> — ${esc(cName(client(r.clientId))||'')}`,s:fd(r.date)})));
+  if(can('stock'))grp('المخزن (قطع غيار ومستهلكات)',S.parts.filter(p=>has(p.name,p.code,p.ref)).map(p=>({go:'stock',sq:p.code||p.name,l:`<b>${esc(p.name)}</b> <span class="num muted">${esc(p.code||'')}</span>`,s:`متاح ${n(p.qty)}`})));
+  if(can('part_sales')||can('cons_sales'))grp('فواتير البيع',(S.partSales||[]).filter(x=>has(pad(x.no),x.no,x.buyer,x.phone,...(x.lines||[]).map(l=>l.name))).map(x=>({go:'psale',p:x.id,l:`${esc(psTitle(x))} <b class="num">#${pad(x.no)}</b> — ${esc(x.buyer||'')}`,s:fd(x.date)})));
+  if(can('contracts'))grp('عقود الصيانة',S.contracts.filter(k=>has(cName(client(k.clientId)),k.branch)).map(k=>({go:'client',p:k.clientId,l:`عقد ${esc(cName(client(k.clientId))||'')}${k.branch?' – '+esc(k.branch):''}`,s:`${fd(k.start)} → ${fd(k.end)}`})));
+  if(can('requests'))grp('طلبات العيادات',S.requests.filter(r=>has(cName(client(r.clientId)),r.description,r.device?.serial,r.engineerName)).map(r=>({go:'requests',l:`${esc(cName(client(r.clientId))||'')} — ${esc((r.description||'').slice(0,50))}`,s:fd(r.date)})));
+  if(can('devices'))grp('أجهزة الشركة',(S.stockDevices||[]).filter(d=>has(d.name,d.model,d.serial,d.brand,d.code)).map(d=>({go:'sdev',p:d.id,l:`<b>${esc([d.brand,d.name,d.model].filter(Boolean).join(' '))}</b> <span class="num">${esc(d.serial||'')}</span>`,s:''})));
+  if(can('suppliers'))grp('الموردين',(S.suppliers||[]).filter(s=>!s.deleted&&has(s.name,s.phone,s.company)).map(s=>({go:'supplier',p:s.id,l:`<b>${esc(s.name)}</b>`,s:esc(s.phone||'')})));
+  if(can('inspections'))grp('الكشوفات',(S.inspections||[]).filter(x=>{const c=inspClient(x);return has(pad(x.no),c.name,c.sub,c.phone,x.device?.serial,x.device?.name)}).map(x=>({go:'inspv',p:x.id,l:`كشف <b class="num">K-${pad(x.no)}</b> — ${esc(inspClient(x).name)}`,s:fd(x.date)})));
+  if(can('users')||can('emp_files'))grp('الموظفين والمستخدمين',S.users.filter(u=>has(u.name,u.username,u.phone,u.jobTitle)).map(u=>({go:u.role!=='clinic'&&can('emp_files')?'empf':'users',p:u.id,l:`<b>${esc(u.name)}</b> <span class="muted num">${esc(u.username)}</span>`,s:esc(ROLE[u.role]||'')})));
+  if(can('treasury')||can('treasury_view'))grp('أذون الصرف',(S.vouchers||[]).filter(x=>has(x.no,x.reason,x.to,x.cat,x.name)).map(x=>({go:'treasury',l:`إذن <b class="num">#${pad(x.no)}</b> — ${esc(x.reason||'')}`,s:money(x.amount)})));
+  grp('ملاحظاتي',(S.notes||[]).filter(x=>x.uid===ME.id&&has(x.text)).map(x=>({go:'home',l:esc(x.text.slice(0,80)),s:x.remind?fd(x.remind):''})));
+  return G.length?G.join(''):'<div class="muted small" style="margin-top:8px">مفيش نتايج.</div>';
+}
+/* ---------- نوتة التذكرة ---------- */
+const MYN=()=>(S.notes||[]).filter(x=>x.uid===ME.id);
+function notesPanel(){
+  if(!isStaff())return '';const L=MYN().filter(x=>!x.done).sort((a,b)=>(a.remind||'9999').localeCompare(b.remind||'9999')||(b.createdAt||'').localeCompare(a.createdAt||''));const D=MYN().filter(x=>x.done).length;
+  return `<div class="panel grid" style="gap:8px"><div class="row between"><h3 style="margin:0">📝 نوتة التذكرة</h3>${D?`<button class="btn sm ghost" data-act="ntDone">${window._NTD?'خبّي':'اعرض'} المخلّصة (${D})</button>`:''}</div>
+   <div class="row" style="flex-wrap:nowrap;gap:6px"><input id="nt_t" placeholder="اكتب حاجة مش عايز تنساها…"><input type="date" id="nt_d" title="فكّرني يوم" style="width:auto;max-width:160px"><button class="btn pri" data-act="ntAdd">+</button></div>
+   ${L.map(x=>{const due=x.remind&&x.remind<=today();return `<div class="row between" style="gap:8px;padding:6px 0;border-top:1px solid var(--line)"><label class="row" style="gap:8px;flex-wrap:nowrap;flex:1"><input type="checkbox" data-act="ntTog" data-id="${x.id}" style="width:auto"><span style="white-space:pre-wrap">${esc(x.text)}</span></label><span class="row" style="flex-wrap:nowrap">${x.remind?`<span class="pill ${due?'p-bad':'p-mut'}">${due?'⏰ ':''}${dayLabel(x.remind)}</span>`:''}<button class="btn sm ghost" data-act="ntDel" data-id="${x.id}">✕</button></span></div>`}).join('')||'<div class="muted small">النوتة فاضية — اللي هتكتبه هنا محدش بيشوفه غيرك.</div>'}
+   ${window._NTD?MYN().filter(x=>x.done).map(x=>`<div class="row between small muted" style="padding:4px 0;border-top:1px solid var(--line)"><label class="row" style="gap:8px"><input type="checkbox" checked data-act="ntTog" data-id="${x.id}" style="width:auto"><s>${esc(x.text)}</s></label><button class="btn sm ghost" data-act="ntDel" data-id="${x.id}">✕</button></div>`).join(''):''}</div>`;
+}
+function noteNotifs(){return MYN().filter(x=>!x.done&&x.remind&&x.remind<=today()).map(x=>({key:'nt'+x.id+x.remind,title:'📝 تذكير من نوتتك',body:x.text.slice(0,120),v:'home',ts:Date.parse(x.remind)||0}))}
+function addNote(){const t=$('#nt_t').value.trim();if(!t){$('#nt_t').focus();return}S.notes.push({id:uid(),uid:ME.id,text:t,remind:$('#nt_d').value||'',done:false,createdAt:new Date().toISOString()});save();render();setTimeout(()=>$('#nt_t')?.focus(),50)}
+/* ---------- العقد المنتهي ---------- */
+function contractOn(cid,date,branch){return S.contracts.filter(k=>k.clientId===cid&&k.start<=date&&k.end>=date&&(!k.branch||!branch||k.branch===branch)).sort((a,b)=>b.end.localeCompare(a.end))[0]||null}
+function lastContract(cid){return S.contracts.filter(k=>k.clientId===cid).sort((a,b)=>b.end.localeCompare(a.end))[0]||null}
+/* ---------- طلب سداد مديونية مورد ---------- */
+REQ_T.suppay={l:'سداد مديونية الموردين',perm:'suppay_approve'};
+function openSupPay(sid){
+  const sups=SUPS().map(s=>({s,b:supBal(s.id).bal})).filter(x=>x.b>0.009||x.s.id===sid);
+  if(!sups.length){toast('مفيش موردين ليهم فلوس عندنا');return}
+  modal(`<h3>طلب سداد مديونية لمورد</h3><div class="grid g2">
+   <label class="f span2">المورد<select id="sq_s">${sups.map(x=>`<option value="${x.s.id}" ${x.s.id===sid?'selected':''}>${esc(x.s.name)} — له ${money(x.b)}</option>`).join('')}</select></label>
+   <label class="f">على فاتورة (اختياري)<select id="sq_p"></select></label><label class="f">المبلغ<input type="number" min="1" step="any" id="sq_a"></label>
+   <label class="f">مطلوب يتدفع يوم<input type="date" id="sq_d" value="${today()}"></label><label class="f">طريقة الدفع المقترحة<select id="sq_m">${S.settings.methods.map(m=>`<option>${esc(m)}</option>`).join('')}</select></label>
+   <label class="f span2">السبب / ملاحظات<input id="sq_r" placeholder="مثلاً: قسط فاتورة شهر 10"></label></div><div class="muted small">الطلب هيعدّي على الموافقات، وبعد الموافقة صاحب الخزينة هيدفعه ويتخصم من حساب المورد لوحده.</div>`,()=>{
+    const a=n($('#sq_a').value);const s=SUPS().find(x=>x.id===$('#sq_s').value);if(!s)return false;if(a<=0){toast('اكتب المبلغ');return false}
+    const bal=supBal(s.id).bal;if(a>bal+0.009){toast('المبلغ أكبر من المديونية ('+money(bal)+')');return false}
+    const x={id:uid(),no:vchNo(),uid:ME.id,name:ME.name,kind:'suppay',supplierId:s.id,supName:s.name,purchaseId:$('#sq_p').value,date:$('#sq_d').value||today(),amount:a,cat:'سداد مورد',to:s.name,reason:$('#sq_r').value.trim()||('سداد مديونية '+s.name),prefMethod:$('#sq_m').value,status:'pending',createdAt:new Date().toISOString()};
+    const nx=attachChain(x,'suppay',ME.id);S.vouchers.push(x);notify(nx.length?nx:['perm:suppay_approve'],'طلب سداد لمورد مستني موافقتك',`${ME.name} — ${s.name} — ${money(a)}`,'treasury');save();toast('اتبعت طلب السداد');render();
+  });
+  const f=()=>{const s=$('#sq_s').value;const P=(S.purchases||[]).filter(p=>p.supplierId===s&&n(p.total)-n(p.paid)-(S.supplierPayments||[]).filter(y=>y.purchaseId===p.id).reduce((a,y)=>a+n(y.amount),0)>0.009);$('#sq_p').innerHTML='<option value="">على الحساب عموماً</option>'+P.map(p=>`<option value="${p.id}">فاتورة ${esc(p.invoiceNo||'')} — ${fd(p.date)}</option>`).join('');$('#sq_a').value=supBal(s).bal>0?n(supBal(s).bal):''};
+  $('#sq_s').onchange=f;f();
+}
+/* ---------- بصمة مقر الشركة ---------- */
+function officeOpen(){const s=S.settings;if(!s.officeLoc)return false;return s.officePunch==='always'||(s.officePunch!=='off'&&s.officePunchDate===today())}
+function officeTask(){return officeOpen()?[{id:'office',label:'مقر الشركة (البصمة من السيستم)',target:S.settings.officeLoc,office:true}]:[]}
+Object.assign(X9,{
+  pwShow:(t)=>{const s=t.parentElement.querySelector('.pwv');if(!s)return;const on=s.textContent!=='••••••';s.textContent=on?'••••••':s.dataset.pw;t.textContent=on?'إظهار':'إخفاء'},
+  ntAdd:()=>addNote(),ntTog:(t,id)=>{const x=S.notes.find(y=>y.id===id);if(x){x.done=!x.done;x.doneAt=x.done?new Date().toISOString():'';save();render()}},
+  ntDel:(t,id)=>{S.notes=S.notes.filter(y=>y.id!==id);save();render()},ntDone:()=>{window._NTD=!window._NTD;render()},
+  supPayReq:(t,id)=>openSupPay(id||''),
+  offToggle:()=>{const s=S.settings;if(!s.officeLoc){toast('حدد موقع مقر الشركة من الإعدادات الأول');go('settings');return}s.officePunchDate=s.officePunchDate===today()?'':today();if(s.officePunch==='off'||!s.officePunch)s.officePunch='date';save();toast(s.officePunchDate===today()?'البصمة من السيستم اتفتحت النهارده':'البصمة من السيستم اتقفلت');render()}
+});
+Object.assign(NEED9,{supPayReq:'suppay_req',offToggle:'settings'});
+document.addEventListener('input',e=>{if(e.target.id==='gs'){GSQ=e.target.value;$('#gsr').innerHTML=GSQ.trim().length>=2?gsResults(GSQ):''}});
+document.addEventListener('keydown',e=>{if(e.target.id==='nt_t'&&e.key==='Enter'){e.preventDefault();addNote()}});
+document.addEventListener('click',e=>{const a=e.target.closest('.gs-it[data-sq]');if(a){SQ=a.dataset.sq}},true);
 
 /* =====================================================================
    التشغيل

@@ -130,6 +130,7 @@ table.t{width:100%;border-collapse:collapse;font-size:.92rem}
 .toast{position:fixed;bottom:calc(18px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);background:var(--header);color:var(--header-ink);padding:10px 18px;border-radius:99px;z-index:60;box-shadow:0 4px 16px rgba(0,0,0,.25);max-width:90vw;text-align:center}
 .dev-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr)) 36px;gap:8px}
 @media (max-width:480px){.dev-row{grid-template-columns:minmax(0,1fr) 36px}}
+@media (max-width:480px){.dv-row,.br-row{grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important}.dv-row .d-del,.br-row .b-del{grid-column:1/-1;justify-self:end;order:-1}.dv-row .d-notes{grid-column:1/-1}.dv-row>span:empty{display:none}.br-row .b-name{grid-column:1/-1}}
 .req{border:1px solid var(--line);border-radius:var(--r);padding:14px;display:grid;gap:8px;background:var(--surface);min-width:0}
 .req .when{font-weight:600}
 .req p{margin:0;white-space:pre-wrap}
@@ -724,7 +725,7 @@ const TABS=[
  ['users','المستخدمين',()=>can('users'),'الإدارة'],
  ['settings','الإعدادات',()=>can('settings')]
 ];
-const SUBVIEW={inspf:'insp',inspv:'insp',test:'tests',tgrade:'tests',empf:'emps',devh:'clients',perfu:'perf',view:'reports',edit:'new',client:'clients',dev:'devices',sdev:'devices',supplier:'suppliers',cust:'custody',psale:'psales'};
+const SUBVIEW={branch:'clients',inspf:'insp',inspv:'insp',test:'tests',tgrade:'tests',empf:'emps',devh:'clients',perfu:'perf',view:'reports',edit:'new',client:'clients',dev:'devices',sdev:'devices',supplier:'suppliers',cust:'custody',psale:'psales'};
 const tabOf=v=>SUBVIEW[v]||v;
 function allowed(v,p){if(v==='empf')return can('emp_files')||p===ME?.id;if(v==='test')return isStaff();if(v==='tgrade')return can('tests');if(v==='view')return can('reports_write')||can('reports_all');if(v==='edit')return can('reports_write')||can('reports_all');const t=TABS.find(x=>x[0]===tabOf(v));return !t||t[2]()}
 const ICONS={
@@ -791,7 +792,7 @@ function render(){
   $('#tabs').innerHTML=TABS.filter(t=>t[2]()).map(([k,l,,sec])=>`${sec?`<div class="navsec">${sec}</div>`:''}<button class="tab ${cur===k?'on':''}" data-go="${k}"><svg viewBox="0 0 24 24" aria-hidden="true">${ICONS[k]||''}</svg><span>${l}</span>${badge[k]?`<span class="cnt">${badge[k]}</span>`:''}</button>`).join('');
   document.body.classList.remove('nonav');
   const banner=S.demo&&isAdmin()?`<div class="banner row between no-print"><span>دي بيانات تجريبية. فيه مهندس (karim)، ومحاسب (amr)، ومدير المستهلكات (nader)، ومندوب توصيل (sayed)، وعيادة (skinline) — كلهم بكلمة سر 123456 علشان تجرب شاشاتهم.</span><button class="btn sm" data-act="clearDemo">امسح البيانات التجريبية وابدأ</button></div>`:'';
-  const V={devices:viewDevices,dev:()=>viewDev(PARAM),sdev:()=>viewSdev(PARAM),suppliers:viewSuppliers,supplier:()=>viewSupplier(PARAM),home:viewHome,requests:viewRequests,new:()=>viewForm(null),edit:()=>viewForm(PARAM),reports:viewReports,view:()=>viewReport(PARAM),clients:viewClients,client:()=>viewClient(PARAM),contracts:viewContracts,stock:viewStock,psales:viewPartSales,psale:()=>viewPartSale(PARAM),ar:viewAR,accounts:viewAccounts,custody:viewCustody,cust:()=>viewCustodyOf(PARAM),hr:viewHR2,devh:()=>viewDevHistory(PARAM),orders:viewOrders,perf:viewPerf,perfu:()=>viewPerfUser(PARAM),tests:viewTests,test:()=>viewTakeTest(PARAM),tgrade:()=>viewGrade(PARAM),emps:viewEmps,payroll:viewPayroll,offers:viewOffers,meetings:viewMeetings,insp:()=>viewInsp(),inspf:()=>viewInspForm(PARAM),inspv:()=>viewInspView(PARAM),treasury:()=>viewTreasury(),empf:()=>viewEmpFile(PARAM),users:viewUsers,settings:viewSettings};
+  const V={devices:viewDevices,dev:()=>viewDev(PARAM),sdev:()=>viewSdev(PARAM),suppliers:viewSuppliers,supplier:()=>viewSupplier(PARAM),home:viewHome,requests:viewRequests,new:()=>viewForm(null),edit:()=>viewForm(PARAM),reports:viewReports,view:()=>viewReport(PARAM),clients:viewClients,client:()=>viewClient(PARAM),contracts:viewContracts,stock:viewStock,psales:viewPartSales,psale:()=>viewPartSale(PARAM),ar:viewAR,accounts:viewAccounts,custody:viewCustody,cust:()=>viewCustodyOf(PARAM),hr:viewHR2,devh:()=>viewDevHistory(PARAM),orders:viewOrders,perf:viewPerf,perfu:()=>viewPerfUser(PARAM),tests:viewTests,test:()=>viewTakeTest(PARAM),tgrade:()=>viewGrade(PARAM),emps:viewEmps,payroll:viewPayroll,offers:viewOffers,meetings:viewMeetings,branch:()=>viewBranch(PARAM),insp:()=>viewInsp(),inspf:()=>viewInspForm(PARAM),inspv:()=>viewInspView(PARAM),treasury:()=>viewTreasury(),empf:()=>viewEmpFile(PARAM),users:viewUsers,settings:viewSettings};
   m.innerHTML=banner+(V[VIEW]||viewHome)();
   if(VIEW==='new'||VIEW==='edit')initForm();
   if(VIEW==='settings')bindSettings();
@@ -1493,7 +1494,7 @@ function viewClient(id){
     <div class="panel"><h3>البيانات</h3>
       <div class="kv"><span>التليفون</span><b class="num">${esc(c.phone)||'—'}</b><span>العنوان</span><span>${esc(c.address)||'—'} ${c.loc?locTxt(c.loc):'<span class="pill p-warn">الموقع مش متحدد</span>'}</span>${c.notes?`<span>ملاحظات</span><span>${esc(c.notes)}</span>`:''}</div>
       <div class="sec-title" style="margin-top:10px">الفروع (${brs.length})</div>
-      ${brs.length?brs.map(b=>`<div style="padding:4px 0;border-bottom:1px solid var(--line)"><b>${esc(b.name)}</b> <span class="muted small">${esc(b.address||'')}${b.phone?' · <span class="num">'+esc(b.phone)+'</span>':''}</span></div>`).join(''):'<div class="muted small">فرع واحد بس</div>'}
+      ${[{name:'',label:'الفرع الرئيسي',address:c.address,phone:c.phone},...brs].map(b=>`<div class="click row between" data-go="branch" data-p="${esc(c.id+'|'+b.name)}" style="padding:6px 0;border-bottom:1px solid var(--line);cursor:pointer"><span><b>${esc(b.label||b.name)}</b> <span class="muted small">${esc(b.address||'')}${b.phone?' · <span class="num">'+esc(b.phone)+'</span>':''}</span></span><span class="muted small">${clientDevices(c).filter(d=>(d.branch||'')===b.name).length} جهاز ›</span></div>`).join('')}
       <div class="sec-title" style="margin-top:10px">الأجهزة${c.shop?' <span class="pill p-info">بيطلب مستهلكات</span>':''}</div>
       <div class="muted small">دوس على أي جهاز علشان تشوف ملفه: الأعطال والقطع اللي اتركبت والزيارات.</div>
       ${clientDevices(c).length?clientDevices(c).map(d=>`<div class="click" data-go="devh" data-p="${c.id}|${esc(d.serial||'')}" style="padding:6px 0;border-bottom:1px solid var(--line);cursor:pointer"><b>${esc(devLabel(d))}</b> <span class="muted num">— ${esc(d.serial||'بدون سيريال')}</span> <span class="muted small">(${S.reports.filter(r=>sameDev(r,c.id,d.serial||'')).length} زيارة) ›</span>${d.branch?` <span class="pill p-mut">${esc(d.branch)}</span>`:''}${d.serial&&latestPP(d.serial)!=null?` <span class="muted small">PP: <span class="num">${latestPP(d.serial).toLocaleString('en-US')}</span></span>`:''}</div>`).join(''):'<div class="muted">مفيش أجهزة مسجلة</div>'}
@@ -1531,8 +1532,7 @@ function viewContracts(){
 }
 function clientForm(c){
   c=c||{name:'',clinic:'',phone:'',address:'',type:'visit',notes:'',devices:[{name:'Candela GentleLase',model:'',serial:'',branch:''}],branches:[]};
-  const brRow=b=>{const k='bl'+uid();return `<div class="dev-row br-row"><input class="b-name" placeholder="اسم الفرع (مثلاً: فرع المعادي)" value="${esc(b.name||'')}"><input class="b-addr" placeholder="العنوان" value="${esc(b.address||'')}"><input class="b-phone" placeholder="تليفون الفرع" value="${esc(b.phone||'')}"><button type="button" class="btn sm ghost b-del">✕</button><span class="row" style="grid-column:1/-1;flex-wrap:nowrap"><input class="b-loc" id="${k}" dir="ltr" placeholder="موقع الفرع: لينك جوجل ماب أو إحداثيات" value="${b.loc?b.loc.lat+', '+b.loc.lng:''}"><button type="button" class="btn sm" data-here="${k}">📍 هنا</button></span></div>`};
-  const devRow=d=>`<div class="dev-row"><input class="d-brand" placeholder="الماركة" value="${esc(d.brand||'')}"><input class="d-name" placeholder="نوع الجهاز" value="${esc(d.name)}"><input class="d-model" placeholder="الموديل (مينى / برو…)" value="${esc(d.model)}"><input class="d-serial" placeholder="الرقم المسلسل" value="${esc(d.serial)}"><button type="button" class="btn sm ghost d-del">✕</button><input class="d-branch" placeholder="الفرع اللي فيه الجهاز (اختياري)" value="${esc(d.branch||'')}" style="grid-column:1/-1"></div>`;
+  const devRow=devRowX,brRow=b=>brBlock(b,(c.devices||[]).filter(d=>(d.branch||'')===b.name));const brNames=new Set(branchesOf(c).map(b=>b.name));const mainDevs=(c.devices||[]).filter(d=>!d.branch||!brNames.has(d.branch));
   window._devRow=devRow;window._brRow=brRow;
   return `<h3>${c.id?'تعديل بيانات العيادة':'عيادة جديدة'}</h3>
   <div class="grid g2">
@@ -1547,12 +1547,13 @@ function clientForm(c){
     <div id="c_acc_box" class="grid g2" style="grid-column:1/-1" hidden><label class="f">اسم المستخدم (إنجليزي)<input id="c_un" dir="ltr" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="مثلاً: dermacare"></label><label class="f">كلمة السر (6 على الأقل)<input id="c_pw" type="text" dir="ltr" autocomplete="off"></label></div>`:''}
     ${can('shop_clients')||can('users')?`<div style="grid-column:1/-1">${cpBox(c)}</div>`:''}
   </div>
-  <div class="sec-title">الفروع (لو العيادة ليها أكتر من فرع)</div>
+  <div class="sec-title">أجهزة الفرع الرئيسي</div>
+  <div class="muted small">لكل جهاز: الماركة، والنوع، والموديل، والسيريال، ونوع التبريد، وتاريخ التشغيل.</div>
+  <div id="devRows" class="grid" style="gap:8px">${mainDevs.map(devRow).join('')}</div>
+  <div><button type="button" class="btn sm" id="addDev">+ جهاز</button></div>
+  <div class="sec-title">الفروع التانية (لو العيادة ليها أكتر من فرع) — كل فرع وأجهزته</div>
   <div id="brRows" class="grid" style="gap:8px">${branchesOf(c).map(brRow).join('')}</div>
-  <div><button type="button" class="btn sm" id="addBr">+ فرع</button></div>
-  <div class="sec-title">الأجهزة</div>
-  <div id="devRows" class="grid" style="gap:8px">${c.devices.map(devRow).join('')}</div>
-  <div><button type="button" class="btn sm" id="addDev">+ جهاز</button></div>`;
+  <div><button type="button" class="btn sm" id="addBr">+ فرع</button></div>`;
 }
 function openClientModal(id){
   const c=id?client(id):null;
@@ -1560,7 +1561,7 @@ function openClientModal(id){
     const name=$('#c_name').value.trim()||$('#c_clinic').value.trim();if(!name){toast('اكتب اسم العيادة');return false}
     const mkAcc=!c&&$('#c_acc')?.checked;const un=mkAcc?normD($('#c_un').value).trim().toLowerCase():'',pw=mkAcc?normD($('#c_pw').value):'';
     if(mkAcc){if(!USER_RE.test(un)){toast('اسم المستخدم لازم حروف إنجليزي صغيرة أو أرقام (3 على الأقل) من غير مسافات');return false}if(S.users.some(u=>u.username===un)){toast('اسم المستخدم ده موجود قبل كده');return false}if(pw.length<6){toast('كلمة السر 6 حروف أو أرقام على الأقل');return false}}
-    const devices=$$('#devRows .dev-row').map(r=>({brand:r.querySelector('.d-brand')?.value.trim()||'',name:r.querySelector('.d-name').value.trim(),model:r.querySelector('.d-model').value.trim(),serial:r.querySelector('.d-serial').value.trim(),branch:r.querySelector('.d-branch').value.trim()})).filter(d=>d.name||d.serial);
+    const devices=[...$$('#devRows > .dv-row').map(r=>readDevRow(r,'')),...$$('#brRows .br-block').flatMap(bl=>{const bn=bl.querySelector('.b-name').value.trim();return [...bl.querySelectorAll('.br-devs .dv-row')].map(r=>readDevRow(r,bn))})].filter(d=>d.name||d.serial||d.brand);
     const branches=$$('#brRows .br-row').map(r=>({name:r.querySelector('.b-name').value.trim(),address:r.querySelector('.b-addr').value.trim(),phone:r.querySelector('.b-phone').value.trim(),loc:parseLoc(r.querySelector('.b-loc')?.value)||null})).filter(b=>b.name);
     const data={loc:parseLoc($('#c_loc')?.value)||null,name,clinic:$('#c_clinic').value.trim(),phone:$('#c_phone').value.trim(),address:$('#c_address').value.trim(),type:$('#c_type').value,notes:$('#c_notes').value.trim(),devices,branches};
     let nid;if(c){Object.assign(c,data);nid=c.id}else{nid=uid();S.clients.push({id:nid,...data})}
@@ -1569,10 +1570,10 @@ function openClientModal(id){
     if(mkAcc){try{const nc=client(nid);await createUser({name:nc.clinic||nc.name,username:un,pw,role:'clinic',clientId:nid});toast(`اتعمل حساب الدخول: ${un}`)}catch(er){toast('العيادة اتحفظت بس حساب الدخول متعملش: '+(er?.message||er)+' — اعمله من صفحة العيادة')}}
     if(VIEW==='new'||VIEW==='edit'){const sel=$('#f_client');if(sel){if(!c)sel.insertAdjacentHTML('beforeend',`<option value="${nid}">${esc(name)}</option>`);sel.value=nid;sel.onchange()}}else go('client',nid);
   });
-  $('#addDev').onclick=()=>$('#devRows').insertAdjacentHTML('beforeend',window._devRow({brand:'',name:'',model:'',serial:'',branch:''}));
+  $('#addDev').onclick=()=>$('#devRows').insertAdjacentHTML('beforeend',devRowX({}));
   $('#addBr').onclick=()=>$('#brRows').insertAdjacentHTML('beforeend',window._brRow({}));
   $('#devRows').onclick=e=>{if(e.target.classList.contains('d-del'))e.target.closest('.dev-row').remove()};
-  $('#brRows').onclick=e=>{if(e.target.classList.contains('b-del'))e.target.closest('.br-row').remove()};
+  $('#brRows').onclick=e=>{const t=e.target;if(t.classList.contains('b-del')){const bl=t.closest('.br-block');if(!bl.querySelector('.dv-row')||confirm('تشيل الفرع ده وأجهزته؟'))bl.remove()}else if(t.classList.contains('d-del'))t.closest('.dv-row').remove();else if(t.classList.contains('br-addDev'))t.closest('.br-block').querySelector('.br-devs').insertAdjacentHTML('beforeend',devRowX({}))};
 }
 function openContractModal(clientId,kid,renew){
   const src=kid?S.contracts.find(x=>x.id===kid):null;
@@ -2928,7 +2929,7 @@ function viewDevHistory(p){
     <div class="panel kpi"><span>قطع اتركبت</span><b>${parts.reduce((a,x)=>a+n(x.l.qty)-x.back,0)}</b></div>
     <div class="panel kpi"><span>آخر قراءة PP</span><b class="num" style="font-size:1.1rem">${pp!=null?pp.toLocaleString('en-US'):'—'}</b></div>
   </div>
-  <div class="panel"><h3>بيانات الجهاز</h3><div class="kv"><span>الماركة</span><b>${esc(d.brand||'—')}</b><span>نوع الجهاز</span><b>${esc(d.name||'—')}</b><span>الموديل</span><b>${esc(d.model||'—')}</b><span>الرقم المسلسل</span><b class="num">${esc(serial||'—')}</b><span>الفرع</span><span>${esc(d.branch||'الرئيسي')}</span></div></div>
+  <div class="panel"><h3>بيانات الجهاز</h3><div class="kv">${devInfoKV({...d,serial})}<span>الفرع</span><a href="#" data-go="branch" data-p="${esc(c.id+'|'+(d.branch||''))}">${esc(d.branch||'الرئيسي')} ›</a></div></div>
   <div class="panel"><h3>الأعطال اللي حصلت للجهاز</h3>${faults.length?`<div class="tbl-wrap"><table class="t"><thead><tr><th>العطل</th><th>عدد المرات</th><th>آخر مرة</th></tr></thead><tbody>${faults.map(x=>`<tr><td>${esc(x.f)}</td><td><span class="pill ${x.count>=3?'p-bad':x.count===2?'p-warn':'p-mut'}">${x.count}</span></td><td>${fd(x.last)}</td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">لسه مفيش أعطال متسجلة</div>'}</div>
   <div class="panel"><h3>قطع الغيار اللي اتركبت</h3>${parts.length?`<div class="tbl-wrap"><table class="t"><thead><tr><th>القطعة</th><th>العدد</th><th>اتركبت</th><th>الضمان</th></tr></thead><tbody>${parts.map(x=>`<tr><td><b>${esc(x.l.name)}</b>${x.l.unitCode?` <span class="muted small num">${esc(x.l.unitCode)}</span>`:''}${x.back?` <span class="pill p-warn">اترجع ${x.back}</span>`:''}</td><td>${x.l.qty}</td><td>${fd(x.r.date)} <a href="#" data-view="${x.r.id}" class="small num">#${pad(x.r.no)}</a></td><td class="small">${x.w?`${x.w.expired?'<span class="pill p-bad">انتهى</span>':'<span class="pill p-ok">ساري</span>'} ${x.w.txt.join(' · ')}`:'—'}</td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">لسه مفيش قطع اتركبت</div>'}</div>
   <div class="panel"><h3>سجل الزيارات</h3>${reps.length?reps.map(r=>`<div class="req" style="margin-bottom:8px"><div class="row between"><span class="row"><b>${fd(r.date)}</b><a href="#" data-view="${r.id}" class="num">تقرير #${pad(r.no)}</a><span class="pill p-mut">${esc(visitLabel(r.visitType))}</span>${r.branch?`<span class="pill p-info">${esc(r.branch)}</span>`:''}</span><span class="small muted">${esc(r.engineer||'')}${r.pp?` · PP <span class="num">${esc(r.pp)}</span>`:''}</span></div>
@@ -4661,6 +4662,42 @@ Object.assign(NEED9,{supPayReq:'suppay_req',offToggle:'settings'});
 document.addEventListener('input',e=>{if(e.target.id==='gs'){GSQ=e.target.value;$('#gsr').innerHTML=GSQ.trim().length>=2?gsResults(GSQ):''}});
 document.addEventListener('keydown',e=>{if(e.target.id==='nt_t'&&e.key==='Enter'){e.preventDefault();addNote()}});
 document.addEventListener('click',e=>{const a=e.target.closest('.gs-it[data-sq]');if(a){SQ=a.dataset.sq}},true);
+
+/* =====================================================================
+   v20 — بيانات الأجهزة التفصيلية لكل فرع + صفحة الفرع
+   ===================================================================== */
+const COOL={cryo:'أسطوانات كرايوجين (Cryogen)',zimmer:'جهاز زيمر (Zimmer)',chiller:'شيلر (Chiller)',water:'تبريد مياه داخلي',air:'تبريد هوا',other:'نوع تاني'};
+function devRowX(d){d=d||{};return `<div class="dev-row dv-row" style="border:1px solid var(--line);border-radius:10px;padding:8px">
+  <input class="d-brand" placeholder="الماركة (Candela…)" value="${esc(d.brand||'')}"><input class="d-name" placeholder="نوع الجهاز (GentleLase…)" value="${esc(d.name||'')}"><input class="d-model" placeholder="الموديل (Pro / Mini…)" value="${esc(d.model||'')}"><button type="button" class="btn sm ghost d-del" title="شيل الجهاز">✕</button>
+  <input class="d-serial" placeholder="الرقم المسلسل" value="${esc(d.serial||'')}"><select class="d-cool"><option value="">نوع التبريد —</option>${Object.entries(COOL).map(([k,l])=>`<option value="${k}" ${d.cool===k?'selected':''}>${l}</option>`).join('')}</select><label class="f" style="margin:0"><span class="muted small">تاريخ التشغيل</span><input type="date" class="d-op" value="${esc(d.opDate||'')}"></label><span></span>
+  <input class="d-notes" placeholder="ملاحظات عن الجهاز (اختياري): سنة الصنع، الهاند بيسز، اتشرى منين…" value="${esc(d.notes||'')}" style="grid-column:1/-1"></div>`}
+function brBlock(b,devs){const k='bl'+uid();return `<div class="panel br-block grid" style="gap:8px;padding:10px">
+  <div class="dev-row br-row"><input class="b-name" placeholder="اسم الفرع (مثلاً: فرع المعادي)" value="${esc(b.name||'')}"><input class="b-addr" placeholder="العنوان" value="${esc(b.address||'')}"><input class="b-phone" placeholder="تليفون الفرع" value="${esc(b.phone||'')}"><button type="button" class="btn sm ghost b-del" title="شيل الفرع">✕</button><span class="row" style="grid-column:1/-1;flex-wrap:nowrap"><input class="b-loc" id="${k}" dir="ltr" placeholder="موقع الفرع: لينك جوجل ماب أو إحداثيات" value="${b.loc?b.loc.lat+', '+b.loc.lng:''}"><button type="button" class="btn sm" data-here="${k}">📍 هنا</button></span></div>
+  <div class="muted small">أجهزة الفرع ده</div><div class="br-devs grid" style="gap:8px">${(devs||[]).map(devRowX).join('')}</div><div><button type="button" class="btn sm br-addDev">+ جهاز للفرع ده</button></div></div>`}
+function readDevRow(r,branch){const v=c=>r.querySelector(c)?.value.trim()||'';return{brand:v('.d-brand'),name:v('.d-name'),model:v('.d-model'),serial:v('.d-serial'),cool:v('.d-cool'),opDate:v('.d-op'),notes:v('.d-notes'),branch}}
+const devAge=d=>{if(!d.opDate)return '';const m=Math.round((Date.parse(today())-Date.parse(d.opDate))/(30.44*864e5));return m<12?`${Math.max(0,m)} شهر`:`${Math.floor(m/12)} سنة${m%12?' و'+(m%12)+' شهر':''}`};
+function devInfoKV(d){return `<span>الماركة</span><b>${esc(d.brand||'—')}</b><span>نوع الجهاز</span><b>${esc(d.name||'—')}</b><span>الموديل</span><b>${esc(d.model||'—')}</b><span>الرقم المسلسل</span><b class="num">${esc(d.serial||'—')}</b><span>نوع التبريد</span><b>${esc(COOL[d.cool]||'—')}</b><span>تاريخ التشغيل</span><b>${d.opDate?fd(d.opDate)+` <span class="muted small">(من ${devAge(d)})</span>`:'—'}</b>${d.notes?`<span>ملاحظات</span><span>${esc(d.notes)}</span>`:''}`}
+/* صفحة الفرع */
+function viewBranch(p){
+  const i=String(p||'').indexOf('|');const cid=i<0?p:p.slice(0,i),bn=i<0?'':p.slice(i+1);const c=client(cid);if(!c)return '<div class="empty">العميل مش موجود</div>';
+  const b=bn?branchInfo(c,bn)||{name:bn}:{name:'الفرع الرئيسي',address:c.address,phone:c.phone,loc:c.loc};const fin=can('ar')||can('accounts');
+  const inBr=x=>(x||'')===bn;
+  const devs=clientDevices(c).filter(d=>inBr(d.branch));
+  const reps=S.reports.filter(r=>r.clientId===cid&&inBr(r.branch)&&mine(r)).sort((a,b)=>b.date.localeCompare(a.date)||b.no-a.no);
+  const ks=S.contracts.filter(k=>k.clientId===cid&&(!k.branch||k.branch===bn)).sort((a,b)=>b.end.localeCompare(a.end));const kNow=contractOn(cid,today(),bn);
+  const items=fin?openItems(cid).filter(it=>inBr(it.x.branch)):[];
+  const reqs=can('requests')?S.requests.filter(r=>r.clientId===cid&&inBr(r.branch)&&['new','assigned'].includes(r.status)):[];
+  const brs=branchesOf(c);
+  return `<div class="row between"><h2>${esc(cName(c))} — ${esc(b.name)}</h2><div class="row">${can('reports_write')?`<button class="btn pri" data-act="newFor" data-id="${c.id}">+ تقرير</button>`:''}<button class="btn" data-go="client" data-p="${c.id}">ملف العيادة</button></div></div>
+  ${brs.length?`<div class="seg" style="flex-wrap:wrap"><button data-go="branch" data-p="${c.id}|" class="${!bn?'on':''}">الرئيسي</button>${brs.map(x=>`<button data-go="branch" data-p="${esc(c.id+'|'+x.name)}" class="${x.name===bn?'on':''}">${esc(x.name)}</button>`).join('')}</div>`:''}
+  <div class="grid g4"><div class="panel kpi"><span>الأجهزة</span><b>${devs.length}</b></div><div class="panel kpi"><span>الزيارات</span><b>${reps.length}</b></div><div class="panel kpi"><span>آخر زيارة</span><b style="font-size:1.05rem">${reps[0]?fd(reps[0].date):'—'}</b></div><div class="panel kpi"><span>عقد الصيانة</span><b style="font-size:1rem">${kNow?'ساري لحد '+fd(kNow.end):ks[0]?'<span style="color:var(--bad)">انتهى '+fd(ks[0].end)+'</span>':'مفيش'}</b></div></div>
+  <div class="panel"><h3>بيانات الفرع</h3><div class="kv"><span>العنوان</span><span>${esc(b.address||'—')} ${b.loc?locTxt(b.loc):''}</span><span>التليفون</span><b class="num">${esc(b.phone||'—')}</b></div></div>
+  <div class="panel"><h3>أجهزة الفرع</h3>${devs.length?`<div class="grid g2">${devs.map(d=>{const dr=S.reports.filter(r=>sameDev(r,cid,d.serial||'')).sort((a,b)=>b.date.localeCompare(a.date));const pp=latestPP(d.serial);return `<div class="panel grid" style="gap:6px;margin:0"><div class="row between"><b>${esc(devLabel(d))}</b><a href="#" class="btn sm" data-go="devh" data-p="${esc(c.id+'|'+(d.serial||''))}">ملف الجهاز ›</a></div><div class="kv">${devInfoKV(d)}<span>آخر زيارة</span><b>${dr[0]?fd(dr[0].date):'—'}</b><span>آخر قراءة PP</span><b class="num">${pp!=null?pp.toLocaleString('en-US'):'—'}</b><span>عدد الزيارات</span><b>${dr.length}</b></div></div>`}).join('')}</div>`:'<div class="empty">مفيش أجهزة متسجلة للفرع ده — ضيفها من "تعديل بيانات العيادة"</div>'}</div>
+  ${reqs.length?`<div class="panel"><h3>طلبات مفتوحة</h3>${reqs.map(r=>`<div class="row between small" style="padding:6px 0;border-bottom:1px solid var(--line)"><span>${esc(r.description||'')}</span><span>${r.status==='assigned'?`${esc(r.engineerName||'')} — ${fd(r.date)}`:'<span class="pill p-warn">جديد</span>'}</span></div>`).join('')}</div>`:''}
+  ${can('contracts')||fin?`<div class="panel"><h3>عقود الصيانة</h3>${ks.length?ks.map(k=>`<div class="row between small" style="padding:6px 0;border-bottom:1px solid var(--line)"><span>${fd(k.start)} → ${fd(k.end)} · ${k.branch?'الفرع ده':'كل الفروع'} · الزيارات ${contractUsed(k)}${k.visits?' من '+k.visits:''}</span>${k.end>=today()&&k.start<=today()?'<span class="pill p-ok">ساري</span>':k.end<today()?'<span class="pill p-bad">منتهي</span>':'<span class="pill p-info">جاي</span>'}</div>`).join(''):'<div class="empty">مفيش عقود</div>'}</div>`:''}
+  ${fin&&items.length?`<div class="panel"><h3>مستحقات الفرع</h3>${items.map(it=>`<div class="row between small" style="padding:6px 0;border-bottom:1px solid var(--line)"><span>${esc(it.label)}</span><span class="row"><b class="num">${money(it.bal)}</b>${dueBadge(it.due)}</span></div>`).join('')}</div>`:''}
+  <div class="panel"><h3>الزيارات والتقارير</h3>${reportsTable(reps.slice(0,30))}</div>`;
+}
 
 /* =====================================================================
    التشغيل

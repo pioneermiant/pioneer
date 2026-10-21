@@ -49,11 +49,12 @@ h2{font-size:1.35rem}
 h3{font-size:1.05rem}
 a{color:var(--info)}
 .top{background:var(--header);color:var(--header-ink);position:sticky;top:0;z-index:20;border-bottom:1px solid var(--line)}
-.top-in{padding-block:12px 0;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.top-in{padding-block:calc(12px + env(safe-area-inset-top,0px)) 0;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
 .brand{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding-bottom:8px}
 .brand b{font-size:1.35rem;letter-spacing:.5px;display:flex;align-items:center;gap:8px}
 .brand b::before{content:"";width:30px;height:30px;border-radius:9px;background:var(--g1);box-shadow:0 4px 14px rgba(116,87,255,.55);flex:none}
-.brand-logo{height:52px;width:auto;max-width:190px;background:#fff;border-radius:10px;padding:4px 8px;box-shadow:0 4px 14px rgba(0,0,0,.25)}.brand.has-logo b{display:none}.login-logo{display:block;margin:4px auto 2px;max-width:min(320px,80%);height:auto;background:#fff;border-radius:14px;padding:10px 14px}
+.brand-logo{display:block;width:min(210px,58vw);height:auto;background:#fff;border-radius:18px;padding:10px 16px;box-shadow:0 10px 28px rgba(0,0,0,.38),0 0 0 1px rgba(255,255,255,.08),0 0 26px rgba(116,87,255,.28)}.brand.has-logo{flex-direction:column;align-items:center;text-align:center;gap:10px;padding-bottom:12px}.brand.has-logo b{display:none}.brand.has-logo small{justify-content:center}
+@media (max-width:899px){.top{position:relative}}.login-logo{display:block;margin:4px auto 2px;max-width:min(320px,80%);height:auto;background:#fff;border-radius:14px;padding:10px 14px}
 .brand small{color:var(--muted);display:flex;gap:6px;align-items:center;flex-wrap:wrap}
 .hbtn{background:var(--surface-2);border:1px solid var(--line);color:var(--header-ink);border-radius:8px;padding:2px 10px;font-size:.8rem;cursor:pointer}
 .hbtn:hover{border-color:var(--accent)}
@@ -70,6 +71,8 @@ a{color:var(--info)}
   body:not(.nonav) .top{position:fixed;top:0;bottom:0;right:0;width:var(--side);border-bottom:0;border-left:1px solid var(--line);overflow-y:auto}
   body:not(.nonav) .top-in{padding:22px 16px calc(22px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:14px;min-height:100%}
   body:not(.nonav) .brand{flex-direction:column;align-items:flex-start;padding-bottom:6px}
+  body:not(.nonav) .brand.has-logo{align-items:center;border-bottom:1px solid var(--line);padding-bottom:16px}
+  body:not(.nonav) .brand-logo{width:100%;max-width:200px}
   body:not(.nonav) .tabs{flex-direction:column;overflow:visible;padding:0}
   body:not(.nonav) .tab{padding:11px 14px}
   body:not(.nonav) .navsec{display:block}
@@ -735,7 +738,7 @@ const TABS=[
  ['accounts','حسابات الشركة',()=>can('accounts')],
  ['treasury','الخزينة',()=>can('treasury')||can('treasury_view')],
  ['custody','العهدة والمصاريف',()=>isStaff(),'الموظفين'],
- ['hr','الإجازات والجزاءات',()=>isStaff()],
+ ['hr','الحضور والإجازات',()=>isStaff()],
  ['meetings','الاجتماعات',()=>can('meetings')||myMeetings().length>0],
  ['perf','الأداء والتقييم',()=>isStaff()],
  ['tests','الاختبارات',()=>can('tests')||myTests().length>0],
@@ -827,7 +830,7 @@ function viewSetup(){
   <form id="setupF" class="grid"><label class="f">الاسم<input id="su_name" required value="محمود"></label><label class="f">اسم المستخدم (إنجليزي)<input id="su_user" required autocapitalize="off" autocorrect="off" spellcheck="false" dir="ltr" value="admin"></label><label class="f">كلمة السر (6 على الأقل) — اكتبها في مكان علشان متنساهاش<input id="su_pass" type="text" required minlength="6" dir="ltr" autocomplete="new-password"></label><button class="btn pri" type="submit">إنشاء والدخول</button></form>${connLine()}</div>`;
 }
 function viewLogin(){
-  return `<div class="panel grid" style="margin-top:20px"><img class="login-logo" src="${PM_LOGO}" alt="Pioneer"><h2>تسجيل الدخول</h2>
+  return `<div class="panel grid" style="margin-top:20px"><h2>تسجيل الدخول</h2>
   <form id="loginF" class="grid"><label class="f">اسم المستخدم (بالإنجليزي)<input id="li_user" required autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="username" dir="ltr"></label><label class="f">كلمة السر<span class="row" style="flex-wrap:nowrap"><input id="li_pass" type="password" required autocomplete="current-password" dir="ltr"><button type="button" class="btn sm" data-act="showPass">إظهار</button></span></label><button class="btn pri" type="submit">دخول</button></form>
   ${!ONLINE&&S.users.length?`<div class="muted small">الحسابات المتسجلة على الجهاز ده: ${S.users.filter(u=>u.active!==false).map(u=>`<b class="num">${esc(u.username)}</b> (${ROLE[u.role]})`).join('، ')}</div>`:''}
   ${!ONLINE?`<details class="small"><summary class="muted">نسيت كلمة سر المدير؟</summary><div class="grid" style="gap:8px;margin-top:8px"><div class="muted">على الجهاز ده مفيش طريقة ترجع بيها كلمة السر. تقدر تمسح كل البيانات اللي على الجهاز ده وتبدأ من الأول بحساب مدير جديد.</div><div><button type="button" class="btn sm danger" data-act="resetLocal">امسح وابدأ من الأول</button></div></div></details>`:''}
@@ -991,7 +994,7 @@ function renderClinicList(){
 /* =====================================================================
    الرئيسية
    ===================================================================== */
-function viewHome(){const mg0=can('accounts')||can('requests')||can('ar');return gsBox()+(officeOpen()&&ME.role!=='engineer'&&mg0?punchCard():'')+viewHome0()+notesPanel()}
+function viewHome(){const mg0=can('accounts')||can('requests')||can('ar');return gsBox()+viewHome0()+notesPanel()}
 function viewHome0(){const mg=can('accounts')||can('requests')||can('ar');if(ME.role==='engineer')return viewHomeEng()+(mg?'<div style="margin-top:18px"></div>'+viewHomeAdmin(true):'');return mg?viewHomeAdmin():viewHomeEng()}
 function orderCard(r,forEng){
   const c=client(r.clientId)||{};const st=RSTATUS[r.status]||RSTATUS.new;
@@ -1026,7 +1029,6 @@ function viewHomeEng(){
   ${approvalItems().length?`<div class="banner info row between"><span>فيه <b>${approvalItems().length}</b> طلب مستني موافقتك.</span><button class="btn sm" data-act="goAppr">الطلبات</button></div>`:''}
   ${myHr.map(x=>`<div class="banner ${x.status==='approved'?'info':''}">طلبك (${HR_KL[x.kind]||'مأمورية'} ${fd(x.from||x.date||(x.createdAt||'').slice(0,10))}) ${x.status==='approved'?'اتوافق عليه ✓':'اترفض'}${x.note?' — '+esc(x.note):''}</div>`).join('')}
   ${cu.cash||cu.L.length?`<div class="panel row between"><span>العهدة اللي معاك: <b class="num">${money(cu.bal)}</b> <span class="muted small">(استلمت ${money(cu.cash)} · صرفت ${money(cu.spent)})</span>${cu.toolsWith.length?` · <span class="muted small">${cu.toolsWith.length} عدة معاك</span>`:''}</span><button class="btn sm" data-go="custody">التفاصيل</button></div>`:''}
-  ${punchCard()}
   <div class="panel"><h3>أوردرات النهارده <span class="muted">(${todayO.length})</span></h3><div class="grid">${todayO.length?todayO.map(r=>orderCard(r,true)).join(''):'<div class="empty">مفيش أوردرات ليك النهارده</div>'}</div></div>
   ${next.length?`<div class="panel"><h3>الأوردرات الجاية</h3><div class="grid">${next.map(r=>orderCard(r,true)).join('')}</div></div>`:''}
   <div class="grid g3"><div class="panel kpi"><span>تقاريري الشهر ده</span><b>${monthR.length}</b></div>${can('home_money')?`<div class="panel kpi"><span>اللي حصّلته الشهر ده</span><b>${money(coll)}</b></div><div class="panel kpi"><span>تقارير لسه عليها فلوس</span><b>${my.filter(r=>balOf('report',r)>0.009).length}</b></div>`:''}</div>
@@ -3270,12 +3272,12 @@ function viewHR2(){
   const apL=approvalItems();
   const lnM=can('loans')||can('payroll_prep');if(!hrM&&!penM&&!balM&&!lnM&&!can('attendance')&&!apL.length)return `<h2>الإجازات والمأموريات</h2>${mine}`;
   const all=(S.hr||[]).filter(x=>x.uid!==ME.id);const F={pending:x=>x.status==='pending',leave:x=>x.kind==='leave',mission:x=>x.kind==='mission'||x.kind==='lateperm',all:()=>true};
-  const tabs=[['appr',`مستنية موافقتي (${apL.length})`]];if(can('attendance'))tabs.push(['att','الحضور والانصراف (البصمة)']);if(hrM)tabs.push(['pending',`كل المستني (${all.filter(F.pending).length})`],['leave','الإجازات'],['mission','المأموريات والأذونات'],['all','الكل']);if(hrM)tabs.push(['punch','البصمات']);if(balM)tabs.push(['bal','أرصدة الإجازات']);if(lnM)tabs.push(['loan','السلف']);if(penM)tabs.push(['pen',`الجزاءات${(S.penalties||[]).some(x=>x.status==='pending')?` (${(S.penalties||[]).filter(x=>x.status==='pending').length})`:''}`]);tabs.push(['mine','طلباتي أنا']);
+  const tabs=[['appr',`مستنية موافقتي (${apL.length})`]];if(can('attendance')||can('settings'))tabs.push(['att','الحضور والانصراف (البصمة)']);if(hrM)tabs.push(['pending',`كل المستني (${all.filter(F.pending).length})`],['leave','الإجازات'],['mission','المأموريات والأذونات'],['all','الكل']);if(hrM)tabs.push(['punch','البصمات']);if(balM)tabs.push(['bal','أرصدة الإجازات']);if(lnM)tabs.push(['loan','السلف']);if(penM)tabs.push(['pen',`الجزاءات${(S.penalties||[]).some(x=>x.status==='pending')?` (${(S.penalties||[]).filter(x=>x.status==='pending').length})`:''}`]);tabs.push(['mine','طلباتي أنا']);
   if(!tabs.some(t=>t[0]===HRF))HRF=tabs[0][0];
   const list=F[HRF]?all.filter(F[HRF]).sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||'')):[];
-  return `<div class="row between"><h2>الإجازات والمأموريات والطلبات</h2></div>
+  return `<div class="row between"><h2>الحضور والإجازات والطلبات</h2></div>
   <div class="seg" style="flex-wrap:wrap">${tabs.map(([k,l])=>`<button data-hrf="${k}" class="${HRF===k?'on':''}">${l}</button>`).join('')}</div>
-  ${HRF==='mine'?mine:HRF==='appr'?viewApprovals():HRF==='att'?viewAttendance():HRF==='punch'?viewPunches():HRF==='bal'?viewLeaveBal():HRF==='loan'?viewLoans():HRF==='pen'?viewPenalties():`<div class="panel">${list.length?list.map(x=>hrRow(x,true)).join(''):'<div class="empty">مفيش طلبات هنا</div>'}</div>`}`;
+  ${HRF==='mine'?mine:HRF==='appr'?viewApprovals():HRF==='att'?officePanel()+viewAttendance():HRF==='punch'?viewPunches():HRF==='bal'?viewLeaveBal():HRF==='loan'?viewLoans():HRF==='pen'?viewPenalties():`<div class="panel">${list.length?list.map(x=>hrRow(x,true)).join(''):'<div class="empty">مفيش طلبات هنا</div>'}</div>`}`;
 }
 
 /* =====================================================================
@@ -3324,7 +3326,7 @@ function getPos(){return new Promise(res=>{if(!navigator.geolocation)return res(
 function todayMissions(uidv){const t=today();return (S.hr||[]).filter(x=>x.uid===uidv&&x.kind==='mission'&&x.status!=='rejected'&&x.from<=t&&(x.to||x.from)>=t)}
 function punchCard(){
   const t=today();const mine=(S.punches||[]).filter(x=>x.uid===ME.id&&x.date===t).sort((a,b)=>a.at.localeCompare(b.at));const ts=[...todayTasks(ME.id),...officeTask()];const need=S.settings.punchNeedMission!==false;
-  return `<div class="panel grid" style="gap:8px"><div class="row between"><h3 style="margin:0">البصمة من الموبايل</h3><span class="row">${can('settings')?`<button class="btn sm ${officeOpen()?'danger':''}" data-act="offToggle">${S.settings.officePunchDate===today()?'اقفل بصمة المقر':'افتح البصمة من السيستم النهارده'}</button>`:''}<button class="btn pri" data-act="punch" data-t="in">👆 بصمة حضور</button><button class="btn" data-act="punch" data-t="out">👆 بصمة انصراف</button></span></div>
+  return `<div class="panel grid" style="gap:8px"><div class="row between"><h3 style="margin:0">البصمة من الموبايل</h3><span class="row"><button class="btn pri" data-act="punch" data-t="in">👆 بصمة حضور</button><button class="btn" data-act="punch" data-t="out">👆 بصمة انصراف</button></span></div>
    ${officeOpen()?`<div class="banner info small">البصمة من السيستم في مقر الشركة مفتوحة${S.settings.officePunch==='always'?'':' النهارده'} — لازم تكون جوه الشركة (في حدود ${n(S.settings.officeRadius||100)} متر) والـ GPS مفتوح.</div>`:''}
    <div class="muted small">للمأموريات والتكليفات: لازم تكون في مكان المأمورية (في حدود ${n(S.settings.punchRadius||300)} متر) والـ GPS مفتوح.${ts.length?` النهارده: ${ts.map(x=>esc(x.label)).join(' · ')}`:need?' <b>مفيش مأمورية أو تكليف ليك النهارده — اطلب مأمورية الأول.</b>':''}</div>
    ${mine.length?mine.map(x=>`<div class="row between small" style="border-top:1px solid var(--line);padding-top:6px"><span><b>${PUNCH_T[x.type]}</b> الساعة <b>${timeOf(x.at)}</b>${x.place?' · '+esc(x.place):''}${x.dist!=null?` · على بعد ${x.dist} م`:''}</span>${x.lat!=null?`<a href="${mapUrl(x)}" target="_blank" rel="noopener">المكان على الخريطة</a>`:'<span class="pill p-warn">من غير موقع</span>'}</div>`).join(''):''}</div>`;
@@ -4676,6 +4678,7 @@ function openSupPay(sid){
   $('#sq_s').onchange=f;f();
 }
 /* ---------- بصمة مقر الشركة ---------- */
+function officePanel(){if(!can('settings'))return '';const s=S.settings,on=officeOpen();return `<div class="panel row between" style="flex-wrap:wrap;gap:10px"><span><b>البصمة من السيستم في مقر الشركة</b><div class="muted small">${!s.officeLoc?'موقع المقر مش متحدد — حدده من الإعدادات':s.officePunch==='always'?'مفتوحة على طول (من الإعدادات)':s.officePunch==='off'?'مقفولة من الإعدادات':on?'مفتوحة النهارده — الموظفين يقدروا يبصموا من موبايلاتهم جوه الشركة':'مقفولة — افتحها لو جهاز البصمة عطلان'}</div></span>${s.officePunch!=='always'?`<button class="btn ${on?'danger':'pri'}" data-act="offToggle">${s.officePunchDate===today()?'اقفلها':'افتح البصمة من السيستم النهارده'}</button>`:''}</div>`}
 function officeOpen(){const s=S.settings;if(!s.officeLoc)return false;return s.officePunch==='always'||(s.officePunch!=='off'&&s.officePunchDate===today())}
 function officeTask(){return officeOpen()?[{id:'office',label:'مقر الشركة (البصمة من السيستم)',target:S.settings.officeLoc,office:true}]:[]}
 Object.assign(X9,{

@@ -1221,7 +1221,7 @@ function viewForm(id){
   <form id="rf" class="grid" autocomplete="off">
   <div class="panel grid g3">
     <label class="f">التاريخ<input type="date" id="f_date" value="${r?.date||today()}" required></label>
-    <label class="f span2">العيادة<select id="f_client" required><option value="">اختار العيادة…</option>${opt(CL().map(c=>[c.id,cName(c)+(cSub(c)?' – '+cSub(c):'')+' ('+CTYPE[c.type]+')']),pre?.clientId)}</select></label>
+    <label class="f span2">العيادة<select id="f_client" required><option value="">اختار العيادة…</option>${opt(CL().map(c=>[c.id,cName(c)+(cSub(c)?' – '+cSub(c):'')]),pre?.clientId)}</select></label>
     <label class="f">الفرع<select id="f_branch"></select></label>
     <label class="f span2">الجهاز<select id="f_dev"></select></label>
     <label class="f">الماركة<input id="f_dbrand" value="${esc(pre?.device?.brand||'')}" placeholder="مثلاً: Candela"></label>
@@ -1559,7 +1559,7 @@ function viewClient(id){
   const pa=partsAtClient(id);const brs=branchesOf(c);
   return `<div class="row between"><h2>${esc(cName(c))} <span class="muted" style="font-size:1rem">${esc(cSub(c))}</span>${c.deleted?' <span class="pill p-bad">محذوف</span>':''}</h2><div class="row">${can('reports_write')?`<button class="btn pri" data-act="newFor" data-id="${c.id}">+ تقرير للعيادة دي</button>`:''}${can('devices')?`<button class="btn" data-act="sellTo" data-id="${c.id}">+ بيع جهاز</button><button class="btn" data-act="rentTo" data-id="${c.id}">+ إيجار جهاز</button>`:''}${can('part_sales')?`<button class="btn" data-act="psTo" data-id="${c.id}">+ فاتورة قطع / مستهلكات</button>`:''}<button class="btn" data-act="editClient" data-id="${c.id}">تعديل البيانات</button>${can('clients_delete')&&!c.deleted?`<button class="btn danger" data-act="delClient" data-id="${c.id}">حذف</button>`:''}</div></div>
   ${fin?`<div class="grid g3">
-    <div class="panel kpi"><span>نوع التعامل</span><b style="font-size:1.1rem">${CTYPE[c.type]}</b></div>
+    <div class="panel kpi"><span>أجهزة عليها عقد صيانة ساري</span><b style="font-size:1.1rem">${clientDevices(c).filter(d=>contractOn(c.id,today(),d.branch||'',d.serial||'')).length} من ${clientDevices(c).length}</b></div>
     <div class="panel kpi"><span>إجمالي الزيارات والعقود</span><b>${money(tot)}</b></div>
     <div class="panel kpi"><span>المستحق عليه دلوقتي</span><b>${money(bal)}</b></div>
   </div>`:''}

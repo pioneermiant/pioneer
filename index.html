@@ -677,7 +677,7 @@ async function persistOnline(){
     for(const id of [...SYNCED[c].keys()])if(!cur.has(id)){let old=null;try{old=JSON.parse(SYNCED[c].get(id))}catch(e){}if(canDel(c,old)){b.delete(FB.db.collection(c).doc(id));k++}SYNCED[c].delete(id)}
     if(k)b.commit().catch(e=>toast('مقدرتش أحفظ أونلاين: '+fbErr(e)));
   }
-  if(can('settings')){const s=JSON.stringify(S.settings);if(s!==SYNCED.settings){FB.db.doc('meta/settings').set(JSON.parse(s)).catch(e=>toast(fbErr(e)));SYNCED.settings=s}}
+  if(can('settings')&&SYNCED.settings!==undefined){const s=JSON.stringify(S.settings);if(s!==SYNCED.settings){FB.db.doc('meta/settings').set(JSON.parse(s)).catch(e=>toast(fbErr(e)));SYNCED.settings=s}}
 }
 let lrTimer=null;
 function liveRender(){clearTimeout(lrTimer);lrTimer=setTimeout(()=>{
@@ -4962,7 +4962,7 @@ function engBarsPanel(){
    v26 — تسلسل موافقات موحّد + حذف أي طلب + العيادات فروع بس + سياسة العمل
    ===================================================================== */
 const DEF_CHAIN=['direct','exec','admin'];
-function ensureChainsV2(){if(!S?.settings||S.settings.chainsV2||!can('settings')||!ME)return;const ch={};Object.keys(REQ_T).forEach(t=>ch[t]=[...DEF_CHAIN]);S.settings.chains=ch;S.settings.chainsV2=true;save()}
+function ensureChainsV2(){if(!S?.settings||S.settings.chainsV2||!can('settings')||!ME)return;if(ONLINE&&SYNCED.settings===undefined)return;const ch={};Object.keys(REQ_T).forEach(t=>ch[t]=[...DEF_CHAIN]);S.settings.chains=ch;S.settings.chainsV2=true;save()}
 /* حذف أي طلب */
 const REQ_DEL_COLS=['hr','requests','vouchers','handovers','penalties','bonuses','custody','contractReqs','orders'];
 function delAnyReq(col,id,label){

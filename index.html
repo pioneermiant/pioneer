@@ -1397,57 +1397,54 @@ function sigPad(key){
    عرض التقرير (نفس شكل الورقة) + تصويره
    ===================================================================== */
 function reportHTML(r){
-  const s=S.settings,c=client(r.clientId)||{},sp=s.showPrices;
-  const box='border:1px solid #9aa5b1;border-radius:4px;padding:6px 10px;min-height:32px';
-  const lab='color:#5b6876;font-size:12px';
-  const field=(l,v)=>`<div style="display:flex;gap:6px;align-items:baseline;border-bottom:1px dotted #9aa5b1;padding:5px 0"><span style="${lab};white-space:nowrap">${l} :</span><span style="font-weight:600">${esc(v)||'&nbsp;'}</span></div>`;
-  const paid=paidOf('report',r),bal=balOf('report',r);
-  const td='padding:5px;border:1px solid #c4ccd4';
-  const partsRows=r.parts.length?r.parts.map((p,i)=>`<tr><td style="${td};text-align:center">${i+1}</td><td style="${td}">${esc(p.name)}${p.unitCode?` <span style="color:#5b6876;font-size:11px;font-family:Arial">(${esc(p.unitCode)})</span>`:''}</td><td style="${td};text-align:center">${p.qty}</td><td style="${td};text-align:center;font-size:12px">${wLabel(p)||'—'}</td>${sp?`<td style="${td};text-align:center">${money(p.price)}</td><td style="${td};text-align:center">${money(p.qty*p.price)}</td>`:''}</tr>`).join(''):`<tr><td colspan="${sp?6:4}" style="${td};text-align:center;color:#5b6876">لا يوجد</td></tr>`;
-  const br=branchInfo(c,r.branch);
-  const sumRow=(l,v,st='')=>`<div style="display:flex;justify-content:space-between;padding:3px 0;${st}"><span>${l}</span><span>${v}</span></div>`;
-  const logo=s.logo?`<img src="${s.logo}" style="height:46px;max-width:160px;object-fit:contain" alt="">`:`<div style="background:#1b2530;color:#fff;padding:8px 16px;border-radius:4px;font-size:22px;font-weight:700;direction:ltr;font-family:Arial,sans-serif">${esc(s.company)}</div>`;
-  return `<div dir="rtl" style="width:794px;background:#fff;color:#16202b;font-family:Tahoma,'Segoe UI',Arial,sans-serif;font-size:13.5px;line-height:1.55;padding:30px 34px;box-sizing:border-box">
-  <div style="border:2px solid #1b2530;padding:18px 20px">
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
-      <div><div style="font-size:19px;font-weight:700">تقرير ${esc(r.work||'صيانة')}</div><div style="${lab}">صيانة / فحص / تركيب / إصلاح</div>
-        <div style="margin-top:8px;display:flex;gap:18px"><span><span style="${lab}">التاريخ : </span><b>${fd(r.date)}</b></span><span><span style="${lab}">رقم : </span><b style="color:#b1243f;font-size:16px;font-family:Arial,sans-serif">${pad(r.no)}</b></span></div></div>
-      <div style="text-align:left">${logo}<div style="direction:ltr;font-family:Arial,sans-serif;font-size:13px;margin-top:4px">${esc(s.sub)}</div>${s.phone?`<div style="font-size:12px;color:#5b6876">${esc(s.phone)}</div>`:''}</div>
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;column-gap:26px;margin-top:14px">
-      ${field('العيادة',cName(c))}${field('الدكتور / المسؤول',cSub(c))}
-      ${field('الفرع',r.branch||(branchesOf(c).length?'الرئيسي':''))}${field('التليفون',br?.phone||c.phone)}
-      ${field('العنوان',br?.address||c.address)}${field('المهندس',r.engineer)}
-      ${field('الماركة',r.device?.brand)}${field('نوع الجهاز',r.device?.name)}${field('الموديل',r.device?.model)}
-      ${field('الرقم المسلسل',r.device?.serial)}${field('نوع الزيارة',visitLabel(r.visitType))}
-    </div>
-    ${r.tx||r.pp||r.hv?`<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:8px">${[['TX',r.tx],['PP',r.pp],['H.V',r.hv]].map(([l,v])=>`<div style="border:1px solid #9aa5b1;border-radius:4px;padding:5px 10px;display:flex;justify-content:space-between;gap:8px"><span style="${lab};direction:ltr">${l}</span><b style="direction:ltr;font-family:Arial,sans-serif">${esc(v)||'—'}</b></div>`).join('')}</div>`:''}
-    ${(r.faults||[]).length?`<div style="margin-top:10px;${lab}">الأعطال : ${(r.faults||[]).map(f=>`<span style="display:inline-block;border:1px solid #9aa5b1;border-radius:99px;padding:0 8px;margin:2px;color:#16202b">${esc(f)}</span>`).join('')}</div>`:''}
-    <div style="margin-top:12px"><div style="${lab}">العطل :</div><div style="${box};white-space:pre-wrap">${esc(r.complaint)}</div></div>
-    <div style="margin-top:10px"><div style="${lab}">ما تم :</div><div style="${box};white-space:pre-wrap;min-height:56px">${esc(r.done)}</div></div>
-    <div style="margin-top:10px"><div style="${lab}">قطع الغيار المستبدلة :</div>
-      <table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr style="background:#eef1f4"><th style="${td};width:34px">#</th><th style="${td};text-align:right">الصنف</th><th style="${td};width:60px">الكمية</th><th style="${td};width:120px">الضمان</th>${sp?`<th style="${td};width:110px">السعر</th><th style="${td};width:120px">الإجمالي</th>`:''}</tr></thead><tbody>${partsRows}</tbody></table>
-      <div style="${lab};margin-top:4px">استلام القطعة القديمة : <b style="color:#16202b">${r.parts.length?(r.oldReceived?'نعم':'لا'):'—'}</b></div>
-      ${r.parts.some(p=>p.photo)?`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">${r.parts.filter(p=>p.photo).map(p=>`<div style="text-align:center;font-size:11px;color:#5b6876"><img src="${p.photo}" style="width:150px;height:112px;object-fit:cover;border:1px solid #c4ccd4;border-radius:4px;display:block" alt=""><div>${esc(p.name)} بعد التركيب</div></div>`).join('')}</div>`:''}
-    </div>
-    ${sp?`<div style="display:flex;gap:18px;margin-top:10px;align-items:flex-start">
-      <div style="flex:1;${lab};line-height:1.9">طريقة الدفع : <b style="color:#16202b">${esc(r.method)}</b><br>السداد : <b style="color:#16202b">${r.term==='credit'?'آجل':'كاش'}</b>${r.term==='credit'&&bal>0.009?`<br>ميعاد التحصيل : <b style="color:#16202b">${fd(r.due)}</b>`:''}</div>
-      <div style="width:280px;border:1px solid #9aa5b1;border-radius:4px;padding:8px 12px">
-        ${sumRow('تكلفة الزيارة',money(r.visitFee))}${sumRow('قطع الغيار',money(r.parts.reduce((a,p)=>a+p.qty*p.price,0)))}${r.discount?sumRow('خصم','- '+money(r.discount)):''}
-        ${sumRow('الإجمالي',money(r.total),'font-weight:700;border-top:1px solid #9aa5b1;margin-top:3px;padding-top:5px')}
-        ${creditOf('report',r.id)>0?sumRow('مرتجع','- '+money(creditOf('report',r.id))):''}
-        ${r.term==='credit'?sumRow('المدفوع',money(paid))+sumRow('المتبقي',money(bal),'color:#b1243f;font-weight:700'):''}
-      </div></div>`:''}
-    ${r.notes?`<div style="margin-top:10px"><div style="${lab}">ملاحظات :</div><div style="${box};white-space:pre-wrap">${esc(r.notes)}</div></div>`:''}
-    ${(r.photos||[]).length?`<div style="margin-top:10px"><div style="${lab}">صور :</div><div style="display:flex;gap:6px;flex-wrap:wrap">${r.photos.map(p=>`<img src="${p}" style="width:170px;height:128px;object-fit:cover;border:1px solid #c4ccd4;border-radius:4px" alt="">`).join('')}</div></div>`:''}
-    <div style="margin-top:14px;font-weight:700;text-align:center;font-size:14px">ملاحظات هامة</div>
-    <ol style="margin:4px 0 0;padding-right:20px;font-size:11.5px;color:#3c4854">${s.terms.filter(Boolean).map(t=>`<li>${esc(t)}</li>`).join('')}</ol>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:26px;margin-top:16px">
-      <div><div style="${lab}">اسم المهندس : <b style="color:#16202b">${esc(r.engineer)}</b></div><div style="${lab};margin-top:4px">التوقيع :</div><div style="height:80px;border-bottom:1px dotted #9aa5b1">${r.sigEng?`<img src="${r.sigEng}" style="height:80px;max-width:100%" alt="">`:''}</div></div>
-      <div><div style="${lab}">اسم المستلم : <b style="color:#16202b">${esc(r.receiver)}</b></div><div style="${lab};margin-top:4px">التوقيع :</div><div style="height:80px;border-bottom:1px dotted #9aa5b1">${r.sigClient?`<img src="${r.sigClient}" style="height:80px;max-width:100%" alt="">`:''}</div></div>
-    </div>
-    ${qrBlock('r',r)}
-  </div></div>`;
+  const s=S.settings,c=client(r.clientId)||{},sp=s.showPrices,NV='#1d2b45',AC='#2b8fb8',MU='#4a5565',LN='#d9e0e8',TX='#0f1722',BG='#f1f5f9';
+  const lg=s.logo||(typeof PM_LOGO!=="undefined"?PM_LOGO:"");
+  const logo=lg?`<img src="${lg}" style="height:52px;max-width:200px;object-fit:contain" alt="">`:`<div style="font-size:26px;font-weight:800;color:${NV};direction:ltr;font-family:Arial,sans-serif">${esc(s.company)}</div>`;
+  const paid=paidOf('report',r),bal=balOf('report',r),br=branchInfo(c,r.branch);
+  const ttl=t=>`<div style="font-size:14px;color:${AC};font-weight:800;margin:18px 0 8px;display:flex;align-items:center;gap:8px"><span style="width:4px;height:16px;background:${AC};border-radius:2px;display:inline-block"></span>${t}</div>`;
+  const kv=(k,v,ltr)=>`<div style="display:flex;gap:8px;padding:4px 0"><span style="color:${MU};min-width:96px">${k}</span><b style="font-weight:700;color:${TX};${ltr?'font-family:Arial;':''}">${esc(v)||'—'}</b></div>`;
+  const card=(t,body)=>`<div style="flex:1;background:${BG};border:1px solid ${LN};border-radius:12px;padding:14px 18px"><div style="font-size:13px;color:${AC};font-weight:700;margin-bottom:4px">${t}</div>${body}</div>`;
+  const textBox=(v,mh)=>`<div style="background:#fff;border:1px solid ${LN};border-radius:10px;padding:10px 14px;white-space:pre-wrap;min-height:${mh||24}px;font-weight:600">${esc(v)||'—'}</div>`;
+  const cell='padding:11px 10px;border-bottom:1px solid '+LN;
+  const heads=[['#','center','36px'],['الصنف','right',''],['الكمية','center','64px'],['الضمان','center','110px'],...(sp?[['السعر','center','100px'],['الإجمالي','center','110px']]:[])];
+  const partsRows=r.parts.length?r.parts.map((p,i)=>`<tr style="background:${i%2?BG:'#fff'}"><td style="${cell};text-align:center;color:${MU}">${i+1}</td><td style="${cell}"><b>${esc(p.name)}</b>${p.unitCode?`<div style="color:${MU};font-family:Arial;font-size:12.5px">${esc(p.unitCode)}</div>`:''}</td><td style="${cell};text-align:center">${p.qty}</td><td style="${cell};text-align:center;font-size:14px;color:${MU}">${wLabel(p)||'—'}</td>${sp?`<td style="${cell};text-align:center">${money(p.price)}</td><td style="${cell};text-align:center;font-weight:700">${money(p.qty*p.price)}</td>`:''}</tr>`).join(''):`<tr><td colspan="${heads.length}" style="${cell};text-align:center;color:${MU}">لم يتم تغيير قطع غيار</td></tr>`;
+  const row=(l,v,st)=>`<div style="display:flex;justify-content:space-between;padding:5px 0;${st||''}"><span>${l}</span><span>${v}</span></div>`;
+  const vt=visitLabel(r.visitType);
+  return `<div dir="rtl" style="width:794px;background:#fff;color:${TX};font-family:Tahoma,'Segoe UI',Arial,sans-serif;font-size:15px;line-height:1.65;box-sizing:border-box">
+  <div style="height:8px;background:linear-gradient(90deg,${NV} 0 70%,${AC} 70% 100%)"></div>
+  <div style="padding:26px 36px 30px">
+   <div style="display:flex;justify-content:space-between;align-items:center">
+    <div><div style="font-size:32px;font-weight:800;color:${NV};line-height:1.15">تقرير ${esc(r.work||'صيانة')}</div><div style="color:${AC};font-size:15px;font-weight:700;margin-top:4px">${vt?esc(vt):'صيانة / فحص / تركيب / إصلاح'}</div></div>
+    <div style="text-align:left">${logo}${s.phone?`<div style="font-size:14px;color:${MU};margin-top:4px;font-family:Arial;font-weight:700">${esc(s.phone)}</div>`:''}</div>
+   </div>
+   <div style="display:flex;gap:10px;margin-top:16px">${[['رقم التقرير','#'+pad(r.no)],['التاريخ',fd(r.date)],['المهندس',r.engineer||'—']].map(([k,v])=>`<div style="flex:1;border:1px solid ${LN};border-radius:10px;padding:8px 14px"><div style="color:${MU};font-size:13px">${k}</div><div style="font-weight:800;color:${NV};font-size:16px">${esc(v)}</div></div>`).join('')}</div>
+   <div style="display:flex;gap:12px;margin-top:14px">
+    ${card('العميل',`<div style="font-size:17px;font-weight:800;padding:2px 0 4px">${esc(cName(c))}</div>${kv('المسؤول',cSub(c))}${kv('الفرع',r.branch||'')}${kv('التليفون',br?.phone||c.phone,1)}${kv('العنوان',br?.address||c.address)}`)}
+    ${card('الجهاز',`<div style="font-size:17px;font-weight:800;padding:2px 0 4px">${esc([r.device?.brand,r.device?.name].filter(Boolean).join(' ')||'—')}</div>${kv('الموديل',r.device?.model)}${kv('الرقم المسلسل',r.device?.serial,1)}${r.tx||r.pp||r.hv?`<div style="display:flex;gap:6px;margin-top:6px">${[['TX',r.tx],['PP',r.pp],['H.V',r.hv]].map(([l,v])=>`<div style="flex:1;background:#fff;border:1px solid ${LN};border-radius:8px;padding:4px 8px;text-align:center"><div style="color:${MU};font-size:12px;font-family:Arial">${l}</div><b style="font-family:Arial">${esc(v)||'—'}</b></div>`).join('')}</div>`:''}`)}
+   </div>
+   ${ttl('العطل')}${(r.faults||[]).length?`<div style="margin-bottom:8px">${r.faults.map(f=>`<span style="display:inline-block;background:#e4f2f8;color:#1b5f7c;border-radius:99px;padding:3px 12px;margin:2px;font-size:13.5px;font-weight:700">${esc(f)}</span>`).join('')}</div>`:''}${textBox(r.complaint)}
+   ${ttl('ما تم')}${textBox(r.done,50)}
+   ${ttl('قطع الغيار المستبدلة')}
+   <table style="width:100%;border-collapse:separate;border-spacing:0;font-size:15px"><thead><tr style="background:${NV};color:#fff">${heads.map(([h,a,w],i,A)=>`<th style="padding:11px 10px;text-align:${a};font-weight:700;${w?'width:'+w+';':''}${i===0?'border-radius:0 10px 10px 0;':''}${i===A.length-1?'border-radius:10px 0 0 10px;':''}">${h}</th>`).join('')}</tr></thead><tbody>${partsRows}</tbody></table>
+   ${r.parts.length?`<div style="color:${MU};margin-top:6px;font-size:14px">استلام القطعة القديمة: <b style="color:${TX}">${r.oldReceived?'نعم':'لا'}</b></div>`:''}
+   ${r.parts.some(p=>p.photo)?`<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px">${r.parts.filter(p=>p.photo).map(p=>`<div style="text-align:center;font-size:12.5px;color:${MU}"><img src="${p.photo}" style="width:160px;height:120px;object-fit:cover;border-radius:10px;display:block" alt=""><div>${esc(p.name)} بعد التركيب</div></div>`).join('')}</div>`:''}
+   ${sp?`<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:24px;margin-top:18px">
+     <div style="flex:1;color:${MU};line-height:2">طريقة الدفع: <b style="color:${TX}">${esc(r.method||'—')}</b><br>السداد: <b style="color:${TX}">${r.term==='credit'?'آجل':'كاش'}</b>${r.term==='credit'&&bal>0.009?`<br>ميعاد التحصيل: <b style="color:${TX}">${fd(r.due)}</b>`:''}</div>
+     <div style="width:300px;font-size:15.5px">${row('تكلفة الزيارة',money(r.visitFee),`color:${MU}`)}${row('قطع الغيار',money(r.parts.reduce((a,p)=>a+p.qty*p.price,0)),`color:${MU}`)}${r.discount?row('خصم','- '+money(r.discount),`color:${MU}`):''}${creditOf('report',r.id)>0?row('مرتجع','- '+money(creditOf('report',r.id)),`color:${MU}`):''}
+      <div style="display:flex;justify-content:space-between;align-items:center;background:${NV};color:#fff;border-radius:12px;padding:12px 16px;margin-top:6px"><span style="font-weight:700">الإجمالي</span><span style="font-size:23px;font-weight:800">${money(totOf('report',r))}</span></div>
+      ${r.term==='credit'?row('المدفوع',money(paid),'padding:8px 0 0')+(bal>0.009?row('المتبقي',money(bal),'padding:4px 0 0;font-weight:700;color:#b1243f'):''):''}
+     </div></div>`:''}
+   ${r.notes?`${ttl('ملاحظات')}${textBox(r.notes)}`:''}
+   ${(r.photos||[]).length?`${ttl('صور')}<div style="display:flex;gap:8px;flex-wrap:wrap">${r.photos.map(p=>`<img src="${p}" style="width:170px;height:128px;object-fit:cover;border-radius:10px" alt="">`).join('')}</div>`:''}
+   ${(s.terms||[]).filter(Boolean).length?`<div style="background:${BG};border:1px solid ${LN};border-radius:12px;padding:12px 18px;margin-top:20px"><div style="font-weight:800;color:${NV};margin-bottom:4px">ملاحظات هامة</div><ol style="margin:0;padding-right:20px;font-size:13.5px;color:${MU}">${s.terms.filter(Boolean).map(t=>`<li>${esc(t)}</li>`).join('')}</ol></div>`:''}
+   <div style="display:grid;grid-template-columns:1fr 1fr;gap:26px;margin-top:20px">${[['المهندس',r.engineer,r.sigEng],['المستلم',r.receiver,r.sigClient]].map(([k,nm,sg])=>`<div style="border:1px solid ${LN};border-radius:12px;padding:10px 16px"><div style="color:${MU};font-size:13.5px">توقيع ${k}</div><div style="height:80px;display:flex;align-items:center;justify-content:center">${sg?`<img src="${sg}" style="height:76px;max-width:100%" alt="">`:''}</div><div style="border-top:1px dashed ${LN};padding-top:4px;font-weight:700">${esc(nm||'')}</div></div>`).join('')}</div>
+   <div style="display:flex;align-items:center;gap:14px;margin-top:22px;padding-top:16px;border-top:1px solid ${LN}">
+    ${(()=>{if(!VERIFIED.has(r.id)&&isStaff())writeVerify('r',r);const q=qrData(verifyUrl('r',r.id));return q?`<img src="${q}" style="width:78px;height:78px" alt="">`:''})()}
+    <div style="flex:1;font-size:13px;color:${MU}">امسح الكود بكاميرا الموبايل للتأكد إن التقرير أصلي ولمراجعة تاريخ زيارات الجهاز.</div>
+    <div style="text-align:left"><div style="font-weight:800;color:${NV};font-size:16px">شكراً لثقتكم</div><div style="color:${AC};font-size:13.5px;font-weight:700">${esc(s.company||'Pioneer')} — جودة تعتمد عليها</div></div>
+   </div>
+  </div>
+  <div style="height:8px;background:linear-gradient(90deg,${AC} 0 30%,${NV} 30% 100%)"></div></div>`;
 }
 function viewReport(id){
   const r=S.reports.find(x=>x.id===id); if(!r||!mine(r))return '<div class="empty">التقرير مش موجود أو مش من صلاحيتك</div>';
@@ -2069,18 +2066,46 @@ function openPartSale(kind){
   calc();
 }
 function invoiceHTML(x){
-  const s=S.settings,b=buyerOf(x),td='padding:6px;border:1px solid #c4ccd4',lab='color:#5b6876;font-size:12px';
-  const logo=s.logo?`<img src="${s.logo}" style="height:46px;max-width:160px;object-fit:contain" alt="">`:`<div style="background:#1b2530;color:#fff;padding:8px 16px;border-radius:4px;font-size:22px;font-weight:700;direction:ltr;font-family:Arial,sans-serif">${esc(s.company)}</div>`;
-  const cr=creditOf('psale',x.id),bal=balOf('psale',x);
-  return `<div dir="rtl" style="width:794px;background:#fff;color:#16202b;font-family:Tahoma,'Segoe UI',Arial,sans-serif;font-size:13.5px;line-height:1.55;padding:30px 34px;box-sizing:border-box"><div style="border:2px solid #1b2530;padding:18px 20px">
-  <div style="display:flex;justify-content:space-between;align-items:flex-start"><div><div style="font-size:19px;font-weight:700">${psKind(x)==='cons'?'فاتورة بيع مستهلكات':'فاتورة بيع قطع غيار'}</div><div style="margin-top:6px"><span style="${lab}">التاريخ : </span><b>${fd(x.date)}</b> &nbsp; <span style="${lab}">رقم : </span><b style="color:#b1243f;font-family:Arial">${pad(x.no)}</b></div></div><div style="text-align:left">${logo}<div style="direction:ltr;font-family:Arial;font-size:13px;margin-top:4px">${esc(s.sub)}</div>${s.phone?`<div style="font-size:12px;color:#5b6876">${esc(s.phone)}</div>`:''}</div></div>
-  <div style="margin-top:12px"><span style="${lab}">المشتري : </span><b>${esc(b.name)}</b>${x.branch?` <span style="${lab}">الفرع : </span><b>${esc(x.branch)}</b>`:''}${x.phone?` <span style="${lab}">تليفون : </span><b style="font-family:Arial">${esc(x.phone)}</b>`:''}</div>${x.address?`<div style="margin-top:4px"><span style="${lab}">العنوان : </span>${esc(x.address)}</div>`:''}
-  <table style="width:100%;border-collapse:collapse;margin-top:12px"><thead><tr style="background:#eef1f4"><th style="${td}">#</th><th style="${td};text-align:right">الصنف</th><th style="${td}">الكمية</th><th style="${td}">الضمان</th><th style="${td}">السعر</th><th style="${td}">الإجمالي</th></tr></thead><tbody>${(x.lines||[]).map((l,i)=>`<tr><td style="${td};text-align:center">${i+1}</td><td style="${td}">${esc(l.name)}${l.unitCode?` <span style="color:#5b6876;font-family:Arial;font-size:11px">(${esc(l.unitCode)})</span>`:''}</td><td style="${td};text-align:center">${l.qty}</td><td style="${td};text-align:center;font-size:12px">${wLabel(l)||'—'}</td><td style="${td};text-align:center">${money(l.price)}</td><td style="${td};text-align:center">${money(l.qty*l.price)}</td></tr>`).join('')}</tbody></table>
-  <div style="width:280px;margin-top:10px;margin-inline-start:auto;border:1px solid #9aa5b1;border-radius:4px;padding:8px 12px">${x.discount?`<div style="display:flex;justify-content:space-between"><span>خصم</span><span>- ${money(x.discount)}</span></div>`:''}${cr?`<div style="display:flex;justify-content:space-between"><span>مرتجع</span><span>- ${money(cr)}</span></div>`:''}<div style="display:flex;justify-content:space-between;font-weight:700"><span>الإجمالي</span><span>${money(totOf('psale',x))}</span></div>${bal>0.009?`<div style="display:flex;justify-content:space-between;color:#b1243f;font-weight:700"><span>المتبقي</span><span>${money(bal)}</span></div>`:''}</div>
-  ${x.notes?`<div style="margin-top:10px;${lab}">ملاحظات : <span style="color:#16202b">${esc(x.notes)}</span></div>`:''}
-  <div style="margin-top:12px;font-size:11.5px;color:#3c4854">الضمان لا يشمل الكسر أو سوء الاستخدام أو التركيب بمعرفة غير مختصين. الضمان بالنبضات يُحسب من عداد الجهاز وقت التركيب.</div>
-  ${qrBlock('i',x)}
-  </div></div>`;
+  const s=S.settings,b=buyerOf(x),NV='#1d2b45',SD='#2b8fb8',MU='#4a5565',LN='#d9e0e8',TX='#0f1722',BG='#f1f5f9';
+  const lg=s.logo||(typeof PM_LOGO!=="undefined"?PM_LOGO:"");
+  const logo=lg?`<img src="${lg}" style="height:52px;max-width:200px;object-fit:contain" alt="">`:`<div style="font-size:26px;font-weight:800;color:${NV};direction:ltr;font-family:Arial,sans-serif;letter-spacing:1px">${esc(s.company)}</div>`;
+  const cr=creditOf('psale',x.id),bal=balOf('psale',x),tot=totOf('psale',x),paid=paidOf('psale',x);
+  const sub=(x.lines||[]).reduce((a,l)=>a+n(l.qty)*n(l.price),0);
+  const st=bal<=0.009?['مدفوعة بالكامل','#1f7a4d','#e6f4ec']:paid>0.009?['مدفوعة جزئياً','#9a6200','#fcf1dc']:['آجل','#b1243f','#fbe7ea'];
+  if(!VERIFIED.has(x.id)&&isStaff())writeVerify('i',x);const qr=qrData(verifyUrl('i',x.id));
+  const row=(l,v,st2)=>`<div style="display:flex;justify-content:space-between;padding:5px 0;${st2||''}"><span>${l}</span><span>${v}</span></div>`;
+  const card=(t,body)=>`<div style="flex:1;background:${BG};border:1px solid ${LN};border-radius:12px;padding:14px 18px"><div style="font-size:13px;color:${SD};font-weight:700;margin-bottom:6px">${t}</div>${body}</div>`;
+  const kv=(k,v)=>v?`<div style="display:flex;gap:6px;margin-top:3px"><span style="color:${MU};min-width:92px">${k}</span><b style="font-weight:700;color:${TX}">${v}</b></div>`:'';
+  return `<div dir="rtl" style="width:794px;background:#fff;color:${TX};font-family:Tahoma,'Segoe UI',Arial,sans-serif;font-size:15px;line-height:1.65;box-sizing:border-box">
+  <div style="height:8px;background:linear-gradient(90deg,${NV} 0 70%,${SD} 70% 100%)"></div>
+  <div style="padding:26px 36px 30px">
+   <div style="display:flex;justify-content:space-between;align-items:center">
+    <div><div style="font-size:34px;font-weight:800;color:${NV};line-height:1.1">فاتورة</div><div style="color:${SD};font-size:15px;font-weight:700;margin-top:4px">${psKind(x)==='cons'?'بيع مستهلكات':'بيع قطع غيار'}</div></div>
+    <div style="text-align:left">${logo}${s.phone?`<div style="font-size:14px;color:${MU};margin-top:4px;font-family:Arial;font-weight:700">${esc(s.phone)}</div>`:''}</div>
+   </div>
+   <div style="display:flex;gap:12px;margin-top:20px">
+    ${card('فاتورة إلى',`<div style="font-size:17px;font-weight:800">${esc(b.name||'')}</div>${kv('الفرع',esc(x.branch||''))}${kv('التليفون',x.phone?`<span style="font-family:Arial">${esc(x.phone)}</span>`:'')}${kv('العنوان',esc(x.address||''))}`)}
+    ${card('تفاصيل الفاتورة',`${kv('رقم الفاتورة',`<span style="font-family:Arial;color:${NV}">#${pad(x.no)}</span>`)}${kv('التاريخ',fd(x.date))}${x.due&&bal>0.009?kv('ميعاد السداد',fd(x.due)):''}<div style="margin-top:8px"><span style="display:inline-block;padding:4px 14px;border-radius:99px;font-size:13.5px;font-weight:700;color:${st[1]};background:${st[2]}">${st[0]}</span></div>`)}
+   </div>
+   <table style="width:100%;border-collapse:separate;border-spacing:0;margin-top:22px;font-size:15px">
+    <thead><tr style="background:${NV};color:#fff">${[['#','center','36px'],['الصنف','right',''],['الكمية','center','60px'],['الضمان','center','90px'],['السعر','center','100px'],['الإجمالي','center','110px']].map(([h,a,w],i,A)=>`<th style="padding:12px 10px;text-align:${a};font-weight:700;${w?'width:'+w+';':''}${i===0?'border-radius:0 10px 10px 0;':''}${i===A.length-1?'border-radius:10px 0 0 10px;':''}">${h}</th>`).join('')}</tr></thead>
+    <tbody>${(x.lines||[]).map((l,i)=>`<tr style="background:${i%2?BG:'#fff'}"><td style="padding:12px 10px;text-align:center;color:${MU};border-bottom:1px solid ${LN}">${i+1}</td><td style="padding:12px 10px;border-bottom:1px solid ${LN}"><b style="font-weight:700">${esc(l.name)}</b>${l.unitCode?`<div style="color:${MU};font-family:Arial;font-size:12.5px">${esc(l.unitCode)}</div>`:''}</td><td style="padding:12px 10px;text-align:center;border-bottom:1px solid ${LN}">${l.qty}</td><td style="padding:12px 10px;text-align:center;font-size:14px;color:${MU};border-bottom:1px solid ${LN}">${wLabel(l)||'—'}</td><td style="padding:12px 10px;text-align:center;border-bottom:1px solid ${LN}">${money(l.price)}</td><td style="padding:12px 10px;text-align:center;font-weight:700;border-bottom:1px solid ${LN}">${money(n(l.qty)*n(l.price))}</td></tr>`).join('')}</tbody>
+   </table>
+   <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:24px;margin-top:18px">
+    <div style="flex:1;font-size:13.5px;color:${MU}">${x.notes?`<div style="margin-bottom:8px"><b style="color:${TX}">ملاحظات:</b> ${esc(x.notes)}</div>`:''}<b style="color:${TX}">شروط الضمان:</b> الضمان لا يشمل الكسر أو سوء الاستخدام أو التركيب بمعرفة غير مختصين. الضمان بالنبضات يُحسب من عداد الجهاز وقت التركيب.</div>
+    <div style="width:300px;font-size:15.5px">
+     ${(x.discount||cr)?row('المجموع',money(sub),`color:${MU}`):''}${x.discount?row('خصم','- '+money(x.discount),`color:${MU}`):''}${cr?row('مرتجع','- '+money(cr),`color:${MU}`):''}
+     <div style="display:flex;justify-content:space-between;align-items:center;background:${NV};color:#fff;border-radius:12px;padding:12px 16px;margin-top:6px"><span style="font-weight:600">الإجمالي</span><span style="font-size:23px;font-weight:800">${money(tot)}</span></div>
+     ${paid>0.009&&bal>0.009?row('المدفوع',money(paid),'padding:8px 0 0'):''}${bal>0.009?row('المتبقي',`<b style="color:#b1243f">${money(bal)}</b>`,'padding:4px 0 0;font-weight:700;color:#b1243f'):''}
+    </div>
+   </div>
+   <div style="display:flex;align-items:center;gap:14px;margin-top:26px;padding-top:16px;border-top:1px solid ${LN}">
+    ${qr?`<img src="${qr}" style="width:78px;height:78px" alt="">`:''}
+    <div style="flex:1;font-size:13px;color:${MU}">امسح الكود بكاميرا الموبايل للتأكد إن الفاتورة أصلية من ${esc(s.company||'Pioneer')}.</div>
+    <div style="text-align:left"><div style="font-weight:800;color:${NV};font-size:16px">شكراً لثقتكم</div><div style="color:${SD};font-size:13.5px;font-weight:700">${esc(s.company||'Pioneer')} — جودة تعتمد عليها</div></div>
+   </div>
+  </div>
+  <div style="height:8px;background:linear-gradient(90deg,${SD} 0 30%,${NV} 30% 100%)"></div></div>`;
 }
 async function htmlBlob(html){
   const holder=document.createElement('div');holder.style.cssText='position:fixed;left:-12000px;top:0;width:794px';holder.innerHTML=html;document.body.appendChild(holder);
@@ -4607,13 +4632,13 @@ function inspSave(k){
 function inspHTML(x){
   const s=S.settings,c=inspClient(x),d=x.device||{};
   const lab='color:#5b6876;font-size:12px',td='padding:5px 7px;border:1px solid #c4ccd4';
-  const logo=s.logo?`<img src="${s.logo}" style="height:46px;max-width:160px;object-fit:contain" alt="">`:`<div style="background:#1b2530;color:#fff;padding:8px 16px;border-radius:4px;font-size:22px;font-weight:700;direction:ltr;font-family:Arial,sans-serif">${esc(s.company)}</div>`;
+  const logo=(s.logo||(typeof PM_LOGO!=="undefined"?PM_LOGO:""))?`<img src="${s.logo||(typeof PM_LOGO!=="undefined"?PM_LOGO:"")}" style="height:46px;max-width:160px;object-fit:contain" alt="">`:`<div style="background:#1b2530;color:#fff;padding:8px 16px;border-radius:4px;font-size:22px;font-weight:700;direction:ltr;font-family:Arial,sans-serif">${esc(s.company)}</div>`;
   const kv=(l,v)=>v?`<div style="display:flex;gap:6px;border-bottom:1px dotted #9aa5b1;padding:4px 0"><span style="${lab};white-space:nowrap">${l} :</span><b>${esc(v)}</b></div>`:'';
   const v=INSP_V[x.verdict];const box=(t,body)=>body?`<div style="margin-top:12px"><div style="font-weight:700;margin-bottom:4px">${t}</div><div style="border:1px solid #9aa5b1;border-radius:4px;padding:8px 10px;white-space:pre-wrap">${esc(body)}</div></div>`:'';
   return `<div dir="rtl" style="width:794px;background:#fff;color:#16202b;font-family:Tahoma,'Segoe UI',Arial,sans-serif;font-size:13.5px;line-height:1.55;padding:30px 34px;box-sizing:border-box"><div style="border:2px solid #1b2530;padding:18px 20px">
    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px"><div><div style="font-size:19px;font-weight:700">تقرير كشف على جهاز</div><div style="${lab}">${esc(INSP_PUR[x.purpose]||'')}</div>
     <div style="margin-top:8px;display:flex;gap:18px"><span><span style="${lab}">التاريخ : </span><b>${fd(x.date)}</b></span><span><span style="${lab}">رقم : </span><b style="color:#b1243f;font-size:16px;font-family:Arial,sans-serif">K-${pad(x.no)}</b></span></div></div>
-    <div style="text-align:left">${logo}<div style="direction:ltr;font-family:Arial,sans-serif;font-size:13px;margin-top:4px">${esc(s.sub||'')}</div>${s.phone?`<div style="font-size:12px;color:#5b6876">${esc(s.phone)}</div>`:''}</div></div>
+    <div style="text-align:left">${logo}<div style="direction:ltr;font-family:Arial,sans-serif;font-size:13px;margin-top:4px">${s.logo||typeof PM_LOGO==="undefined"?esc(s.sub||""):""}</div>${s.phone?`<div style="font-size:12px;color:#5b6876">${esc(s.phone)}</div>`:''}</div></div>
    <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 24px;margin-top:12px">${kv('العميل',c.name)}${kv('المسؤول',c.sub)}${kv('التليفون',c.phone)}${kv('العنوان',c.address)}${kv('المهندس',x.byName)}${kv('الفرع / المكان',x.branch)}</div>
    <div style="font-weight:700;margin-top:14px;margin-bottom:4px">بيانات الجهاز</div>
    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px 18px">${kv('الماركة',d.brand)}${kv('النوع',d.name)}${kv('الموديل',d.model)}${kv('السيريال',d.serial)}${kv('سنة الصنع',d.year)}${kv('المنشأ',d.origin)}${kv('عداد النبضات',d.pulses)}${kv('السوفت وير',d.sw)}</div>

@@ -1031,11 +1031,12 @@ function orderCard(r,forEng){
   return `<div class="req">
     <div class="row between"><span class="row"><b>${esc(c.clinic||c.name||'—')}</b>${r.branch?`<span class="pill p-info">${esc(r.branch)}</span>`:''}${r.urgent?'<span class="pill p-bad">مستعجل</span>':''}<span class="pill p-mut">${RKIND[r.kind]}</span></span><span class="pill ${late?'p-bad':st[1]}">${late?'متأخرة':st[0]}</span></div>
     <div class="when">${dayLabel(r.date)} · ${slotLabel(r.slot)}</div>
-    <div class="small muted">${esc(c.name||'')} · <span class="num">${esc(branchInfo(c,r.branch)?.phone||c.phone||'')}</span> · ${esc(branchInfo(c,r.branch)?.address||c.address||'')}</div>
+    <div class="small muted">${esc(c.name||'')} · <span class="num">${esc(branchInfo(c,r.branch)?.phone||c.phone||'')}</span> · 📍 ${esc(r.address||branchInfo(c,r.branch)?.address||c.address||'العنوان مش متسجل')}</div>
     <div class="small">الجهاز: ${esc(r.device?.name||'')} ${esc(r.device?.model||'')} <span class="muted num">${esc(r.device?.serial||'')}</span></div>
     <p>${esc(r.description)}</p>
     ${(r.photos||[]).length?`<div class="photos">${r.photos.map((p,i)=>`<img src="${p}" data-act="showImg" data-src="q:${r.id}:${i}" alt="صورة العطل">`).join('')}</div>`:''}
     <div class="small muted">اتطلب ${fdt(r.createdAt)}</div>
+    ${r.status!=='done'&&r.status!=='cancelled'?`<div class="row">${reqNav(r,c)}</div>`:''}
     ${forEng?`<div class="row">${onWayBtns(r)}${r.status==='assigned'?`<button class="btn pri" data-go="new" data-p="${r.id}">اكتب تقرير الزيارة</button>`:''}${r.reportId?`<button class="btn sm" data-view="${r.reportId}">التقرير</button>`:''}</div>`:''}
   </div>`;
 }
@@ -1155,10 +1156,11 @@ function viewRequests(){
   const card=r=>{const c=client(r.clientId)||{};const st=RSTATUS[r.status];
     return `<div class="req">
       <div class="row between"><span class="row"><b>${esc(c.clinic||c.name||'—')}</b>${r.internal?`<span class="pill p-acc">تكليف من ${esc(r.assignedByName||'')}</span>`:''}${r.urgent?'<span class="pill p-bad">مستعجل</span>':''}<span class="pill p-mut">${RKIND[r.kind]}</span>${c.type==='contract'?'<span class="pill p-acc">عقد</span>':''}</span><span class="pill ${st[1]}">${st[0]}</span></div>
-      <div class="small muted">اتطلب ${fdt(r.createdAt)} · ${esc(c.name||'')}${r.branch?' · فرع <b>'+esc(r.branch)+'</b>':''} · <span class="num">${esc(branchInfo(c,r.branch)?.phone||c.phone||'')}</span> · ${esc(branchInfo(c,r.branch)?.address||c.address||'')}</div>
+      <div class="small muted">اتطلب ${fdt(r.createdAt)} · ${esc(c.name||'')}${r.branch?' · فرع <b>'+esc(r.branch)+'</b>':''} · <span class="num">${esc(branchInfo(c,r.branch)?.phone||c.phone||'')}</span> · 📍 ${esc(r.address||branchInfo(c,r.branch)?.address||c.address||'العنوان مش متسجل')}</div>
       <div class="small">الجهاز: ${esc(r.device?.name||'')} ${esc(r.device?.model||'')} <span class="muted num">${esc(r.device?.serial||'')}</span></div>
       <p>${esc(r.description)}</p>
       ${(r.photos||[]).length?`<div class="photos">${r.photos.map((p,i)=>`<img src="${p}" data-act="showImg" data-src="q:${r.id}:${i}" alt="صورة العطل">`).join('')}</div>`:''}
+      ${r.status!=='done'&&r.status!=='cancelled'?reqNav(r,c):''}
       <div class="row between" style="border-top:1px solid var(--line);padding-top:8px">
         <span class="when">${dayLabel(r.date)} · ${slotLabel(r.slot)} ${delBtn('requests',r.id,r.internal?'التكليف ده':'طلب الصيانة ده')}</span>
         ${r.status==='done'?(r.reportId?`<button class="btn sm" data-view="${r.reportId}">التقرير</button>`:''):r.status==='cancelled'?'':`<span class="row">
@@ -4161,7 +4163,7 @@ function openAssign(kind){
    <label class="f span2">${kind==='maint'?'المهندس':'الموظف'}<select id="as_u">${(kind==='maint'?engs:emps).map(u=>`<option value="${u.id}">${esc(u.name)}${u.jobTitle?' — '+esc(u.jobTitle):''}</option>`).join('')}</select></label>
    ${kind==='mission'?`<label class="f span2">نوع المأمورية<select id="as_mt">${Object.entries(MISSION_T).map(([k,l])=>`<option value="${k}">${l}</option>`).join('')}</select></label>`:''}
    <label class="f">العيادة${kind==='mission'?' (لو رايح عيادة)':''}<select id="as_c">${cOpts}</select></label><label class="f">الفرع<select id="as_b"><option value="">—</option></select></label>
-   ${kind==='maint'?`<label class="f span2">الجهاز<select id="as_dv"></select></label>`:''}
+   ${kind==='maint'?`<label class="f span2">الجهاز<select id="as_dv"></select></label><div id="as_info" class="span2"></div>`:''}
    <label class="f">اليوم<input type="date" id="as_d" value="${today()}"></label>
    ${kind==='maint'?`<label class="f">الميعاد<select id="as_s">${Array.from({length:nSlots()},(_,i)=>`<option value="${i}">${slotLabel(i)}</option>`).join('')}</select></label>`:`<label class="f">الساعة<input type="time" id="as_t"></label><label class="f span2">المكان (لو مش عيادة)<input id="as_pl"></label>${locField('as_loc',null,'موقع المكان على الخريطة (علشان البصمة)')}`}
    <label class="f span2">${kind==='maint'?'المطلوب (العطل / نوع الصيانة)':'الغرض من المأمورية'}<textarea id="as_x" style="min-height:70px"></textarea></label></div>`,()=>{
@@ -4171,7 +4173,10 @@ function openAssign(kind){
       if(!cid){toast('اختار العيادة');return false}if(!txt){toast('اكتب المطلوب');return false}
       const c=client(cid);const dv=clientDevices(c)[+$('#as_dv').value]||{name:'',model:'',serial:''};
       const r={id:uid(),uid:'',clientId:cid,branch:br||dv.branch||'',createdAt:new Date().toISOString(),kind:'visit',device:dv,description:txt,urgent:false,photos:[],date:d,slot:+$('#as_s').value,engineerId:u.id,engineerName:u.name,status:'assigned',reportId:'',assignedBy:ME.id,assignedByName:pubName(),internal:true};
-      S.requests.push(r);notify([u.id],'📌 تكليف بزيارة صيانة',`${cName(c)}${r.branch?' – '+r.branch:''} — ${dayLabel(d)} ${slotLabel(r.slot)} — ${txt}`,'home');
+      const adr=($('#as_badr')?.value||'').trim(),nl=parseLoc($('#as_bloc')?.value);if($('#as_bloc')&&$('#as_bloc').value.trim()&&!nl){toast('لينك الموقع مش مفهوم — الصق لينك جوجل ماب أو الإحداثيات');return false}
+      const bo=r.branch?branchInfo(c,r.branch):null,tgt=bo||c;if(can('clients')){if(adr&&adr!==(tgt.address||''))tgt.address=adr;if(nl)tgt.loc=nl}
+      r.address=adr||tgt.address||'';r.loc=nl||locOfClient(cid,r.branch)||null;
+      S.requests.push(r);notify([u.id],'📌 تكليف بزيارة صيانة',`${cName(c)}${r.branch?' – '+r.branch:''} — ${dayLabel(d)} ${slotLabel(r.slot)} — ${txt}${r.address?' — العنوان: '+r.address:''}`,'home');
     }else{
       if(!txt){toast('اكتب الغرض من المأمورية');return false}
       const t=$('#as_mt').value;const loc=parseLoc($('#as_loc').value)||null;
@@ -4182,8 +4187,15 @@ function openAssign(kind){
   });
   $$('[data-ak]').forEach(b=>b.onclick=()=>{closeModal(true);openAssign(b.dataset.ak)});
   const fill=()=>{const c=client($('#as_c').value);$('#as_b').innerHTML='<option value="">—</option>'+branchesOf(c).map(b=>`<option>${esc(b.name)}</option>`).join('');const dv=$('#as_dv');if(dv)dv.innerHTML=(c?clientDevices(c):[]).map((d,i)=>`<option value="${i}">${esc(devLabel(d))} ${esc(d.serial||'')}</option>`).join('')||'<option value="">—</option>'};
-  $('#as_c').onchange=fill;fill();
+  const info=()=>{const el=$('#as_info');if(!el)return;const c=client($('#as_c').value);if(!c){el.innerHTML='';return}const br=$('#as_b').value;const bo=br?branchInfo(c,br):null;const adr=(bo?bo.address:c.address)||'',ph=(bo?bo.phone:c.phone)||'',loc=locOfClient(c.id,br);
+    el.innerHTML=`<div class="panel" style="padding:10px;display:grid;gap:8px;background:var(--bg2,transparent)"><div class="row between"><b>📍 عنوان ${br?'الفرع':'العيادة'}</b>${ph?`<a class="num small" href="tel:${esc(ph)}">${esc(ph)}</a>`:''}</div>
+     <label class="f">العنوان بالتفصيل (علشان المهندس)<input id="as_badr" value="${esc(adr)}" placeholder="المنطقة، الشارع، رقم العمارة، الدور، علامة مميزة"></label>
+     ${loc?`<div class="row between small"><span style="color:var(--ok)">✓ الموقع متحدد على الخريطة</span><a class="btn sm" href="${navUrl(loc,adr)}" target="_blank" rel="noopener">🧭 افتح على الخريطة</a></div>`:locField('as_bloc',null,'الموقع على الخريطة مش متحدد — الصق لينك جوجل ماب للمكان')}
+     ${can('clients')?`<div class="muted small">أي تعديل في العنوان أو الموقع هيتحفظ ${br?'للفرع':'للعيادة'} علشان المرات الجاية.</div>`:''}</div>`};
+  $('#as_c').onchange=()=>{fill();info()};$('#as_b').onchange=info;fill();info();
 }
+function navUrl(loc,adr){return loc?`https://www.google.com/maps/dir/?api=1&destination=${loc.lat},${loc.lng}`:adr?`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(adr)}`:''}
+function reqNav(r,c){const bo=branchInfo(c,r.branch);const adr=r.address||bo?.address||c.address||'';const loc=r.loc||locOfClient(r.clientId,r.branch);const u=navUrl(loc,adr);return u?`<a class="btn sm" href="${u}" target="_blank" rel="noopener">🧭 الطريق على الخريطة</a>`:''}
 /* ---------- البصمة بالموقع ---------- */
 function missionTarget(m){if(m.loc)return m.loc;if(m.clientId)return locOfClient(m.clientId,m.branch);return null}
 function todayTasks(uidv){const t=today();const ms=todayMissions(uidv).map(m=>({id:m.id,label:`${MISSION_T[m.type]||'مأمورية'}${m.clientId?' — '+cName(client(m.clientId)):''}${m.place?' — '+m.place:''}`,target:missionTarget(m),status:m.status}));

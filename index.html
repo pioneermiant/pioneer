@@ -572,6 +572,7 @@ const PERMS=[
  ['freon','الفريون: شراء الأسطوانات الكبيرة والتعبئة وبيع الفاضي','المخزن'],
  ['freon_view','يشوف صفحة الفريون','المخزن'],
  ['place_loc','تسجيل وتعديل مواقع العيادات والموردين على الخريطة','الشغل'],
+ ['nav_order','ترتيب القايمة الجانبية (والقايمة اللي فوق في الموبايل) لكل المستخدمين','الإدارة']
 ];
 const ROLE_PERMS={
  engineer:{inspections:1,reports_write:1,clients:1,stock:1,client_parts:1,place_loc:1},
@@ -653,6 +654,7 @@ async function initOnline(cfg){
 function stopListeners(){UNSUB.forEach(f=>{try{f()}catch(e){}});UNSUB=[];SYNCED={};S=Object.assign(emptyState(),{settings:S?.settings||emptyState().settings})}
 function startListeners(){
   const L=(q,fn)=>UNSUB.push(q.onSnapshot(fn,e=>toast('مشكلة مزامنة: '+fbErr(e))));
+  L(FB.db.doc('meta/nav'),d=>{S.nav=d.exists?d.data():null;liveRender()});
   L(FB.db.doc('meta/settings'),d=>{if(d.exists)S.settings={...DEFAULT_SETTINGS,...d.data()};SYNCED.settings=JSON.stringify(S.settings);liveRender()});
   if(isClinic()){
     S.users=[ME];
@@ -783,7 +785,7 @@ const TABS=[
  ['archive','الأرشيف والنسخ',()=>isDev(ME)],
  ['payroll','المرتبات والمكافآت',()=>can('salary_set')||can('payroll_prep')||can('payroll_approve')||can('bonuses')||can('bonuses_approve')],
  ['users','المستخدمين',()=>can('users'),'الإدارة'],
- ['settings','الإعدادات',()=>can('settings')]
+ ['settings','الإعدادات',()=>can('settings')||can('nav_order')]
 ];
 const SUBVIEW={new:'reports',insp:'reports',branch:'clients',inspf:'reports',inspv:'reports',test:'tests',tgrade:'tests',empf:'emps',devh:'clients',perfu:'perf',view:'reports',edit:'reports',client:'clients',dev:'devices',sdev:'devices',supplier:'suppliers',cust:'custody',psale:'psales'};
 const tabOf=v=>SUBVIEW[v]||v;
@@ -853,13 +855,14 @@ function render(){try{applyTheme(themeOf(ME))}catch(e){}
   const badge={requests:can('requests')?S.requests.filter(r=>r.status==='new').length:0,hr:can('hr')?(S.hr||[]).filter(x=>x.status==='pending'&&x.uid!==ME.id).length:0,custody:can('custody')?(S.custody||[]).filter(x=>x.kind==='expense'&&x.status==='pending'&&x.uid!==ME.id).length:0,orders:(S.orders||[]).filter(o=>can('orders_manage')?o.status==='new':o.assignedTo===ME.id&&['assigned','preparing','out'].includes(o.status)).length};
   badge.hr=approvalItems().filter(a=>a.t!=='voucher'&&a.t!=='suppay').length;badge.treasury=can('treasury')?(S.vouchers||[]).filter(x=>x.status==='approved').length+approvalItems().filter(a=>a.t==='voucher'||a.t==='suppay').length:0;badge.custody=(can('custody')?(S.custody||[]).filter(x=>x.kind==='expense'&&x.status==='pending').length:0)+HOS().filter(h=>h.status==='pending'&&h.to===ME.id).length;
   const cur=tabOf(VIEW);
-  $('#tabs').innerHTML=TABS.filter(t=>t[2]()).map(([k,l,,sec])=>`${sec?`<div class="navsec">${sec}</div>`:''}<button class="tab ${cur===k?'on':''}" data-go="${k}"><svg viewBox="0 0 24 24" aria-hidden="true">${ICONS[k]||''}</svg><span>${l}</span>${badge[k]?`<span class="cnt">${badge[k]}</span>`:''}</button>`).join('');
+  $('#tabs').innerHTML=navTabs().map(([k,l,,sec])=>`${sec?`<div class="navsec">${esc(sec)}</div>`:''}<button class="tab ${cur===k?'on':''}" data-go="${k}"><svg viewBox="0 0 24 24" aria-hidden="true">${ICONS[k]||''}</svg><span>${l}</span>${badge[k]?`<span class="cnt">${badge[k]}</span>`:''}</button>`).join('');
   document.body.classList.remove('nonav');
   const banner=S.demo&&isAdmin()?`<div class="banner row between no-print"><span>دي بيانات تجريبية. فيه مهندس (karim)، ومحاسب (amr)، ومدير المستهلكات (nader)، ومندوب توصيل (sayed)، وعيادة (skinline) — كلهم بكلمة سر 123456 علشان تجرب شاشاتهم.</span><button class="btn sm" data-act="clearDemo">امسح البيانات التجريبية وابدأ</button></div>`:'';
-  const V={devices:viewDevices,dev:()=>viewDev(PARAM),sdev:()=>viewSdev(PARAM),suppliers:viewSuppliers,supplier:()=>viewSupplier(PARAM),home:viewHome,requests:viewRequests,new:()=>viewForm(null),edit:()=>viewForm(PARAM),reports:viewReports,view:()=>viewReport(PARAM),clients:viewClients,client:()=>viewClient(PARAM),contracts:viewContracts,stock:viewStock,psales:viewPartSales,psale:()=>viewPartSale(PARAM),ar:viewAR,accounts:viewAccounts,custody:viewCustody,cust:()=>viewCustodyOf(PARAM),hr:viewHR2,devh:()=>viewDevHistory(PARAM),orders:viewOrders,perf:viewPerf,perfu:()=>viewPerfUser(PARAM),tests:viewTests,test:()=>viewTakeTest(PARAM),tgrade:()=>viewGrade(PARAM),emps:viewEmps,payroll:viewPayroll,offers:viewOffers,meetings:viewMeetings,policy:()=>viewPolicy(),branch:()=>viewBranch(PARAM),insp:()=>viewInsp(),inspf:()=>viewInspForm(PARAM),inspv:()=>viewInspView(PARAM),treasury:()=>viewTreasury(),freon:()=>viewFreon(),weekly:()=>viewWeekly(),analytics:()=>viewAnalytics(),ledger:()=>viewLedger(),audit:()=>viewAudit(),archive:()=>viewArchive(),empf:()=>viewEmpFile(PARAM),users:viewUsers,settings:viewSettings};
+  const V={devices:viewDevices,dev:()=>viewDev(PARAM),sdev:()=>viewSdev(PARAM),suppliers:viewSuppliers,supplier:()=>viewSupplier(PARAM),home:viewHome,requests:viewRequests,new:()=>viewForm(null),edit:()=>viewForm(PARAM),reports:viewReports,view:()=>viewReport(PARAM),clients:viewClients,client:()=>viewClient(PARAM),contracts:viewContracts,stock:viewStock,psales:viewPartSales,psale:()=>viewPartSale(PARAM),ar:viewAR,accounts:viewAccounts,custody:viewCustody,cust:()=>viewCustodyOf(PARAM),hr:viewHR2,devh:()=>viewDevHistory(PARAM),orders:viewOrders,perf:viewPerf,perfu:()=>viewPerfUser(PARAM),tests:viewTests,test:()=>viewTakeTest(PARAM),tgrade:()=>viewGrade(PARAM),emps:viewEmps,payroll:viewPayroll,offers:viewOffers,meetings:viewMeetings,policy:()=>viewPolicy(),branch:()=>viewBranch(PARAM),insp:()=>viewInsp(),inspf:()=>viewInspForm(PARAM),inspv:()=>viewInspView(PARAM),treasury:()=>viewTreasury(),freon:()=>viewFreon(),weekly:()=>viewWeekly(),analytics:()=>viewAnalytics(),ledger:()=>viewLedger(),audit:()=>viewAudit(),archive:()=>viewArchive(),empf:()=>viewEmpFile(PARAM),users:viewUsers,settings:()=>(can('nav_order')?navOrderPanel():'')+(can('settings')?viewSettings():'')};
   m.innerHTML=banner+(V[VIEW]||viewHome)();
   if(VIEW==='new'||VIEW==='edit')initForm();
-  if(VIEW==='settings')bindSettings();
+  if(VIEW==='settings'&&can('settings'))bindSettings();
+  if(VIEW==='settings')bindNavOrder();
   if(VIEW==='test')bindTakeTest(PARAM);
   if(VIEW==='tgrade')bindGrade(PARAM);
   if(VIEW==='inspf')inspBindAfter();
@@ -2620,6 +2623,7 @@ service cloud.firestore {
 
     match /meta/admin { allow read: if true; allow create: if signed() && !exists(/databases/$(database)/documents/meta/admin); }
     match /meta/settings { allow read: if signed(); allow write: if can('settings'); }
+    match /meta/nav { allow read: if signed(); allow write: if can('nav_order'); }
     match /meta/counter { allow read, write: if isStaff(); }
     match /days/{d} { allow read, write: if signed(); }
 
@@ -5909,7 +5913,7 @@ let XR_PRE='';
 
 
 /* ---------- فحص التحديثات ---------- */
-const APP_VER='2026.10.23.8';
+const APP_VER='2026.10.23.9';
 async function checkUpdate(){try{if(location.protocol==='file:')return;const t=await (await fetch(location.pathname+'?_='+Date.now(),{cache:'no-store'})).text();const m=t.match(/const APP_VER='([^']+)'/);if(m&&m[1]!==APP_VER)showUpd(m[1])}catch(e){}}
 function showUpd(v){if(document.getElementById('updBar'))return;const b=document.createElement('div');b.id='updBar';b.style.cssText='position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:80;background:#1d2b45;color:#fff;padding:10px 16px;border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,.25);display:flex;gap:12px;align-items:center;font-weight:600;max-width:92vw';b.innerHTML='<span>🔄 فيه نسخة جديدة من السيستم</span><button type="button" style="background:#2b8fb8;color:#fff;border:0;border-radius:10px;padding:6px 14px;font:inherit;cursor:pointer">حدّث دلوقتي</button>';b.querySelector('button').onclick=()=>{location.replace(location.pathname+'?v='+encodeURIComponent(v)+location.hash)};document.body.appendChild(b)}
 setTimeout(checkUpdate,8000);setInterval(checkUpdate,5*60*1000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkUpdate()});
@@ -6037,6 +6041,33 @@ function supPlaceBox(sid,prefix){const s=S.suppliers.find(x=>x.id===sid);if(!s)r
   return `<div class="panel" style="padding:10px;display:grid;gap:6px;margin:0"><div class="row between"><b>🏭 ${esc(s.name)}</b>${s.phone?`<a class="num small" href="tel:${esc(s.phone)}">${esc(s.phone)}</a>`:''}</div><div class="small">${s.address?esc(s.address):'<span class="muted">العنوان مش متسجل</span>'}</div>
    ${s.loc?`<div class="row between small"><span style="color:var(--ok)">✓ الموقع متحدد</span><a class="btn sm" href="${navUrl(s.loc,s.address)}" target="_blank" rel="noopener">🧭 افتح على الخريطة</a></div>`:locField(prefix+'_sloc',null,'موقع المورد مش متسجل — دوس "موقعي دلوقتي" لما توصل أو الصق لينك جوجل ماب')}</div>`}
 function saveSupLoc(sid,prefix){const el=$('#'+prefix+'_sloc');if(!el||!el.value.trim())return true;const l=parseLoc(el.value);if(!l){toast('لينك الموقع مش مفهوم');return false}const s=S.suppliers.find(x=>x.id===sid);if(s&&(can('suppliers')||can('stock_edit')||can('freon')))s.loc=l;return l}
+
+
+/* ---------- ترتيب القايمة ---------- */
+function navCfg(){const c=ONLINE?S.nav:S.settings.navOrder;return c&&Array.isArray(c.items)&&c.items.length?c:null}
+function navItems(cfg){const known=new Map(TABS.map(t=>[t[0],t]));const out=[];const seen=new Set();
+  (cfg?cfg.items:TABS.flatMap(t=>t[3]?[{sec:t[3]},t[0]]:[t[0]])).forEach(x=>{if(typeof x==='string'){if(known.has(x)&&!seen.has(x)){out.push(x);seen.add(x)}}else if(x&&x.sec!=null)out.push({sec:String(x.sec)})});
+  TABS.forEach(t=>{if(!seen.has(t[0]))out.push(t[0])});return out}
+function navTabs(){const cfg=navCfg();if(!cfg)return TABS.filter(t=>t[2]());const known=new Map(TABS.map(t=>[t[0],t]));const R=[];let pend='';
+  navItems(cfg).forEach(x=>{if(typeof x!=='string'){pend=x.sec;return}const t=known.get(x);if(!t||!t[2]())return;R.push([t[0],t[1],t[2],pend||undefined]);pend=''});return R}
+let NAV_EDIT=null,NAV_OPEN=false;
+document.addEventListener('toggle',e=>{if(e.target.id==='navDet')NAV_OPEN=e.target.open},true);
+function navOrderPanel(){if(!NAV_EDIT)NAV_EDIT=navItems(navCfg());const known=new Map(TABS.map(t=>[t[0],t]));
+  return `<details class="panel" id="navDet" ${NAV_OPEN||!can('settings')?'open':''}><summary class="row between" style="cursor:pointer;list-style:none"><h3 style="margin:0">☰ ترتيب القايمة</h3><span class="muted small">${navCfg()?'ترتيب مخصص':'الترتيب الأصلي'} · اضغط للفتح</span></summary><div class="grid" style="gap:8px;margin-top:10px">
+   <div class="muted small">رتّب الاختيارات بالأسهم ↑↓ وضيف عناوين أقسام. الترتيب بيطبق على كل المستخدمين — في القايمة الجانبية على الكمبيوتر وفي القايمة اللي فوق في الموبايل — وكل واحد بيشوف بس اللي من صلاحيته.</div>
+   <div id="navList" class="grid" style="gap:4px">${NAV_EDIT.map((x,i)=>typeof x==='string'?`<div class="nav-row"><span class="nav-ic"><svg viewBox="0 0 24 24" aria-hidden="true">${ICONS[x]||''}</svg></span><b style="flex:1">${esc(known.get(x)?.[1]||x)}</b><button type="button" class="btn sm ghost" data-navmv="${i}" data-d="-1" ${i===0?'disabled':''}>↑</button><button type="button" class="btn sm ghost" data-navmv="${i}" data-d="1" ${i===NAV_EDIT.length-1?'disabled':''}>↓</button></div>`:`<div class="nav-row nav-sec"><span class="muted small">عنوان قسم</span><input data-navsec="${i}" value="${esc(x.sec)}" style="flex:1"><button type="button" class="btn sm ghost" data-navmv="${i}" data-d="-1" ${i===0?'disabled':''}>↑</button><button type="button" class="btn sm ghost" data-navmv="${i}" data-d="1" ${i===NAV_EDIT.length-1?'disabled':''}>↓</button><button type="button" class="btn sm ghost" data-navdel="${i}">✕</button></div>`).join('')}</div>
+   <div class="row" style="flex-wrap:wrap"><button type="button" class="btn sm" data-navadd="1">+ عنوان قسم</button><button type="button" class="btn sm" data-navreset="1">رجّع الترتيب الأصلي</button><button type="button" class="btn pri" data-navsave="1">حفظ الترتيب</button></div></div></details>`}
+function bindNavOrder(){const L=$('#navList');if(!L)return;L.querySelectorAll('[data-navsec]').forEach(inp=>inp.oninput=()=>{NAV_EDIT[+inp.dataset.navsec].sec=inp.value})}
+document.addEventListener('click',async e=>{const t=e.target.closest('[data-navmv],[data-navdel],[data-navadd],[data-navreset],[data-navsave]');if(!t||!NAV_EDIT)return;
+  if(t.dataset.navmv!=null){const i=+t.dataset.navmv,j=i+(+t.dataset.d);if(j<0||j>=NAV_EDIT.length)return;[NAV_EDIT[i],NAV_EDIT[j]]=[NAV_EDIT[j],NAV_EDIT[i]];render();return}
+  if(t.dataset.navdel!=null){NAV_EDIT.splice(+t.dataset.navdel,1);render();return}
+  if(t.dataset.navadd){NAV_EDIT.unshift({sec:'قسم جديد'});render();return}
+  if(t.dataset.navreset){NAV_EDIT=navItems(null);render();return}
+  if(t.dataset.navsave){if(!can('nav_order')){toast('مفيش عندك صلاحية');return}const obj={items:NAV_EDIT.map(x=>typeof x==='string'?x:{sec:x.sec.trim()}).filter(x=>typeof x==='string'||x.sec),by:ME.id,at:new Date().toISOString()};
+    if(ONLINE){try{await FB.db.doc('meta/nav').set(obj);S.nav=obj}catch(er){toast('مقدرتش أحفظ: '+fbErr(er));return}}else{S.settings.navOrder=obj;save()}
+    NAV_EDIT=null;toast('اتحفظ ترتيب القايمة ✓');render()}
+});
+(function(){const st=document.createElement('style');st.textContent=`.nav-row{display:flex;align-items:center;gap:8px;padding:6px 10px;border:1px solid var(--line);border-radius:10px;background:var(--surface)}.nav-row.nav-sec{background:var(--surface-2)}.nav-ic svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;display:block}.nav-row .btn{min-width:34px}`;document.head.appendChild(st)})();
 
 /* =====================================================================
    التشغيل

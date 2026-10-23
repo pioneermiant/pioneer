@@ -436,7 +436,7 @@ const CONDS={new:['جديدة','p-ok'],used:['مستعملة','p-info'],refurb:[
 const condPill=c=>{const x=CONDS[c||'new']||CONDS.new;return `<span class="pill ${x[1]}">${x[0]}</span>`};
 const condOpts=sel=>Object.entries(CONDS).map(([k,[l]])=>`<option value="${k}" ${k===(sel||'new')?'selected':''}>${l}</option>`).join('');
 const DEV_CONDS={new:'جديد',used:'مستعمل',faulty:'عطلان',refurb:'مجدد'};
-const UNIT_ST={in_stock:['في المخزن','p-ok'],with_emp:['مع الموظف — لسه متوردتش','p-warn'],at_repair:['بره للتصليح','p-warn'],installed:['اتركبت عند عميل','p-info'],sold:['اتباعت','p-acc'],in_device:['في جهاز من أجهزة الشركة','p-info'],scrap:['هالكة','p-bad'],to_part:['اتصلحت ورجعت لصنف المخزن','p-ok'],ready_client:['اتصلحت — مستنية تتسلم للعميل','p-warn'],to_client:['اتصلحت واتسلمت للعميل','p-ok']};
+const UNIT_ST={in_stock:['في المخزن','p-ok'],with_emp:['مع الموظف — لسه متوردتش','p-warn'],at_repair:['بره للتصليح','p-warn'],installed:['اتركبت عند عميل','p-info'],sold:['اتباعت','p-acc'],in_device:['في جهاز من أجهزة الشركة','p-info'],scrap:['هالكة','p-bad'],to_part:['اتصلحت ورجعت لصنف المخزن','p-ok'],pulled:['قطعة عميل عندنا للصيانة','p-warn'],ready_client:['اتصلحت — مستنية تتركب / تتسلم للعميل','p-warn'],to_client:['اتصلحت واتسلمت للعميل','p-ok']};
 const UNIT_PREFIX={client:'OLD',repair:'REP',manual:'U',return:'RT'};
 const unitById=id=>(S.units||[]).find(u=>u.id===id);
 const unitCost=u=>n(n(u.cost)+(u.repairs||[]).reduce((a,r)=>a+n(r.cost),0));
@@ -1235,6 +1235,13 @@ function viewForm(id){
     <div class="muted small">صوّر كل قطعة بعد ما تركبها من زرار 📷 اللي جنبها. اكتب مدة الضمان بالشهور أو بعدد النبضات (النبضات بتتحسب من خانة PP).</div>
     <div id="partRows" class="grid" style="gap:8px"></div>
     <label class="row" style="gap:6px;color:var(--muted);font-size:.9rem"><input type="checkbox" id="f_old" style="width:auto" ${r?.oldReceived?'checked':''}> تم استلام القطعة القديمة <span class="small">(كل قطعة تاخد كود وتفضل معاك لحد ما تورّدها للمخزن)</span></label>
+    <div id="f_loaners"></div>
+  </div>
+  <div class="panel grid">
+    <div class="row between"><h3 style="margin:0">🔧 قطع اتسحبت من العيادة للصيانة</h3><button type="button" class="btn sm" id="pl_add">+ قطعة اتسحبت</button></div>
+    <div class="muted small">لو أخدت قطعة من العيادة علشان تتصلح (عندنا أو بره)، سجّلها هنا — هتظهر في المخزن ← "قطع العملاء" لحد ما ترجع تتركب عندهم.</div>
+    ${(r?.pulled||[]).length?`<div class="small">${r.pulled.map(x=>`<div style="padding:4px 0">• ${esc(x.name)} × ${x.qty}${x.notes?' — '+esc(x.notes):''} <span class="muted num">${(x.unitCodes||[]).join('، ')}</span></div>`).join('')}</div>`:''}
+    <div id="pullRows" class="grid" style="gap:6px"></div>
   </div>
   <div class="panel grid">
     <h3 style="margin:0">الحساب والسداد</h3>
@@ -1280,9 +1287,13 @@ function partRowHTML(it={}){
   const opts=S.parts.filter(p=>catOf(p)==='spare'||p.id===it.partId).map(p=>`<option value="${p.id}" ${!it.unitId&&p.id===it.partId?'selected':''}>${esc(p.name)}${p.condition&&p.condition!=='new'?' ('+(CONDS[p.condition]?.[0]||'')+')':''} — متاح ${n(p.qty)}</option>`).join('');
   const uo=units.length?`<optgroup label="قطع مكوّدة (كل قطعة لوحدها)">${units.map(u=>`<option value="u:${u.id}" ${u.id===it.unitId?'selected':''}>${esc(u.code)} — ${esc(u.name)} (${CONDS[u.condition]?.[0]||''})</option>`).join('')}</optgroup>`:'';
   const k=uid(); if(it.photo)FORM.partPhotos[k]=it.photo;
+  const fc=document.getElementById('f_client')?.value||'';const cu=(S.units||[]).filter(u=>(['pulled','ready_client'].includes(u.status)&&u.srcClientId&&u.srcClientId===fc)||(it.unitId===u.id&&it.mode==='back'));
+  const co=cu.length?`<optgroup label="قطع العيادة اللي اتسحبت للصيانة (ترجيع وتركيب)">${cu.map(u=>`<option value="c:${u.id}" ${u.id===it.unitId?'selected':''}>${esc(u.code)} — ${esc(u.name)} (${u.status==='ready_client'?'اتصلحت':'لسه عندنا'})</option>`).join('')}</optgroup>`:'';
   const pp=can('prices_edit')?'':'readonly';
-  return `<div class="part-row" data-k="${k}"><select class="pr-part"><option value="">اختار القطعة…</option>${opts}${uo}</select><input class="pr-qty" type="number" min="1" step="1" value="${it.qty||1}" title="الكمية" ${it.unitId?'readonly':''}><input class="pr-price" type="number" min="0" step="any" value="${it.price??''}" placeholder="سعر البيع" title="سعر البيع" ${pp}><span class="lt num">—</span><label class="pr-cam" title="صورة القطعة بعد التركيب">${it.photo?`<img src="${it.photo}" alt="">`:'📷'}<input type="file" class="pr-photo" accept="image/*" capture="environment" hidden></label><button type="button" class="btn sm ghost pr-del" title="حذف">✕</button><div class="pr-w"><span class="muted small">الضمان:</span><input class="pr-wm" type="number" min="0" step="1" value="${it.wMonths||''}" placeholder="0"><span class="muted small">شهر</span><input class="pr-wp" type="number" min="0" step="1000" value="${it.wPulses||''}" placeholder="0" style="width:120px"><span class="muted small">نبضة</span></div></div>`;
+  return `<div class="part-row" data-k="${k}"><select class="pr-part"><option value="">اختار القطعة…</option>${opts}${uo}${co}</select><input class="pr-qty" type="number" min="1" step="1" value="${it.qty||1}" title="الكمية" ${it.unitId?'readonly':''}><input class="pr-price" type="number" min="0" step="any" value="${it.price??''}" placeholder="سعر البيع" title="سعر البيع" ${pp}><span class="lt num">—</span><label class="pr-cam" title="صورة القطعة بعد التركيب">${it.photo?`<img src="${it.photo}" alt="">`:'📷'}<input type="file" class="pr-photo" accept="image/*" capture="environment" hidden></label><button type="button" class="btn sm ghost pr-del" title="حذف">✕</button><div class="pr-w"><span class="muted small">الضمان:</span><input class="pr-wm" type="number" min="0" step="1" value="${it.wMonths||''}" placeholder="0"><span class="muted small">شهر</span><input class="pr-wp" type="number" min="0" step="1000" value="${it.wPulses||''}" placeholder="0" style="width:120px"><span class="muted small">نبضة</span></div>
+  <div class="pr-x"><select class="pr-mode" title="نوع التركيب">${Object.entries(PR_MODE).map(([m,l])=>`<option value="${m}" ${(it.mode||'sale')===m?'selected':''}>${l}</option>`).join('')}</select><select class="pr-cond" title="حالة القطعة اللي اتركبت">${Object.entries(CONDS).filter(([c])=>!['replaced','damaged'].includes(c)).map(([c,[l]])=>`<option value="${c}" ${(it.cond||'new')===c?'selected':''}>${l}</option>`).join('')}</select><span class="pr-mhint muted small"></span></div></div>`;
 }
+const PR_MODE={sale:'بيع',swap:'بدل قطعة العيادة المسحوبة (مؤقت)',rent:'إيجار',back:'تركيب قطعة العيادة بعد تصليحها'};
 function initForm(){
   const f=$('#rf'); if(!f)return;
   const r=FORM.id?S.reports.find(x=>x.id===FORM.id):null, pre=FORM.pre;
@@ -1315,6 +1326,10 @@ function initForm(){
   $('#f_dev').onchange=()=>{const c=client($('#f_client').value);const d=c?clientDevices(c)[$('#f_dev').value]:null;$('#f_dbrand').value=d?.brand||'';$('#f_dname').value=d?.name||'';$('#f_dmodel').value=d?.model||'';$('#f_dserial').value=d?.serial||'';if(d?.branch)$('#f_branch').value=d.branch;lastRead();autoVisit();if(false){$('#f_visit').value=kNow()?'contract':'emergency';setFee();const lk=lastContract(c.id);const k=kNow();$('#f_cinfo').innerHTML=`نوع العميل: <b>${CTYPE[c.type]}</b>`+(k?` — ${k.serial?'عقد الجهاز ده':'العقد'} ساري لحد ${fd(k.end)}`:lk?` — <span style="color:var(--bad)">الجهاز ده ملوش عقد ساري — الزيارة بسعر الزيارة (${money(S.settings.visitFee)})</span>`:'')}};
   $('#f_visit').onchange=setFee;$('#f_grace').onchange=setFee;$('#f_date').addEventListener('change',autoVisit);$('#f_branch').addEventListener('change',()=>{const c=client($('#f_client').value);if(c){const devs=clientDevices(c);const cur=devs[$('#f_dev').value];if(cur&&cur.branch&&cur.branch!==$('#f_branch').value){const i=devs.findIndex(d=>(d.branch||'')===$('#f_branch').value);if(i>=0){$('#f_dev').value=i;$('#f_dev').onchange();return}}}autoVisit()});$('#f_dserial').addEventListener('change',autoVisit);
   fillDevices(!!pre?.device);lastRead();
+  $('#pl_add').onclick=()=>$('#pullRows').insertAdjacentHTML('beforeend',`<div class="row pl-row" style="flex-wrap:wrap;gap:6px"><input class="pl-n" list="pl_dl" placeholder="اسم القطعة (مثلاً: هاند بيس)" style="flex:2;min-width:160px"><input class="pl-q" type="number" min="1" value="1" style="width:70px"><input class="pl-no" placeholder="العطل / ملاحظات" style="flex:2;min-width:140px"><button type="button" class="btn sm ghost" onclick="this.parentElement.remove()">✕</button></div>`);
+  if(!$('#pl_dl'))document.body.insertAdjacentHTML('beforeend',`<datalist id="pl_dl">${[...new Set(S.parts.filter(p=>catOf(p)==='spare').map(p=>p.name))].map(x=>`<option value="${esc(x)}">`).join('')}</datalist>`);
+  const loan=()=>{const el=$('#f_loaners');if(!el)return;const cid=$('#f_client').value;const L=(S.rentals||[]).filter(x=>x.kind==='part'&&x.swap&&!x.backDone&&x.clientId===cid);el.innerHTML=L.length?`<div class="banner info small">العيادة دي عندها قطعة بديلة من الشركة:${L.map(x=>`<label class="row" style="gap:6px;margin-top:4px"><input type="checkbox" class="ln-back" value="${x.id}" style="width:auto"> استلمت <b>${esc(x.device?.name||'')}</b> (من ${fd(x.start)}) ورجّعتها للمخزن</label>`).join('')}</div>`:''};
+  $('#f_client').addEventListener('change',()=>{loan();$$('#partRows .part-row').forEach(row=>{const v=row.querySelector('.pr-part').value;if(!v){const nr=document.createElement('div');nr.innerHTML=partRowHTML({});row.replaceWith(nr.firstElementChild)}})});loan();
   if(!r)setFee();
   const setTerm=t=>{FORM.term=t;$$('#f_term button').forEach(b=>b.classList.toggle('on',b.dataset.term===t));$('#creditBox').hidden=t!=='credit';calc()};
   $$('#f_term button').forEach(b=>b.onclick=()=>setTerm(b.dataset.term));
@@ -1337,11 +1352,14 @@ function initForm(){
   calc();
 }
 function readParts(){return $$('#partRows .part-row').map(row=>{const v=row.querySelector('.pr-part').value;if(!v)return null;const base={price:n(row.querySelector('.pr-price').value),photo:FORM.partPhotos[row.dataset.k]||'',wMonths:n(row.querySelector('.pr-wm').value),wPulses:n(row.querySelector('.pr-wp').value)};
-  if(v.startsWith('u:')){const u=unitById(v.slice(2));return u?{...base,unitId:u.id,unitCode:u.code,partId:u.partId||'',name:u.name,qty:1}:null}
-  const p=part(v);return p?{...base,partId:p.id,name:p.name,qty:Math.max(1,parseInt(row.querySelector('.pr-qty').value)||1)}:null}).filter(Boolean)}
+  const md=row.querySelector('.pr-mode')?.value||'sale',cd=row.querySelector('.pr-cond')?.value||'new';const rid=row.dataset.rental||'';
+  const fix=o=>{o.mode=md;o.cond=cd;if(rid)o.rentalId=rid;if(md==='swap'){o.price=0}if(md==='rent'){o.rentAmt=o.price;o.price=0}return o};
+  if(v.startsWith('c:')){const u=unitById(v.slice(2));return u?{...base,unitId:u.id,unitCode:u.code,partId:u.partId||'',name:u.name,qty:1,mode:'back',cond:'repaired'}:null}
+  if(v.startsWith('u:')){const u=unitById(v.slice(2));return u?fix({...base,unitId:u.id,unitCode:u.code,partId:u.partId||'',name:u.name,qty:1}):null}
+  const p=part(v);return p?fix({...base,partId:p.id,name:p.name,qty:Math.max(1,parseInt(row.querySelector('.pr-qty').value)||1)}):null}).filter(Boolean)}
 function calc(){
   const parts=readParts();
-  $$('#partRows .part-row').forEach(row=>{const q=parseInt(row.querySelector('.pr-qty').value)||0,pr=n(row.querySelector('.pr-price').value);row.querySelector('.lt').textContent=row.querySelector('.pr-part').value?money(q*pr):'—'});
+  $$('#partRows .part-row').forEach(row=>{const q=parseInt(row.querySelector('.pr-qty').value)||0,pr=n(row.querySelector('.pr-price').value);const md=row.querySelector('.pr-mode')?.value||'sale';const v=row.querySelector('.pr-part').value;if(v.startsWith('c:')&&row.querySelector('.pr-mode')){row.querySelector('.pr-mode').value='back'}row.querySelector('.lt').textContent=v?(md==='swap'?'مجاناً':md==='rent'?'إيجار '+money(q*pr):money(q*pr)):'—';const h=row.querySelector('.pr-mhint');if(h)h.textContent=md==='swap'?'القطعة بتتسجل عند العيادة لحد ما قطعتها ترجع، ومش بتتحسب في الفاتورة':md==='rent'?'المبلغ ده بيتسجل إيجار على العيادة في الآجل، ولما القطعة ترجع بتستلمها من المخزن':md==='back'?'اكتب في السعر تكلفة التصليح على العميل (لو فيه)':''});
   const pt=parts.reduce((a,p)=>a+p.qty*p.price,0), fee=n($('#f_fee')?.value), disc=n($('#f_disc')?.value), tot=n(fee+pt-disc);
   const paid=FORM.term==='cash'?tot:n($('#f_paid')?.value);
   const el=$('#totals'); if(!el)return;
@@ -1376,7 +1394,7 @@ async function saveReport(){
     visitFee:fee,discount:disc,total:tot,method:g('f_method'),term:FORM.term,
     paid:FORM.term==='cash'?tot:Math.min(tot,n(g('f_paid'))),due:FORM.term==='credit'?g('f_due'):'',
     pendingNo:old?old.pendingNo||false:pendNo,by:old?.by||ME.id,payReceived:$('#f_recv_ok').checked,payPhoto:FORM.payPhoto,requestId:old?.requestId||FORM.reqId||'',
-    sentAt:old?.sentAt||'',engineer:g('f_eng'),receiver:g('f_recv'),notes:g('f_notes'),sigEng:FORM.sigEng,sigClient:FORM.sigClient,photos:FORM.photos};
+    sentAt:old?.sentAt||'',engineer:g('f_eng'),receiver:g('f_recv'),notes:g('f_notes'),sigEng:FORM.sigEng,sigClient:FORM.sigClient,photos:FORM.photos,pulled:old?.pulled||[]};
   if(old)Object.assign(old,r);else S.reports.push(r);
   if(r.oldReceived&&r.parts.length&&!(S.units||[]).some(u=>u.srcReportId===r.id)){
     const nu=[];r.parts.forEach(p=>{for(let i=0;i<n(p.qty);i++)nu.push({source:'client',partId:p.partId||'',name:p.name,condition:'replaced',status:holderOk(r.by)?'with_emp':'in_stock',holder:r.by,srcReportId:r.id,srcClientId:cid,srcBranch:r.branch||'',cost:0,sell:0,notes:'',date:r.date})});
@@ -1384,6 +1402,7 @@ async function saveReport(){
   }
   if(FORM.reqId){const q=S.requests.find(x=>x.id===FORM.reqId);if(q){q.status='done';q.reportId=r.id;if(!q.doneAt)q.doneAt=new Date().toISOString();if(!q.engineerId){q.engineerId=ME.id;q.engineerName=pubName()}}}
   const c=client(cid);if(r.device.serial||r.device.name){const ex=c.devices.find(d=>r.device.serial?d.serial===r.device.serial:(!d.serial&&d.name===r.device.name));if(!ex)c.devices.push({...r.device,branch:r.branch||''});else{['brand','name','model'].forEach(k=>{if(r.device[k]&&!ex[k])ex[k]=r.device[k]})}}
+  try{await reportExtras(r,old)}catch(e){toast('في حاجة متسجلتش: '+(e?.message||e))}
   writeVerify('r',r);JUST_SAVED=r.id;save();toast(pendNo?'اتحفظ التقرير برقم مؤقت — هياخد رقمه أول ما النت يرجع':'اتحفظ التقرير');go('view',r.id);
 }
 function drawPhotos(){const el=$('#photos');if(!el)return;el.innerHTML=FORM.photos.length?FORM.photos.map((p,i)=>`<figure><img src="${p}" alt="صورة ${i+1}"><button type="button" class="btn sm" data-delphoto="${i}">✕</button></figure>`).join(''):'<span class="muted" style="font-size:.9rem">مفيش صور</span>'}
@@ -1413,7 +1432,7 @@ function reportHTML(r){
   const textBox=(v,mh)=>`<div style="background:#fff;border:1px solid ${LN};border-radius:10px;padding:10px 14px;white-space:pre-wrap;min-height:${mh||24}px;font-weight:600">${esc(v)||'—'}</div>`;
   const cell='padding:11px 10px;border-bottom:1px solid '+LN;
   const heads=[['#','center','36px'],['الصنف','right',''],['الكمية','center','64px'],['الضمان','center','110px'],...(sp?[['السعر','center','100px'],['الإجمالي','center','110px']]:[])];
-  const partsRows=r.parts.length?r.parts.map((p,i)=>`<tr style="background:${i%2?BG:'#fff'}"><td style="${cell};text-align:center;color:${MU}">${i+1}</td><td style="${cell}"><b>${esc(p.name)}</b>${p.unitCode?`<div style="color:${MU};font-family:Arial;font-size:12.5px">${esc(p.unitCode)}</div>`:''}</td><td style="${cell};text-align:center">${p.qty}</td><td style="${cell};text-align:center;font-size:14px;color:${MU}">${wLabel(p)||'—'}</td>${sp?`<td style="${cell};text-align:center">${money(p.price)}</td><td style="${cell};text-align:center;font-weight:700">${money(p.qty*p.price)}</td>`:''}</tr>`).join(''):`<tr><td colspan="${heads.length}" style="${cell};text-align:center;color:${MU}">لم يتم تغيير قطع غيار</td></tr>`;
+  const partsRows=r.parts.length?r.parts.map((p,i)=>`<tr style="background:${i%2?BG:'#fff'}"><td style="${cell};text-align:center;color:${MU}">${i+1}</td><td style="${cell}"><b>${esc(p.name)}</b>${p.mode&&p.mode!=='sale'?` <span style="font-size:12px;color:#1b5f7c;background:#e4f2f8;border-radius:99px;padding:1px 8px;white-space:nowrap;display:inline-block">${{swap:'بديل مؤقت',rent:'إيجار '+money(p.rentAmt||0),back:'قطعة العيادة بعد التصليح'}[p.mode]||''}</span>`:''}${p.cond&&p.cond!=='new'?` <span style="font-size:12px;color:${MU}">(${(CONDS[p.cond]||[''])[0]})</span>`:''}${p.unitCode?`<div style="color:${MU};font-family:Arial;font-size:12.5px">${esc(p.unitCode)}</div>`:''}</td><td style="${cell};text-align:center">${p.qty}</td><td style="${cell};text-align:center;font-size:14px;color:${MU}">${wLabel(p)||'—'}</td>${sp?`<td style="${cell};text-align:center">${money(p.price)}</td><td style="${cell};text-align:center;font-weight:700">${money(p.qty*p.price)}</td>`:''}</tr>`).join(''):`<tr><td colspan="${heads.length}" style="${cell};text-align:center;color:${MU}">لم يتم تغيير قطع غيار</td></tr>`;
   const row=(l,v,st)=>`<div style="display:flex;justify-content:space-between;padding:5px 0;${st||''}"><span>${l}</span><span>${v}</span></div>`;
   const vt=visitLabel(r.visitType);
   return `<div dir="rtl" style="width:794px;background:#fff;color:${TX};font-family:Tahoma,'Segoe UI',Arial,sans-serif;font-size:15px;line-height:1.65;box-sizing:border-box">
@@ -1433,6 +1452,7 @@ function reportHTML(r){
    ${ttl('قطع الغيار المستبدلة')}
    <table style="width:100%;border-collapse:separate;border-spacing:0;font-size:15px"><thead><tr style="background:${NV};color:#fff">${heads.map(([h,a,w],i,A)=>`<th style="padding:11px 10px;text-align:${a};font-weight:700;${w?'width:'+w+';':''}${i===0?'border-radius:0 10px 10px 0;':''}${i===A.length-1?'border-radius:10px 0 0 10px;':''}">${h}</th>`).join('')}</tr></thead><tbody>${partsRows}</tbody></table>
    ${r.parts.length?`<div style="color:${MU};margin-top:6px;font-size:14px">استلام القطعة القديمة: <b style="color:${TX}">${r.oldReceived?'نعم':'لا'}</b></div>`:''}
+   ${(r.pulled||[]).length?`${ttl('قطع اتسحبت من العيادة للصيانة')}${r.pulled.map(x=>`<div style="padding:6px 0;border-bottom:1px solid ${LN}"><b>${esc(x.name)}</b> × ${x.qty}${x.notes?` <span style="color:${MU}">— ${esc(x.notes)}</span>`:''} <span style="color:${MU};font-family:Arial;font-size:12.5px">${(x.unitCodes||[]).join('، ')}</span></div>`).join('')}`:''}
    ${r.parts.some(p=>p.photo)?`<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px">${r.parts.filter(p=>p.photo).map(p=>`<div style="text-align:center;font-size:12.5px;color:${MU}"><img src="${p.photo}" style="width:160px;height:120px;object-fit:cover;border-radius:10px;display:block" alt=""><div>${esc(p.name)} بعد التركيب</div></div>`).join('')}</div>`:''}
    ${sp?`<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:24px;margin-top:18px">
      <div style="flex:1;color:${MU};line-height:2">طريقة الدفع: <b style="color:${TX}">${esc(r.method||'—')}</b><br>السداد: <b style="color:${TX}">${r.term==='credit'?'آجل':'كاش'}</b>${r.term==='credit'&&bal>0.009?`<br>ميعاد التحصيل: <b style="color:${TX}">${fd(r.due)}</b>`:''}</div>
@@ -1672,10 +1692,11 @@ let SCF='';
 function viewStock(){
   const q=SQ.trim().toLowerCase();const costs=can('stock_costs'),edit=can('stock_edit');
   const inS=(S.units||[]).filter(u=>u.status==='in_stock').length,atR=(S.units||[]).filter(u=>u.status==='at_repair').length;
-  const tabs=`<div class="seg" style="flex-wrap:wrap"><button data-stab="items" class="${STAB==='items'?'on':''}">قطع الغيار</button><button data-stab="cons" class="${STAB==='cons'?'on':''}">المستهلكات والمستلزمات</button><button data-stab="xr" class="${STAB==='xr'?'on':''}">التصليح بره${atR?` <span class="cnt">${atR}</span>`:''}</button><button data-stab="moves" class="${STAB==='moves'?'on':''}">القطع اتركبت فين</button><button data-stab="warr" class="${STAB==='warr'?'on':''}">الضمانات</button></div>`;
+  const tabs=`<div class="seg" style="flex-wrap:wrap"><button data-stab="items" class="${STAB==='items'?'on':''}">قطع الغيار</button><button data-stab="cons" class="${STAB==='cons'?'on':''}">المستهلكات والمستلزمات</button><button data-stab="cp" class="${STAB==='cp'?'on':''}">قطع العملاء${(()=>{const k=(S.units||[]).filter(u=>['pulled','ready_client'].includes(u.status)).length;return k?` <span class="cnt">${k}</span>`:''})()}</button><button data-stab="xr" class="${STAB==='xr'?'on':''}">التصليح بره${atR?` <span class="cnt">${atR}</span>`:''}</button><button data-stab="moves" class="${STAB==='moves'?'on':''}">القطع اتركبت فين</button><button data-stab="warr" class="${STAB==='warr'?'on':''}">الضمانات</button></div>`;
   const head=`<div class="row between"><h2>المخزن</h2>${tabs}</div>`;
   if(STAB==='cons')return head+viewCons();
   if(STAB==='units'||STAB==='xr')return head+viewExtRepair();
+  if(STAB==='cp')return head+viewClientParts();
   if(STAB==='moves')return head+viewMoves();
   if(STAB==='warr')return head+`<div class="panel"><h3>ضمان القطع اللي اتركبت أو اتباعت</h3>${warrantyTable(warrantyRows(),true)}</div>`;
   const list=SPARES().filter(p=>(!q||(p.name+' '+p.code+' '+(p.ref||'')+' '+(p.ptype||'')).toLowerCase().includes(q))&&(!SCF||(p.condition||'new')===SCF)&&(!SPT||(p.ptype||'')===SPT));const rq=partRentedQty();
@@ -5532,6 +5553,7 @@ document.addEventListener('change',e=>{if(e.target.id==='arc_cut'){ARC_CUT=e.tar
 .att-n{font-size:1.35rem;font-weight:800;color:var(--tf);line-height:1.1}
 .att-l{font-size:.82rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 @media(max-width:480px){.att-t{padding:7px 8px;column-gap:6px}.att-ic{width:30px;height:30px;font-size:.95rem}.att-n{font-size:1.15rem}.att-l{font-size:.74rem}}
+.pr-x{grid-column:1/-1;display:flex;gap:6px;flex-wrap:wrap;align-items:center}.pr-x select{width:auto;padding:5px 8px;font-size:.88rem}
 .rs-wrap{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:4px}
 .rs-card{display:flex;gap:12px;align-items:center;padding:12px 16px;border-radius:16px;border:1.5px solid var(--line);background:var(--surface);text-align:start;cursor:pointer;font:inherit;color:inherit}
 .rs-card b{font-size:1.02rem}.rs-card.on{border-color:var(--accent);background:var(--accent-soft)}
@@ -5747,9 +5769,9 @@ function xrBack(key){
   let cEd=false;$('#xb_c').oninput=()=>cEd=true;$('#xb_n').oninput=()=>{if(!cEd&&g.r.estCost)$('#xb_c').value=n(g.r.estCost)*Math.max(1,Math.min(N,parseInt($('#xb_n').value)||0))};
 }
 function xrSend(){
-  const old=(S.units||[]).filter(u=>u.status==='in_stock');const P=S.parts.filter(p=>catOf(p)==='spare');
+  const old=(S.units||[]).filter(u=>u.status==='in_stock');const pl=(S.units||[]).filter(u=>u.status==='pulled');const P=S.parts.filter(p=>catOf(p)==='spare');const pre=XR_PRE;XR_PRE='';
   modal(`<h3>ابعت قطعة تتصلح بره</h3><div class="grid g2">
-   <label class="f span2">القطعة<select id="xr_u"><optgroup label="قطع متسجلة لوحدها (قديمة / مستعملة)">${old.map(u=>`<option value="u:${u.id}">${esc(u.code)} — ${esc(u.name)} (${(CONDS[u.condition]||[''])[0]})</option>`).join('')}</optgroup><optgroup label="من أصناف المخزن">${P.map(p=>`<option value="p:${p.id}">${esc(p.name)} — متاح ${n(p.qty)}</option>`).join('')}</optgroup><option value="x">قطعة مش في المخزن (اكتب اسمها)</option></select></label>
+   <label class="f span2">القطعة<select id="xr_u"><optgroup label="قطع متسجلة لوحدها (قديمة / مستعملة)">${old.map(u=>`<option value="u:${u.id}">${esc(u.code)} — ${esc(u.name)} (${(CONDS[u.condition]||[''])[0]})</option>`).join('')}</optgroup>${pl.length?`<optgroup label="قطع عملاء اتسحبت للصيانة">${pl.map(u=>`<option value="u:${u.id}" ${u.id===pre?'selected':''}>${esc(u.code)} — ${esc(u.name)} — ${esc(cName(client(u.srcClientId))||'')}</option>`).join('')}</optgroup>`:''}<optgroup label="من أصناف المخزن">${P.map(p=>`<option value="p:${p.id}">${esc(p.name)} — متاح ${n(p.qty)}</option>`).join('')}</optgroup><option value="x">قطعة مش في المخزن (اكتب اسمها)</option></select></label>
    <label class="f" id="xr_nl" hidden>اسم القطعة<input id="xr_n"></label><label class="f" id="xr_ql">العدد<input type="number" min="1" step="1" id="xr_q" value="1"></label>
    <label class="f span2">القطعة دي بتاعة مين؟<select id="xr_ow"><option value="co">الشركة</option><option value="cl">عميل</option></select></label>
    <div id="xr_clb" class="grid g2 span2" style="grid-column:1/-1" hidden><label class="f">العيادة<select id="xr_c">${CL().map(c=>`<option value="${c.id}">${esc(cName(c))}${cSub(c)?' – '+esc(cSub(c)):''}</option>`).join('')}</select></label><label class="f">الفرع<select id="xr_b"></select></label><label class="f span2">الجهاز<select id="xr_dv"></select></label></div>
@@ -5758,13 +5780,14 @@ function xrSend(){
    <label class="f span2">العطل / ملاحظات<input id="xr_no"></label></div>`,async()=>{
     const v=$('#xr_u').value,rep=$('#xr_r').value.trim();if(!rep){toast('اكتب الجهة اللي هتصلح');return false}
     const R={repairer:rep,phone:$('#xr_p').value.trim(),sentAt:$('#xr_d').value||today(),notes:$('#xr_no').value.trim(),estCost:n($('#xr_ec').value),cost:0};
-    const own=$('#xr_ow').value;const sup=xrSupplier(rep,R.phone);if(sup)R.supplierId=sup.id;
+    const own=$('#xr_ow').value;const sup=xrSupplier(rep,R.phone);if(sup)R.supplierId=sup.id;const su=v.startsWith('u:')?unitById(v.slice(2)):null;
+    if(su&&su.owner?.type==='client'){R.owner=su.owner}else
     if(own==='cl'){const cid=$('#xr_c').value;if(!cid){toast('اختار العيادة');return false}const dv=clientDevices(client(cid)).filter(d=>!$('#xr_b').value||(d.branch||'')===$('#xr_b').value)[+$('#xr_dv').value];R.owner={type:'client',clientId:cid,branch:$('#xr_b').value||'',device:dv?{name:devLabel(dv),serial:dv.serial||''}:null}}else R.owner={type:'company'};
     const batch=uid();R.batch=batch;let L=[];const q=Math.max(1,Math.min(100,parseInt($('#xr_q').value)||1));
     if(v.startsWith('u:')){const u=unitById(v.slice(2));if(u)L=[u]}
     else{let nm='',pid='';if(v.startsWith('p:')){const p=part(v.slice(2));if(!p)return false;if(n(p.qty)<q){toast(`المتاح من الصنف ده ${n(p.qty)} بس`);return false}p.qty=n(p.qty)-q;nm=p.name;pid=p.id}else{nm=$('#xr_n').value.trim();if(!nm){toast('اكتب اسم القطعة');return false}}
       try{L=await newUnits(Array.from({length:q},()=>({source:'manual',partId:pid,name:nm,condition:'damaged',status:'in_stock',date:today(),cost:pid?n(part(pid)?.buy):0,sell:pid?n(part(pid)?.sell):0})))}catch(e){if(pid)part(pid).qty=n(part(pid).qty)+q;toast('محتاج إنترنت');return false}}
-    if(!L.length)return false;L.forEach(u=>{u.repairs=u.repairs||[];u.repairs.push({...R});u.status='at_repair'});save();toast(`اتسجل ${L.length} قطعة بره عند ${rep}`);XRF='out';render();
+    if(!L.length)return false;L.forEach(u=>{u.repairs=u.repairs||[];u.repairs.push({...R});u.status='at_repair';if(R.owner?.type==='client'){u.owner=R.owner;u.srcClientId=u.srcClientId||R.owner.clientId;u.srcBranch=u.srcBranch||R.owner.branch}});save();toast(`اتسجل ${L.length} قطعة بره عند ${rep}`);XRF='out';render();
   });
   const xu=()=>{const v=$('#xr_u').value;$('#xr_nl').hidden=v!=='x';$('#xr_ql').hidden=v.startsWith('u:');if(v.startsWith('u:'))$('#xr_q').value=1};$('#xr_u').onchange=xu;xu();
   const fdv=()=>{const c=client($('#xr_c').value);const D=clientDevices(c).filter(d=>!$('#xr_b').value||(d.branch||'')===$('#xr_b').value);$('#xr_dv').innerHTML=D.map((d,i)=>`<option value="${i}">${esc(devLabel(d))} — ${esc(d.serial||'بدون سيريال')}</option>`).join('')+'<option value="-1">— مش لجهاز معين —</option>'};
@@ -5834,6 +5857,42 @@ function partRentsModal(pid){const p=part(pid);const L=(S.rentals||[]).filter(r=
 }
 Object.assign(X9,{rentPart:(t,id)=>rentPart(id),partRents:(t,id)=>partRentsModal(id)});
 Object.assign(NEED9,{rentPart:'stock_edit'});
+
+
+/* ---------- قطع اتسحبت من العيادة + أنواع التركيب ---------- */
+async function reportExtras(r,old){
+  const c=client(r.clientId)||{};const dev={name:devLabel(r.device||{}),serial:r.device?.serial||''};
+  // قطع اتسحبت جديدة
+  const rows=$$('#pullRows .pl-row').map(x=>({name:x.querySelector('.pl-n').value.trim(),qty:Math.max(1,parseInt(x.querySelector('.pl-q').value)||1),notes:x.querySelector('.pl-no').value.trim()})).filter(x=>x.name);
+  for(const x of rows){const p=S.parts.find(y=>y.name===x.name);const L=await newUnits(Array.from({length:x.qty},()=>({source:'client',partId:p?.id||'',name:x.name,condition:'damaged',status:'pulled',srcReportId:r.id,srcClientId:r.clientId,srcBranch:r.branch||'',srcDevice:dev,owner:{type:'client',clientId:r.clientId,branch:r.branch||'',device:dev},notes:x.notes,date:r.date,cost:0,sell:0})));
+    (r.pulled=r.pulled||[]).push({...x,unitIds:L.map(u=>u.id),unitCodes:L.map(u=>u.code)})}
+  if(rows.length)notify(['perm:stock_edit'],'🔧 قطع عميل اتسحبت للصيانة',`${cName(c)}${r.branch?' – '+r.branch:''} — ${rows.map(x=>x.name+' × '+x.qty).join('، ')}`,'stock');
+  // إيجار / بديل مؤقت
+  r.parts.forEach(l=>{if(!['rent','swap'].includes(l.mode)||l.unitId||l.rentalId)return;const p=part(l.partId);const id=uid();
+    S.rentals.push({id,kind:'part',partId:l.partId,qty:l.qty,clientId:r.clientId,branch:r.branch||'',device:{name:l.name+(l.qty>1?' × '+l.qty:''),model:p?.ptype||'',serial:p?.code||''},start:r.date,rent:l.mode==='rent'?n(l.rentAmt):0,once:true,swap:l.mode==='swap',deposit:0,end:'',expectedBack:'',notes:(l.mode==='swap'?'بديل مؤقت لحد ما قطعة العيادة تتصلح — ':'إيجار — ')+'تقرير #'+pad(r.no),reportId:r.id,by:ME.id,createdAt:new Date().toISOString()});l.rentalId=id});
+  const keep=new Set(r.parts.map(l=>l.rentalId).filter(Boolean));S.rentals=S.rentals.filter(x=>!(x.reportId===r.id&&!x.backDone&&!keep.has(x.id)));
+  // قطع العيادة اللي رجعت تتركب
+  r.parts.filter(l=>l.mode==='back'&&l.unitId).forEach(l=>{const u=unitById(l.unitId);if(u){u.deliveredAt=r.date;u.backReportId=r.id}});
+  // استلام البديل
+  $$('.ln-back:checked').forEach(cb=>{const x=S.rentals.find(y=>y.id===cb.value);if(!x||x.backDone)return;x.backDone=true;x.end=r.date;const pp=part(x.partId);if(pp)pp.qty=n(pp.qty)+n(x.qty)});
+}
+function viewClientParts(){
+  const U=(S.units||[]).filter(u=>u.owner?.type==='client'||u.status==='pulled'||u.status==='ready_client'||(u.status==='at_repair'&&((u.repairs||[]).slice(-1)[0]||{}).owner?.type==='client'));const edit=can('stock_edit');
+  const G=[['pulled','عندنا — لسه متصلحتش'],['at_repair','بره للتصليح'],['ready_client','اتصلحت — جاهزة تتركب'],['installed','رجعت اتركبت عند العميل'],['to_client','اتسلمت للعميل']];
+  const own=u=>{const o=u.owner||((u.repairs||[]).slice(-1)[0]||{}).owner||{};const cl=client(o.clientId||u.srcClientId);return `${esc(cName(cl)||'')}${(o.branch||u.srcBranch)?' – '+esc(o.branch||u.srcBranch):''}${(o.device||u.srcDevice)?.serial?` · <span class="num">${esc((o.device||u.srcDevice).name||'')} ${esc((o.device||u.srcDevice).serial)}</span>`:''}`};
+  const loaners=(S.rentals||[]).filter(x=>x.kind==='part'&&x.swap&&!x.backDone);
+  return `<div class="muted small">القطع اللي اتسحبت من العيادات علشان تتصلح. صلّحها عندنا أو ابعتها بره، وبعدين ركّبها عند العميل من تقرير الصيانة (اختار "تركيب قطعة العيادة بعد تصليحها").</div>
+  <div class="grid g4">${G.slice(0,4).map(([k,l])=>`<div class="panel kpi"><span>${l}</span><b>${U.filter(u=>u.status===k).length}</b></div>`).join('')}</div>
+  ${G.map(([k,l])=>{const L=U.filter(u=>u.status===k);if(!L.length)return '';return `<div class="panel"><h3>${l} (${L.length})</h3>${L.map(u=>{const r=(u.repairs||[]).slice(-1)[0]||{};return `<div class="row between" style="padding:8px 0;border-bottom:1px solid var(--line);gap:8px"><span><b>${esc(u.name)}</b> <span class="num muted small">${esc(u.code)}</span><div class="small">${own(u)}${u.notes?` <span class="muted">— ${esc(u.notes)}</span>`:''}</div>${k==='at_repair'?`<div class="small muted">عند ${esc(r.repairer||'')} من ${fd(r.sentAt)}</div>`:''}${u.date?`<div class="small muted">اتسحبت ${fd(u.date)}</div>`:''}</span><span class="row">${edit&&k==='pulled'?`<button type="button" class="btn sm" data-act="cpFixed" data-id="${u.id}">اتصلحت عندنا</button><button type="button" class="btn sm" data-act="cpOut" data-id="${u.id}">ابعتها تتصلح بره</button>`:''}${edit&&k==='at_repair'?`<button type="button" class="btn sm pri" data-act="xrBack" data-id="${esc(r.batch||('u'+u.id))}">📥 استلام</button>`:''}${k==='ready_client'&&can('reports_write')?`<button type="button" class="btn sm pri" data-act="newFor" data-id="${esc(u.srcClientId||u.owner?.clientId||'')}">ركّبها (تقرير)</button>`:''}${edit&&['pulled','ready_client'].includes(k)?`<button type="button" class="btn sm ghost" data-act="cpGive" data-id="${u.id}">رجّعتها من غير تركيب</button>`:''}</span></div>`}).join('')}</div>`}).join('')||'<div class="panel"><div class="empty">مفيش قطع عملاء عندنا</div></div>'}
+  ${loaners.length?`<div class="panel"><h3>قطع بديلة من الشركة عند العملاء (${loaners.length})</h3>${loaners.map(x=>`<div class="row between" style="padding:7px 0;border-bottom:1px solid var(--line)"><span><b>${esc(x.device?.name||'')}</b> — ${esc(cName(client(x.clientId))||'')}${x.branch?' – '+esc(x.branch):''} <span class="muted small">من ${fd(x.start)}</span></span>${can('stock_edit')||can('devices')?`<button type="button" class="btn sm" data-act="endRent" data-id="${x.id}">استلمتها</button>`:''}</div>`).join('')}</div>`:''}`;
+}
+Object.assign(X9,{
+  cpFixed:(t,id)=>{const u=unitById(id);if(!u)return;u.status='ready_client';u.condition='repaired';(u.repairs=u.repairs||[]).push({repairer:'عندنا (الشركة)',sentAt:today(),backAt:today(),cost:0,owner:u.owner,inHouse:true});save();toast('اتسجلت إنها اتصلحت — جاهزة تتركب');render()},
+  cpOut:(t,id)=>{XR_PRE=id;STAB='xr';xrSend()},
+  cpGive:(t,id)=>confirmBox('القطعة رجعت للعميل من غير تركيب؟',()=>{const u=unitById(id);if(!u)return;u.status='to_client';u.deliveredAt=today();save();render()})
+});
+Object.assign(NEED9,{cpFixed:'stock_edit',cpOut:'stock_edit',cpGive:'stock_edit'});
+let XR_PRE='';
 
 /* =====================================================================
    التشغيل

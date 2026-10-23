@@ -5548,7 +5548,8 @@ function viewArchive(){
    <div class="row"><label class="f" style="max-width:240px">أرشف اللي أقدم من<input type="date" id="arc_cut" value="${ARC_CUT}"></label></div>
    <div class="tbl-wrap"><table class="t"><thead><tr><th>النوع</th><th>العدد</th></tr></thead><tbody>${Object.entries(C).map(([c,L])=>`<tr><td>${AUD_COLS[c]||({punches:'بصمات',notifs:'إشعارات',audit:'سجل التعديلات',orders:'طلبات مستهلكات'}[c]||c)}</td><td>${L.length}</td></tr>`).join('')||'<tr><td colspan="2" class="muted">مفيش حاجة تتأرشف قبل التاريخ ده</td></tr>'}</tbody></table></div>
    <div><button class="btn pri" data-act="arcRun" ${tot?'':'disabled'}>حمّل وأرشف ${tot} سجل</button></div></div>
-  <div class="panel grid"><h3 style="margin:0">اللي في الأرشيف</h3><div class="row"><select id="arc_c" style="width:auto">${['reports','partSales','contracts','payments','requests','hr','vouchers','inspections','punches'].map(c=>`<option value="${c}">${AUD_COLS[c]||({punches:'بصمات'}[c])}</option>`).join('')}</select><button class="btn" data-act="arcLoad">اعرض</button></div><div id="arcList">${ARC_VIEW||''}</div></div>`;
+  <div class="panel grid"><h3 style="margin:0">اللي في الأرشيف</h3><div class="row"><select id="arc_c" style="width:auto">${['reports','partSales','contracts','payments','requests','hr','vouchers','inspections','punches'].map(c=>`<option value="${c}">${AUD_COLS[c]||({punches:'بصمات'}[c])}</option>`).join('')}</select><button class="btn" data-act="arcLoad">اعرض</button></div><div id="arcList">${ARC_VIEW||''}</div></div>
+  ${wipePanel()}`;
 }
 async function arcRun(){
   const C=arcCandidates(ARC_CUT);const tot=Object.values(C).reduce((a,L)=>a+L.length,0);if(!tot)return;
@@ -5936,7 +5937,7 @@ let XR_PRE='';
 
 
 /* ---------- فحص التحديثات ---------- */
-const APP_VER='2026.10.24.3';
+const APP_VER='2026.10.24.4';
 async function checkUpdate(){try{if(location.protocol==='file:')return;const t=await (await fetch(location.pathname+'?_='+Date.now(),{cache:'no-store'})).text();const m=t.match(/const APP_VER='([^']+)'/);if(m&&m[1]!==APP_VER)showUpd(m[1])}catch(e){}}
 function showUpd(v){if(document.getElementById('updBar'))return;const b=document.createElement('div');b.id='updBar';b.style.cssText='position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:80;background:#1d2b45;color:#fff;padding:10px 16px;border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,.25);display:flex;gap:12px;align-items:center;font-weight:600;max-width:92vw';b.innerHTML='<span>🔄 فيه نسخة جديدة من السيستم</span><button type="button" style="background:#2b8fb8;color:#fff;border:0;border-radius:10px;padding:6px 14px;font:inherit;cursor:pointer">حدّث دلوقتي</button>';b.querySelector('button').onclick=()=>{location.replace(location.pathname+'?v='+encodeURIComponent(v)+location.hash)};document.body.appendChild(b)}
 setTimeout(checkUpdate,8000);setInterval(checkUpdate,5*60*1000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkUpdate()});
@@ -6105,6 +6106,43 @@ function delPurchase(id){const pu=S.purchases.find(x=>x.id===id);if(!pu)return;c
     else if(pu.kind!=='repair')(pu.lines||[]).forEach(l=>{const q=part(l.partId);if(q)q.qty=n(q.qty)-n(l.qty)});
     S.purchases=S.purchases.filter(x=>x.id!==id);save();toast('اتحذفت الفاتورة');render()});
 }
+
+/* ---------- بداية جديدة: مسح العمليات ---------- */
+const WIPE_GROUPS=[
+ ['الصيانة',[['reports','تقارير الصيانة'],['requests','طلبات الصيانة والتكليفات'],['inspections','الكشف على الأجهزة'],['ratings','تقييمات الزيارات'],['contractReqs','طلبات العقود من العيادات'],['days','حجز المواعيد']],true],
+ ['الفواتير والفلوس',[['payments','التحصيلات'],['partSales','فواتير البيع'],['partReturns','المرتجعات'],['purchases','فواتير الشراء'],['supplierPayments','دفعات الموردين'],['sales','بيع الأجهزة'],['rentals','الإيجارات'],['vouchers','أذون الصرف'],['treasury','حركة الخزينة (الإعدادات بتفضل)'],['handovers','التوريدات']],true],
+ ['المخزن',[['units','القطع المكوّدة والقديمة وقطع العملاء'],['returns','مرتجعات قديمة'],['orders','طلبات المستهلكات'],['freon','أسطوانات الفريون الكبيرة']],true],
+ ['الموظفين',[['punches','البصمات'],['attendance','الحضور المرفوع من جهاز البصمة'],['hr','الإجازات والمأموريات والأذونات والسلف'],['custody','العهد والمصاريف'],['penalties','الجزاءات'],['bonuses','المكافآت'],['comps','البدلات والإضافي'],['payroll','كشوف المرتبات'],['payslips','قسايم المرتب'],['evals','التقييمات'],['meetings','الاجتماعات']],true],
+ ['السيستم',[['notifs','التنبيهات'],['weekrep','التقارير الدورية'],['audit','سجل التعديلات'],['verify','بيانات التحقق بالـ QR'],['archive','الأرشيف']],true],
+ ['حاجات اختيارية',[['contracts','عقود الصيانة'],['stockDevices','أجهزة الشركة'],['offers','العروض'],['notes','النوت الشخصية'],['testAnswers','إجابات الاختبارات']],false]
+];
+const WIPE_KEEP={treasury:id=>id==='cfg'};
+function wipePanel(){if(!isDev(ME))return '';
+  return `<div class="panel grid" style="border:2px solid var(--bad)"><h3 style="margin:0;color:var(--bad)">🧹 بداية جديدة — مسح العمليات</h3>
+   <div class="muted small">بيمسح العمليات والفواتير والبصمات والتنبيهات اللي اتعملت في التجربة. <b>مش بيمسح</b>: العملاء وفروعهم وأجهزتهم، الموظفين وصلاحياتهم وملفاتهم ومرتباتهم ورصيد إجازاتهم، الإعدادات، الموردين، أصناف المخزن، سياسة العمل، والاختبارات. قبل المسح بيتحمّل نسخة احتياطية كاملة عندك.</div>
+   ${WIPE_GROUPS.map(([g,L,on])=>`<div><div class="sec-title" style="margin:4px 0">${g}</div><div class="row" style="flex-wrap:wrap;gap:6px">${L.map(([c,l])=>`<label class="row" style="gap:5px;border:1px solid var(--line);border-radius:99px;padding:3px 11px"><input type="checkbox" class="wp-c" value="${c}" style="width:auto" ${on?'checked':''}> ${l}</label>`).join('')}</div></div>`).join('')}
+   <div class="row" style="flex-wrap:wrap;gap:10px"><label class="row" style="gap:6px"><input type="checkbox" id="wp_cnt" style="width:auto" checked> ابدأ ترقيم التقارير والفواتير من 1</label><label class="row" style="gap:6px"><input type="checkbox" id="wp_qty" style="width:auto"> صفّر كميات أصناف المخزن (هتدخلها بعد الجرد)</label></div>
+   <div class="banner small">⚠️ <b>عقود الصيانة</b> مش متعلّم عليها: لو العقود اللي في السيستم كانت تجربة علّم عليها علشان تتمسح، ولو حقيقية سيبها.</div>
+   <div><button type="button" class="btn danger" data-act="wipeRun">مسح العمليات المختارة</button></div><div id="wp_prog" class="small"></div></div>`}
+async function wipeRun(){if(!isDev(ME))return;const C=$$('.wp-c:checked').map(x=>x.value);if(!C.length&&!$('#wp_qty').checked){toast('اختار حاجة تتمسح');return}
+  const cnt=$('#wp_cnt').checked,zq=$('#wp_qty').checked;
+  modal(`<h3 style="color:var(--bad)">تأكيد المسح</h3><div>هيتمسح نهائياً: <b>${C.length}</b> نوع بيانات${zq?' + تصفير كميات المخزن':''}${cnt?' + الترقيم يبدأ من 1':''}.</div><div class="muted small">هيتحمّل الأول ملف نسخة احتياطية كاملة (Excel + ملف كامل) — احتفظ بيه.</div><label class="f">اكتب كلمة <b>امسح</b> للتأكيد<input id="wp_ok" autocomplete="off"></label>`,async()=>{
+    if($('#wp_ok').value.trim()!=='امسح'){toast('اكتب كلمة امسح');return false}
+    try{await doBackup()}catch(e){}
+    const P=document.getElementById('wp_prog');const say=t=>{if(P)P.innerHTML=t};const done=[],fail=[];
+    for(const c of C){say(`بيمسح: ${c}…`);
+      try{if(ONLINE){const snap=await FB.db.collection(c).get();const docs=snap.docs.filter(d=>!(WIPE_KEEP[c]&&WIPE_KEEP[c](d.id)));for(let i=0;i<docs.length;i+=400){const b=FB.db.batch();docs.slice(i,i+400).forEach(d=>b.delete(d.ref));await b.commit()}done.push([c,docs.length])}
+        else done.push([c,(S[c]||[]).filter(x=>!(WIPE_KEEP[c]&&WIPE_KEEP[c](x.id))).length]);
+        if(Array.isArray(S[c])){S[c]=S[c].filter(x=>WIPE_KEEP[c]&&WIPE_KEEP[c](x.id));if(SYNCED[c])SYNCED[c]=new Map(S[c].map(x=>[x.id,JSON.stringify(x)]))}}
+      catch(e){fail.push([c,fbErr?fbErr(e):String(e)])}}
+    if(zq){S.parts.forEach(p=>p.qty=0)}
+    if(cnt){if(ONLINE){try{await FB.db.doc('meta/counter').set({next:1})}catch(e){fail.push(['meta/counter',String(e)])}}Object.keys(S.settings).filter(k=>k==='nextNo'||k.startsWith('next_')).forEach(k=>S.settings[k]=1)}
+    S.demo=false;save();
+    say(`<div class="banner info">اتمسح: ${done.map(([c,k])=>`${c} (${k})`).join('، ')||'—'}${fail.length?`<br><b style="color:var(--bad)">ما اتمسحش:</b> ${fail.map(([c,e])=>`${c}: ${esc(e)}`).join('، ')}`:''}</div>`);
+    toast(fail.length?'المسح خلص مع شوية مشاكل — شوف التفاصيل':'خلص المسح ✓ — السيستم جاهز تبدأ عليه');
+  });
+}
+Object.assign(X9,{wipeRun:()=>wipeRun()});
 
 /* =====================================================================
    التشغيل

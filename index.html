@@ -340,11 +340,11 @@ const DEFAULT_SETTINGS={
   ]
 };
 const COLS=['policies','users','clients','parts','reports','contracts','payments','requests','units','partReturns','returns','catalog','tests','offers','meetings'];
-const PERM_COLS={freon:['freon','freon_view','accounts'],suppliers:['suppliers','accounts','devices','treasury','treasury_view','suppay_req','suppay_approve','ext_repair','freon','place_loc'],purchases:['suppliers','accounts','devices','suppay_req','suppay_approve','treasury','treasury_view','ext_repair','freon'],supplierPayments:['suppliers','accounts','suppay_req','suppay_approve','treasury','treasury_view'],sales:['devices','ar','accounts','treasury','treasury_view'],rentals:['devices','ar','accounts','part_rent'],stockDevices:['devices','accounts'],partSales:['part_sales','cons_sales','ar','accounts','orders_manage','orders_work','treasury','treasury_view','freon','ext_repair'],orders:['orders_manage','orders_work','ar','accounts'],testKeys:['tests'],attendance:['attendance','payroll_prep','payroll_approve','home_att'],salaries:['salary_set','payroll_prep','payroll_approve'],inspections:['inspections'],payroll:['payroll_prep','payroll_approve','treasury','treasury_view'],treasury:['treasury','treasury_view','accounts','treasury_cfg'],contractReqs:['contracts','clients']};
+const PERM_COLS={stockcounts:['stock_count','stock_count_approve','accounts'],freon:['freon','freon_view','accounts'],suppliers:['suppliers','accounts','devices','treasury','treasury_view','suppay_req','suppay_approve','ext_repair','freon','place_loc'],purchases:['suppliers','accounts','devices','suppay_req','suppay_approve','treasury','treasury_view','ext_repair','freon'],supplierPayments:['suppliers','accounts','suppay_req','suppay_approve','treasury','treasury_view'],sales:['devices','ar','accounts','treasury','treasury_view'],rentals:['devices','ar','accounts','part_rent'],stockDevices:['devices','accounts'],partSales:['part_sales','cons_sales','ar','accounts','orders_manage','orders_work','treasury','treasury_view','freon','ext_repair'],orders:['orders_manage','orders_work','ar','accounts'],testKeys:['tests'],attendance:['attendance','payroll_prep','payroll_approve','home_att'],salaries:['salary_set','payroll_prep','payroll_approve'],inspections:['inspections'],payroll:['payroll_prep','payroll_approve','treasury','treasury_view'],treasury:['treasury','treasury_view','accounts','treasury_cfg'],contractReqs:['contracts','clients']};
 const OWN_COLS={custody:['custody','accounts','treasury','treasury_view'],comps:['extra_pay','payroll_prep','payroll_approve','hr'],handovers:['handover_recv','accounts','treasury','custody'],notes:[],vouchers:['vouchers_approve','accounts','treasury','treasury_view'],hr:['hr','payroll_prep','payroll_approve','loans','custody','home_att'],evals:['evals'],punches:['hr','payroll_prep','payroll_approve','home_att'],payslips:['payroll_approve'],testAnswers:['tests'],empFiles:['emp_files']};
 const SPECIAL_COLS=['notifs','ratings','penalties','empDocs','bonuses','weekrep'];
 const ALL_COLS=[...COLS,...Object.keys(PERM_COLS),...Object.keys(OWN_COLS),...SPECIAL_COLS,'secrets','audit','verify','archive'];
-const DEL_PERM={freon:'freon',secrets:'users',inspections:'inspections',vouchers:'treasury',treasury:'treasury',parts:'stock_edit',units:'stock_edit',returns:'stock_edit',reports:'delete',contracts:'delete',payments:'delete',requests:'requests',partReturns:'returns',purchases:'suppliers',supplierPayments:'suppliers',sales:'devices',rentals:'devices',stockDevices:'devices',partSales:'part_sales',custody:'custody',hr:'hr',orders:'orders_manage',evals:'evals',penalties:'penalties_approve',catalog:'stock_edit',ratings:'evals',punches:'hr',tests:'tests',testKeys:'tests',testAnswers:'tests',empFiles:'emp_files',attendance:'attendance',salaries:'salary_set',payroll:'payroll_approve',payslips:'payroll_approve',bonuses:'bonuses_approve'};
+const DEL_PERM={stockcounts:'stock_count_approve',freon:'freon',secrets:'users',inspections:'inspections',vouchers:'treasury',treasury:'treasury',parts:'stock_edit',units:'stock_edit',returns:'stock_edit',reports:'delete',contracts:'delete',payments:'delete',requests:'requests',partReturns:'returns',purchases:'suppliers',supplierPayments:'suppliers',sales:'devices',rentals:'devices',stockDevices:'devices',partSales:'part_sales',custody:'custody',hr:'hr',orders:'orders_manage',evals:'evals',penalties:'penalties_approve',catalog:'stock_edit',ratings:'evals',punches:'hr',tests:'tests',testKeys:'tests',testAnswers:'tests',empFiles:'emp_files',attendance:'attendance',salaries:'salary_set',payroll:'payroll_approve',payslips:'payroll_approve',bonuses:'bonuses_approve'};
 function emptyState(){const s={v:3,demo:false,settings:JSON.parse(JSON.stringify(DEFAULT_SETTINGS))};ALL_COLS.forEach(c=>s[c]=[]);return s}
 function demoState(){
   const s=emptyState(); s.demo=true; s.settings.nextNo=4; s.settings.next_unit=4; s.settings.next_psale=2;
@@ -573,7 +573,9 @@ const PERMS=[
  ['freon_view','يشوف صفحة الفريون','المستهلكات'],
  ['place_loc','تسجيل وتعديل مواقع العيادات والموردين على الخريطة','الشغل'],
  ['nav_order','ترتيب القايمة الجانبية (والقايمة اللي فوق في الموبايل) لكل المستخدمين','الإدارة'],
- ['invoice_delete','حذف أي فاتورة (بيع أو شراء — حتى فواتير شراء أسطوانات الفريون)','المالية']
+ ['invoice_delete','حذف أي فاتورة (بيع أو شراء — حتى فواتير شراء أسطوانات الفريون)','المالية'],
+ ['stock_count','جرد المخزن: بدء الجرد والعد وبعته للاعتماد','المخزن'],
+ ['stock_count_approve','اعتماد الجرد وتطبيق الفروقات على كميات المخزن','المخزن']
 ];
 const ROLE_PERMS={
  engineer:{inspections:1,reports_write:1,clients:1,stock:1,client_parts:1,place_loc:1},
@@ -585,8 +587,8 @@ const ROLE_PERMS={
  exec:'ALL_BUT_SETTINGS'
 };
 const MGR_PERMS={
- maint:{attendance:1,requests:1,reports_write:1,reports_all:1,prices_edit:1,clients:1,contracts:1,stock:1,stock_edit:1,part_sales:1,returns:1,hr:1,evals:1,penalties:1,tests:1,custody:1,assign_mission:1,home_att:1,ext_repair:1,client_parts:1,part_rent:1,place_loc:1,freon:1,freon_view:1},
- cons:{orders_manage:1,orders_work:1,shop_clients:1,clients:1,stock:1,stock_edit:1,stock_costs:1,part_sales:1,hr:1,evals:1,penalties:1,assign_mission:1,home_att:1},
+ maint:{attendance:1,requests:1,reports_write:1,reports_all:1,prices_edit:1,clients:1,contracts:1,stock:1,stock_edit:1,part_sales:1,returns:1,hr:1,evals:1,penalties:1,tests:1,custody:1,assign_mission:1,home_att:1,ext_repair:1,client_parts:1,part_rent:1,place_loc:1,freon:1,freon_view:1,stock_count:1},
+ cons:{orders_manage:1,orders_work:1,shop_clients:1,clients:1,stock:1,stock_edit:1,stock_costs:1,part_sales:1,hr:1,evals:1,penalties:1,assign_mission:1,home_att:1,stock_count:1},
  acc:{bonuses:1,salary_set:1,payroll_prep:1,attendance:1,reports_all:1,clients:1,contracts:1,stock:1,stock_costs:1,part_sales:1,returns:1,devices:1,suppliers:1,ar:1,accounts:1,custody:1,delete:1,hr:1,evals:1,penalties:1,assign_mission:1,home_att:1},
  mkt:{clients:1,contracts:1,devices:1,hr:1,evals:1,penalties:1,assign_mission:1,home_att:1},
  sales:{clients:1,contracts:1,devices:1,part_sales:1,ar:1,stock:1,shop_clients:1,hr:1,evals:1,penalties:1}
@@ -1705,11 +1707,12 @@ let SCF='';
 function viewStock(){
   const q=SQ.trim().toLowerCase();const costs=can('stock_costs'),edit=can('stock_edit');
   const inS=(S.units||[]).filter(u=>u.status==='in_stock').length,atR=(S.units||[]).filter(u=>u.status==='at_repair').length;
-  const tabs=`<div class="seg" style="flex-wrap:wrap"><button data-stab="items" class="${STAB==='items'?'on':''}">قطع الغيار</button><button data-stab="cons" class="${STAB==='cons'?'on':''}">المستهلكات والمستلزمات</button>${can('client_parts')?'':'<!--'}<button data-stab="cp" class="${STAB==='cp'?'on':''}">قطع العملاء${(()=>{const k=(S.units||[]).filter(u=>['pulled','ready_client'].includes(u.status)).length;return k?` <span class="cnt">${k}</span>`:''})()}</button>${can('client_parts')?'':'-->'}${can('ext_repair')?'':'<!--'}<button data-stab="xr" class="${STAB==='xr'?'on':''}">التصليح بره${atR?` <span class="cnt">${atR}</span>`:''}</button>${can('ext_repair')?'':'-->'}<button data-stab="moves" class="${STAB==='moves'?'on':''}">القطع اتركبت فين</button><button data-stab="warr" class="${STAB==='warr'?'on':''}">الضمانات</button></div>`;
+  const tabs=`<div class="seg" style="flex-wrap:wrap"><button data-stab="items" class="${STAB==='items'?'on':''}">قطع الغيار</button><button data-stab="cons" class="${STAB==='cons'?'on':''}">المستهلكات والمستلزمات</button>${can('client_parts')?'':'<!--'}<button data-stab="cp" class="${STAB==='cp'?'on':''}">قطع العملاء${(()=>{const k=(S.units||[]).filter(u=>['pulled','ready_client'].includes(u.status)).length;return k?` <span class="cnt">${k}</span>`:''})()}</button>${can('client_parts')?'':'-->'}${can('ext_repair')?'':'<!--'}<button data-stab="xr" class="${STAB==='xr'?'on':''}">التصليح بره${atR?` <span class="cnt">${atR}</span>`:''}</button>${can('ext_repair')?'':'-->'}${can('stock_count')||can('stock_count_approve')?`<button data-stab="count" class="${STAB==='count'?'on':''}">📋 الجرد${SCS().filter(c=>c.status==='review').length&&can('stock_count_approve')?` <span class="cnt">${SCS().filter(c=>c.status==='review').length}</span>`:''}</button>`:''}<button data-stab="moves" class="${STAB==='moves'?'on':''}">القطع اتركبت فين</button><button data-stab="warr" class="${STAB==='warr'?'on':''}">الضمانات</button></div>`;
   const head=`<div class="row between"><h2>المخزن</h2>${tabs}</div>`;
   if(STAB==='cons')return head+viewCons();
   if((STAB==='units'||STAB==='xr')&&can('ext_repair'))return head+viewExtRepair();
   if(STAB==='cp'&&can('client_parts'))return head+viewClientParts();
+  if(STAB==='count'&&(can('stock_count')||can('stock_count_approve')))return head+viewStockCount();
   if(STAB==='moves')return head+viewMoves();
   if(STAB==='warr')return head+`<div class="panel"><h3>ضمان القطع اللي اتركبت أو اتباعت</h3>${warrantyTable(warrantyRows(),true)}</div>`;
   const list=SPARES().filter(p=>(!q||(p.name+' '+p.code+' '+(p.ref||'')+' '+(p.ptype||'')).toLowerCase().includes(q))&&(!SCF||(p.condition||'new')===SCF)&&(!SPT||(p.ptype||'')===SPT));const rq=partRentedQty();
@@ -2663,6 +2666,7 @@ service cloud.firestore {
     match /supplierPayments/{id} { allow read: if can('suppliers') || can('accounts') || can('treasury') || can('treasury_view') || can('suppay_req') || can('suppay_approve'); allow write: if can('suppliers') || can('treasury'); }
     match /sales/{id} { allow read: if can('devices') || can('ar') || can('accounts') || can('treasury') || can('treasury_view') || ownClient(); allow write: if can('devices'); }
     match /rentals/{id} { allow read: if can('devices') || can('ar') || can('accounts') || can('part_rent') || ownClient(); allow write: if can('devices') || can('part_rent'); }
+    match /stockcounts/{id} { allow read: if can('stock_count') || can('stock_count_approve') || can('accounts'); allow create, update: if can('stock_count') || can('stock_count_approve'); allow delete: if can('stock_count_approve'); }
     match /freon/{id} { allow read: if can('freon') || can('freon_view') || can('accounts') || can('invoice_delete'); allow write: if can('freon') || can('invoice_delete'); }
     match /stockDevices/{id} { allow read: if can('devices') || can('accounts'); allow write: if can('devices'); }
     match /partSales/{id} { allow read: if can('part_sales') || can('cons_sales') || can('ar') || can('accounts') || can('orders_manage') || can('orders_work') || can('treasury') || can('treasury_view') || ownClient(); allow write: if can('part_sales') || can('cons_sales') || can('orders_manage') || can('orders_work') || can('freon') || can('ext_repair') || can('invoice_delete'); }
@@ -5488,6 +5492,7 @@ function journal(){
   (S.vouchers||[]).filter(x=>x.status==='paid'&&x.kind!=='suppay').forEach(x=>E(x.payDate,`إذن صرف #${pad(x.no)} — ${x.cat||''}`,[[6200,n(x.amount),0],[1100,0,n(x.amount)]]));
   (S.custody||[]).forEach(x=>{if(x.kind==='cash')E(x.date,`عهدة لـ ${userName(x.uid)}`,[[1400,n(x.amount),0],[1100,0,n(x.amount)]]);if(x.kind==='settle')E(x.date,`رجوع عهدة من ${userName(x.uid)}`,[[1100,n(x.amount),0],[1400,0,n(x.amount)]]);if(x.kind==='expense'&&x.status!=='rejected'&&x.status!=='pending')E(x.date,`مصروف عهدة — ${x.type||''}`,[[6300,n(x.amount),0],[1400,0,n(x.amount)]])});
   (S.payroll||[]).filter(p=>p.status==='approved').forEach(p=>{const net=Object.values(p.lines||{}).reduce((a,l)=>a+n(l.net),0);E((p.approvedAt||'').slice(0,10)||p.id+'-28',`مرتبات ${monthName(p.id+'-01')}`,[[6100,net,0],[1100,0,net]])});
+  SCS().filter(c=>c.status==='approved').forEach(c=>(c.adj||[]).forEach(a=>{const v=Math.abs(n(a.value));if(!v)return;E((c.approvedAt||'').slice(0,10)||c.date,`جرد #${pad(c.no)} — ${a.diff<0?'عجز':'زيادة'} ${a.name}`,a.diff<0?[[6200,v,0],[1300,0,v]]:[[1300,v,0],[6200,0,v]])}));
   return J.sort((a,b)=>a.date.localeCompare(b.date));
 }
 let ACCT='inc',ACCM=today().slice(0,7);
@@ -5673,6 +5678,7 @@ function printAny(k,id){
   if(k==='hr'){const x=(S.hr||[]).find(y=>y.id===id);if(x)printHTML(reqDocHTML(x,false));return}
   if(k==='v'){const x=(S.vouchers||[]).find(y=>y.id===id);if(x)printHTML(reqDocHTML(x,true));return}
   if(k==='w'){const x=(S.weekrep||[]).find(y=>y.id===id);if(x)printHTML(weekDocHTML(x),x.title);return}
+  if(k==='sc'){const x=SCS().find(y=>y.id===id);if(x)printHTML(scDocHTML(x),'محضر جرد');return}
 }
 const prBtn=(k,id,lbl)=>`<button type="button" class="btn sm" data-act="printAny" data-k="${k}" data-id="${id}">🖨️${lbl===false?'':' '+(lbl||'طباعة')}</button>`;
 
@@ -5937,7 +5943,7 @@ let XR_PRE='';
 
 
 /* ---------- فحص التحديثات ---------- */
-const APP_VER='2026.10.24.4';
+const APP_VER='2026.10.24.5';
 async function checkUpdate(){try{if(location.protocol==='file:')return;const t=await (await fetch(location.pathname+'?_='+Date.now(),{cache:'no-store'})).text();const m=t.match(/const APP_VER='([^']+)'/);if(m&&m[1]!==APP_VER)showUpd(m[1])}catch(e){}}
 function showUpd(v){if(document.getElementById('updBar'))return;const b=document.createElement('div');b.id='updBar';b.style.cssText='position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:80;background:#1d2b45;color:#fff;padding:10px 16px;border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,.25);display:flex;gap:12px;align-items:center;font-weight:600;max-width:92vw';b.innerHTML='<span>🔄 فيه نسخة جديدة من السيستم</span><button type="button" style="background:#2b8fb8;color:#fff;border:0;border-radius:10px;padding:6px 14px;font:inherit;cursor:pointer">حدّث دلوقتي</button>';b.querySelector('button').onclick=()=>{location.replace(location.pathname+'?v='+encodeURIComponent(v)+location.hash)};document.body.appendChild(b)}
 setTimeout(checkUpdate,8000);setInterval(checkUpdate,5*60*1000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkUpdate()});
@@ -6111,7 +6117,7 @@ function delPurchase(id){const pu=S.purchases.find(x=>x.id===id);if(!pu)return;c
 const WIPE_GROUPS=[
  ['الصيانة',[['reports','تقارير الصيانة'],['requests','طلبات الصيانة والتكليفات'],['inspections','الكشف على الأجهزة'],['ratings','تقييمات الزيارات'],['contractReqs','طلبات العقود من العيادات'],['days','حجز المواعيد']],true],
  ['الفواتير والفلوس',[['payments','التحصيلات'],['partSales','فواتير البيع'],['partReturns','المرتجعات'],['purchases','فواتير الشراء'],['supplierPayments','دفعات الموردين'],['sales','بيع الأجهزة'],['rentals','الإيجارات'],['vouchers','أذون الصرف'],['treasury','حركة الخزينة (الإعدادات بتفضل)'],['handovers','التوريدات']],true],
- ['المخزن',[['units','القطع المكوّدة والقديمة وقطع العملاء'],['returns','مرتجعات قديمة'],['orders','طلبات المستهلكات'],['freon','أسطوانات الفريون الكبيرة']],true],
+ ['المخزن',[['units','القطع المكوّدة والقديمة وقطع العملاء'],['returns','مرتجعات قديمة'],['orders','طلبات المستهلكات'],['freon','أسطوانات الفريون الكبيرة'],['stockcounts','الجرد']],true],
  ['الموظفين',[['punches','البصمات'],['attendance','الحضور المرفوع من جهاز البصمة'],['hr','الإجازات والمأموريات والأذونات والسلف'],['custody','العهد والمصاريف'],['penalties','الجزاءات'],['bonuses','المكافآت'],['comps','البدلات والإضافي'],['payroll','كشوف المرتبات'],['payslips','قسايم المرتب'],['evals','التقييمات'],['meetings','الاجتماعات']],true],
  ['السيستم',[['notifs','التنبيهات'],['weekrep','التقارير الدورية'],['audit','سجل التعديلات'],['verify','بيانات التحقق بالـ QR'],['archive','الأرشيف']],true],
  ['حاجات اختيارية',[['contracts','عقود الصيانة'],['stockDevices','أجهزة الشركة'],['offers','العروض'],['notes','النوت الشخصية'],['testAnswers','إجابات الاختبارات']],false]
@@ -6143,6 +6149,89 @@ async function wipeRun(){if(!isDev(ME))return;const C=$$('.wp-c:checked').map(x=
   });
 }
 Object.assign(X9,{wipeRun:()=>wipeRun()});
+
+/* =====================================================================
+   v35 — جرد المخزن
+   ===================================================================== */
+const SCS=()=>S.stockcounts||[];
+const SC_ST={open:['شغال','p-info'],review:['مستني الاعتماد','p-warn'],approved:['اتعتمد واتطبق','p-ok'],cancelled:['اتلغى','p-mut']};
+let SCV=null,SCFL='todo',SCQQ='';
+function scItems(c){return S.parts.filter(p=>c.scope==='all'||(c.scope==='spare'&&catOf(p)==='spare')||(c.scope==='cons'&&catOf(p)==='cons')||(c.scope.startsWith('t:')&&(p.ptype||p.group||'')===c.scope.slice(2)))}
+function scStats(c){const L=scItems(c);const ln=c.lines||{};let done=0,diffN=0,short=0,over=0;L.forEach(p=>{const l=ln[p.id];if(l&&l.counted!=null){done++;const d=n(l.counted)-n(l.sys);if(Math.abs(d)>1e-9){diffN++;const v=d*n(p.buy);if(v<0)short+=-v;else over+=v}}});return{L,total:L.length,done,diffN,short,over}}
+function viewStockCount(){
+  if(SCV){const c=SCS().find(x=>x.id===SCV);if(c)return viewScSession(c);SCV=null}
+  const L=[...SCS()].sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||''));const can1=can('stock_count');
+  return `<div class="row between"><div class="muted small">جرد المخزن من الموبايل: عدّ كل صنف، وامسح كود الصنف بالكاميرا، والسيستم بيطلّع الفروقات وقيمتها، وبعد الاعتماد الكميات بتتظبط لوحدها.</div><div class="row">${can('stock_edit')||can1?'<button class="btn" data-act="scLabels">🏷️ طباعة ملصقات QR للأصناف</button>':''}${can1?'<button class="btn pri" data-act="scNew">+ جرد جديد</button>':''}</div></div>
+  <div class="panel">${L.length?L.map(c=>{const st=SC_ST[c.status]||SC_ST.open;const x=scStats(c);return `<div class="row between click" data-act="scOpen" data-id="${c.id}" style="padding:10px 0;border-bottom:1px solid var(--line);cursor:pointer"><span><b>جرد #${pad(c.no)}</b> — ${esc(scScopeL(c.scope))} <span class="muted small">· ${fd(c.date)} · ${esc(c.byName||'')}</span><div class="sc-bar"><i style="width:${x.total?Math.round(x.done/x.total*100):0}%"></i></div><span class="muted small">اتعد ${x.done} من ${x.total}${x.diffN?` · ${x.diffN} صنف فيه فرق`:''}</span></span><span class="pill ${st[1]}">${st[0]}</span></div>`}).join(''):'<div class="empty">لسه مفيش جرد — ابدأ "جرد جديد"</div>'}</div>`;
+}
+const scScopeL=s=>s==='all'?'كل المخزن':s==='spare'?'قطع الغيار':s==='cons'?'المستهلكات والمستلزمات':'نوع: '+s.slice(2);
+function scNew(){const T=[...new Set(S.parts.map(p=>p.ptype||p.group).filter(Boolean))];
+  modal(`<h3>جرد جديد</h3><div class="grid g2"><label class="f span2">هتجرد إيه؟<select id="sn_s"><option value="all">كل المخزن (${S.parts.length} صنف)</option><option value="spare">قطع الغيار بس</option><option value="cons">المستهلكات والمستلزمات بس</option>${T.map(t=>`<option value="t:${esc(t)}">نوع: ${esc(t)}</option>`).join('')}</select></label>
+   <label class="f">التاريخ<input type="date" id="sn_d" value="${today()}"></label><label class="row" style="gap:6px;align-self:end"><input type="checkbox" id="sn_b" style="width:auto" checked> جرد أعمى (اللي بيعد مش بيشوف كمية السيستم)</label>
+   <label class="f span2">ملاحظات<input id="sn_n" placeholder="مثلاً: جرد آخر الشهر — المخزن الرئيسي"></label></div>`,()=>{
+    const c={id:uid(),no:SCS().reduce((a,x)=>Math.max(a,n(x.no)),0)+1,date:$('#sn_d').value||today(),scope:$('#sn_s').value,blind:$('#sn_b').checked,notes:$('#sn_n').value.trim(),status:'open',lines:{},by:ME.id,byName:pubName(),createdAt:new Date().toISOString()};
+    (S.stockcounts=S.stockcounts||[]).push(c);save();SCV=c.id;SCFL='todo';render()})}
+function viewScSession(c){
+  const x=scStats(c),ln=c.lines||{},open=c.status==='open',canC=can('stock_count')&&open,showSys=!c.blind||c.status!=='open'||can('stock_count_approve');
+  const q=SCQQ.trim().toLowerCase();
+  const F={todo:p=>!ln[p.id]||ln[p.id].counted==null,diff:p=>ln[p.id]&&ln[p.id].counted!=null&&Math.abs(n(ln[p.id].counted)-n(ln[p.id].sys))>1e-9,done:p=>ln[p.id]&&ln[p.id].counted!=null,all:()=>true};
+  const list=x.L.filter(F[SCFL]||F.all).filter(p=>!q||(p.name+' '+(p.code||'')+' '+(p.ref||'')).toLowerCase().includes(q)).sort((a,b)=>a.name.localeCompare(b.name,'ar'));
+  const st=SC_ST[c.status]||SC_ST.open;
+  return `<div class="row between"><div><button class="btn sm ghost" data-act="scBack">→ كل الجرد</button> <b style="font-size:1.15rem">جرد #${pad(c.no)}</b> — ${esc(scScopeL(c.scope))} <span class="pill ${st[1]}">${st[0]}</span>${c.blind?' <span class="pill p-mut">جرد أعمى</span>':''}</div>
+   <div class="row">${canC?'<button class="btn" data-act="scScan">📷 امسح كود صنف</button>':''}${prBtn('sc',c.id)}${open&&can('stock_count')&&x.done?`<button class="btn pri" data-act="scSubmit" data-id="${c.id}">ابعت للاعتماد</button>`:''}${c.status==='review'&&can('stock_count_approve')?`<button class="btn pri" data-act="scApprove" data-id="${c.id}">اعتماد وتطبيق الفروقات</button><button class="btn" data-act="scReopen" data-id="${c.id}">رجّعه للعد</button>`:''}${['open','review'].includes(c.status)&&(c.by===ME.id||can('stock_count_approve'))?`<button class="btn sm ghost" data-act="scCancel" data-id="${c.id}">إلغاء الجرد</button>`:''}</div></div>
+  <div class="grid g4"><div class="panel kpi"><span>اتعد</span><b>${x.done} / ${x.total}</b><div class="sc-bar"><i style="width:${x.total?Math.round(x.done/x.total*100):0}%"></i></div></div>${showSys?`<div class="panel kpi"><span>أصناف فيها فرق</span><b>${x.diffN}</b></div>`:''}${showSys&&can('stock_costs')?`<div class="panel kpi"><span>قيمة العجز</span><b style="color:var(--bad)">${money(x.short)}</b></div><div class="panel kpi"><span>قيمة الزيادة</span><b style="color:var(--ok)">${money(x.over)}</b></div>`:`<div class="panel kpi"><span>فاضل</span><b>${x.total-x.done}</b></div><div class="panel kpi"><span>التاريخ</span><b style="font-size:1.1rem">${fd(c.date)}</b></div>`}</div>
+  <div class="row between" style="flex-wrap:wrap"><div class="seg">${[['todo','لسه ما اتعدش'],...(showSys?[['diff','فيها فرق']]:[]),['done','اتعدت'],['all','الكل']].map(([k,l])=>`<button data-scf="${k}" class="${SCFL===k?'on':''}">${l} (${x.L.filter(F[k]).length})</button>`).join('')}</div><input id="scq" placeholder="ابحث باسم الصنف أو الكود" value="${esc(SCQQ)}" style="max-width:260px"></div>
+  <div class="sc-list">${list.map(p=>{const l=ln[p.id]||{};const cnt=l.counted!=null;const d=cnt?n(l.counted)-n(l.sys):0;return `<div class="sc-card ${cnt?(showSys&&Math.abs(d)>1e-9?'diff':'ok'):''}" id="scc_${p.id}">${p.photo?`<img src="${p.photo}" alt="">`:`<div class="sc-noimg">${catOf(p)==='cons'?'📦':'⚙️'}</div>`}<div class="sc-body"><b>${esc(p.name)}</b><div class="muted small num">${esc(p.code||'')}${p.ref?' · '+esc(p.ref):''}${p.unit?' · '+esc(p.unit):''}</div>
+     ${showSys?`<div class="small">في السيستم: <b class="num">${cnt?n(l.sys):n(p.qty)}</b>${cnt&&Math.abs(d)>1e-9?` · <b style="color:${d<0?'var(--bad)':'var(--ok)'}">${d>0?'+':''}${d}</b>`:''}</div>`:''}${cnt?`<div class="muted small">عدّه ${esc(l.byName||'')} ${timeOf(l.at)}${l.note?' — '+esc(l.note):''}</div>`:''}</div>
+     <div class="sc-step">${canC?`<button type="button" data-scd="-1" data-id="${p.id}">−</button><input type="number" min="0" step="any" inputmode="decimal" class="sc-in" data-id="${p.id}" value="${cnt?n(l.counted):''}" placeholder="العدد"><button type="button" data-scd="1" data-id="${p.id}">+</button>`:`<b class="num" style="font-size:1.2rem">${cnt?n(l.counted):'—'}</b>`}</div></div>`}).join('')||'<div class="empty">مفيش أصناف هنا</div>'}</div>`;
+}
+function scSet(pid,val,note){const c=SCS().find(x=>x.id===SCV);if(!c||c.status!=='open')return;const p=part(pid);c.lines=c.lines||{};const old=c.lines[pid];
+  if(val===''||val==null){delete c.lines[pid]}else c.lines[pid]={counted:Math.max(0,n(val)),sys:old?.sys??n(p?.qty),by:ME.id,byName:pubName(),at:new Date().toISOString(),note:note??old?.note??''};c.updatedAt=new Date().toISOString();save()}
+document.addEventListener('click',e=>{const f=e.target.closest('[data-scf]');if(f){SCFL=f.dataset.scf;render();return}
+  const b=e.target.closest('[data-scd]');if(b){const inp=document.querySelector(`.sc-in[data-id="${b.dataset.id}"]`);const v=Math.max(0,n(inp.value||0)+(+b.dataset.scd));inp.value=v;scSet(b.dataset.id,v);const card=document.getElementById('scc_'+b.dataset.id);if(card)card.classList.add('ok')}});
+document.addEventListener('change',e=>{if(e.target.classList?.contains('sc-in')){scSet(e.target.dataset.id,e.target.value);const y=scrollY;render();scrollTo(0,y)}});
+document.addEventListener('input',e=>{if(e.target.id==='scq'){SCQQ=e.target.value;clearTimeout(window._scqT);window._scqT=setTimeout(()=>{const pos=e.target.selectionStart;render();const i=$('#scq');if(i){i.focus();try{i.setSelectionRange(pos,pos)}catch(_){}}},250)}});
+async function scScan(){
+  if(!('BarcodeDetector' in window)){const v=prompt('الكاميرا مش مدعومة على المتصفح ده — اكتب كود الصنف (مثلاً SP-0001)');if(v)scJump(v);return}
+  modal(`<h3>📷 امسح كود الصنف</h3><video id="scv" playsinline muted style="width:100%;border-radius:12px;background:#000;max-height:60vh"></video><div class="muted small">وجّه الكاميرا على ملصق الـ QR أو الباركود بتاع الصنف.</div>`,()=>true);
+  const ok=$('#mOk');if(ok)ok.remove();let stream;try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}})}catch(e){closeModal(true);toast('مقدرتش أفتح الكاميرا');return}
+  const v=$('#scv');v.srcObject=stream;await v.play().catch(()=>{});const det=new BarcodeDetector({formats:['qr_code','code_128','ean_13','code_39']});let alive=true;
+  const stop=()=>{alive=false;stream.getTracks().forEach(t=>t.stop())};$('#mCancel').addEventListener('click',stop);
+  const loop=async()=>{if(!alive||!document.getElementById('scv')){stop();return}try{const r=await det.detect(v);if(r&&r[0]){stop();closeModal(true);scJump(r[0].rawValue);return}}catch(e){}requestAnimationFrame(loop)};loop();
+}
+function scJump(code){code=String(code||'').trim();const m=code.match(/(SP|CN)-\d+/i);const key=(m?m[0]:code).toUpperCase();const p=S.parts.find(x=>(x.code||'').toUpperCase()===key||(x.ref||'').toUpperCase()===key);
+  if(!p){toast('الكود ده مش متسجل: '+code);return}SCQQ='';SCFL='all';render();setTimeout(()=>{const el=document.getElementById('scc_'+p.id);if(el){el.scrollIntoView({behavior:'smooth',block:'center'});el.classList.add('flash');const i=el.querySelector('.sc-in');if(i){i.focus();i.select&&i.select()}}else toast(`"${p.name}" مش ضمن الجرد ده`)},80)}
+function scLabels(){const P=[...S.parts].sort((a,b)=>(a.code||'').localeCompare(b.code||''));
+  modal(`<h3>🏷️ ملصقات QR للأصناف</h3><div class="muted small">اطبعها والزقها على رفوف أو علب الأصناف — في الجرد بتمسحها بالكاميرا وتوصل للصنف على طول.</div><div class="row" style="flex-wrap:wrap;gap:6px;max-height:240px;overflow:auto;margin-top:8px">${P.map(p=>`<label class="row" style="gap:5px;border:1px solid var(--line);border-radius:99px;padding:3px 10px"><input type="checkbox" class="lb-c" value="${p.id}" style="width:auto" checked> ${esc(p.name)} <span class="muted small num">${esc(p.code||'')}</span></label>`).join('')}</div>`,()=>{
+    const ids=$$('.lb-c:checked').map(x=>x.value);if(!ids.length){toast('اختار صنف');return false}
+    const html=`<div dir="rtl" style="width:794px;background:#fff;font-family:Tahoma,Arial;padding:18px;box-sizing:border-box;display:grid;grid-template-columns:repeat(4,1fr);gap:10px">${ids.map(id=>{const p=part(id);return `<div style="border:1px dashed #9aa5b1;border-radius:8px;padding:8px;text-align:center;break-inside:avoid"><img src="${qrData(p.code||p.id)}" style="width:110px;height:110px"><div style="font-weight:700;font-size:13px;margin-top:4px">${esc(p.name)}</div><div style="font-family:Arial;font-size:13px;color:#1d2b45;font-weight:700">${esc(p.code||'')}</div></div>`}).join('')}</div>`;
+    loadQR().then(()=>printHTML(html.replace(/src=""/g,'')))});
+}
+function scDocHTML(c){const x=scStats(c),ln=c.lines||{};const rows=x.L.filter(p=>ln[p.id]&&ln[p.id].counted!=null).map(p=>{const l=ln[p.id],d=n(l.counted)-n(l.sys);return [esc(p.name)+` <span style="font-family:Arial;color:${DOC_MU}">${esc(p.code||'')}</span>`,n(l.sys),n(l.counted),d,d*n(p.buy)]});
+  return docShell(`محضر جرد #${pad(c.no)}`,scScopeL(c.scope),`${fd(c.date)} · ${(SC_ST[c.status]||[''])[0]}`,
+   docSec('الملخص',docGrid([['أصناف اتعدت',`${x.done} من ${x.total}`],['أصناف فيها فرق',x.diffN],['قيمة العجز',money(x.short)],['قيمة الزيادة',money(x.over)]]))+
+   docSec('الأصناف',`<table style="width:100%;border-collapse:collapse;font-size:14px"><thead><tr style="color:${DOC_MU}">${['الصنف','في السيستم','اتعد','الفرق','قيمة الفرق'].map(h=>`<th style="padding:7px;border-bottom:2px solid ${DOC_NV};text-align:right">${h}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr${Math.abs(r[3])>1e-9?' style="background:#fff6f6"':''}><td style="padding:7px;border-bottom:1px solid ${DOC_LN}">${r[0]}</td><td style="padding:7px;border-bottom:1px solid ${DOC_LN}">${r[1]}</td><td style="padding:7px;border-bottom:1px solid ${DOC_LN}"><b>${r[2]}</b></td><td style="padding:7px;border-bottom:1px solid ${DOC_LN};color:${r[3]<0?'#b1243f':r[3]>0?'#1f7a4d':DOC_MU};font-weight:700">${r[3]>0?'+':''}${r[3]}</td><td style="padding:7px;border-bottom:1px solid ${DOC_LN}">${Math.abs(r[3])>1e-9?money(r[4]):'—'}</td></tr>`).join('')}</tbody></table>`)+
+   (c.notes?docSec('ملاحظات',`<div>${esc(c.notes)}</div>`):'')+docSigs([['عدّه',c.byName],['اعتمده',c.approvedByName||'']]))}
+Object.assign(X9,{
+  scNew:()=>scNew(),scOpen:(t,id)=>{SCV=id;SCFL=(SCS().find(c=>c.id===id)?.status==='open')?'todo':'diff';SCQQ='';render();scrollTo(0,0)},scBack:()=>{SCV=null;render()},scScan:()=>scScan(),scLabels:()=>{loadQR();scLabels()},
+  scSubmit:(t,id)=>{const c=SCS().find(x=>x.id===id);const x=scStats(c);confirmBox(`تبعت الجرد للاعتماد؟ اتعد ${x.done} من ${x.total} صنف${x.total-x.done?` — الـ ${x.total-x.done} اللي ما اتعدوش مش هيتغيروا`:''}.`,()=>{c.status='review';c.submittedAt=new Date().toISOString();notify(['perm:stock_count_approve'],'📦 جرد مستني الاعتماد',`جرد #${pad(c.no)} — ${x.diffN} صنف فيه فرق`,'stock');save();render()})},
+  scReopen:(t,id)=>{const c=SCS().find(x=>x.id===id);c.status='open';save();render()},
+  scCancel:(t,id)=>confirmBox('إلغاء الجرد ده؟ الكميات مش هتتغير.',()=>{const c=SCS().find(x=>x.id===id);c.status='cancelled';save();SCV=null;render()}),
+  scApprove:(t,id)=>{const c=SCS().find(x=>x.id===id);const x=scStats(c);confirmBox(`اعتماد الجرد؟ ${x.diffN} صنف هتتظبط كمياتهم${can('stock_costs')?` (عجز ${money(x.short)} · زيادة ${money(x.over)})`:''}.`,()=>{
+    const adj=[];x.L.forEach(p=>{const l=(c.lines||{})[p.id];if(!l||l.counted==null)return;const d=n(l.counted)-n(l.sys);if(Math.abs(d)<1e-9)return;p.qty=n(n(p.qty)+d);adj.push({partId:p.id,name:p.name,diff:d,value:n(d*n(p.buy))})});
+    c.status='approved';c.adj=adj;c.approvedBy=ME.id;c.approvedByName=pubName();c.approvedAt=new Date().toISOString();notify([c.by],'✓ الجرد اتعتمد',`جرد #${pad(c.no)} — اتظبط ${adj.length} صنف`,'stock');save();toast(`اتعتمد الجرد واتظبط ${adj.length} صنف`);render()})}
+});
+Object.assign(NEED9,{scNew:'stock_count',scScan:'stock_count',scSubmit:'stock_count',scApprove:'stock_count_approve',scReopen:'stock_count_approve'});
+(function(){const st=document.createElement('style');st.textContent=`
+.sc-bar{height:6px;background:var(--surface-2);border-radius:6px;overflow:hidden;margin:5px 0;max-width:320px}.sc-bar i{display:block;height:100%;background:#2b8fb8}
+.sc-list{display:grid;gap:8px}
+.sc-card{display:grid;grid-template-columns:56px minmax(0,1fr) auto;gap:12px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:8px 10px;border-inline-start:4px solid var(--line)}
+.sc-card.ok{border-inline-start-color:#1f7a4d}.sc-card.diff{border-inline-start-color:#b1243f}.sc-card.flash{box-shadow:0 0 0 3px #2b8fb8}
+.sc-card img,.sc-noimg{width:56px;height:56px;border-radius:10px;object-fit:cover;background:var(--surface-2);display:flex;align-items:center;justify-content:center;font-size:1.4rem}
+.sc-step{display:flex;align-items:center;gap:6px}.sc-step button{width:42px;height:42px;border-radius:12px;border:1px solid var(--line);background:var(--surface-2);font-size:1.4rem;font-weight:800;cursor:pointer;color:var(--ink)}
+.sc-step input{width:76px;height:42px;text-align:center;font-size:1.15rem;font-weight:800;border-radius:12px}
+@media(max-width:560px){.sc-card{grid-template-columns:44px minmax(0,1fr)}.sc-card img,.sc-noimg{width:44px;height:44px}.sc-step{grid-column:1/-1;justify-content:flex-end}}
+`;document.head.appendChild(st)})();
 
 /* =====================================================================
    التشغيل

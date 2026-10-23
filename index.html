@@ -5909,7 +5909,7 @@ let XR_PRE='';
 
 
 /* ---------- فحص التحديثات ---------- */
-const APP_VER='2026.10.23.6';
+const APP_VER='2026.10.23.8';
 async function checkUpdate(){try{if(location.protocol==='file:')return;const t=await (await fetch(location.pathname+'?_='+Date.now(),{cache:'no-store'})).text();const m=t.match(/const APP_VER='([^']+)'/);if(m&&m[1]!==APP_VER)showUpd(m[1])}catch(e){}}
 function showUpd(v){if(document.getElementById('updBar'))return;const b=document.createElement('div');b.id='updBar';b.style.cssText='position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:80;background:#1d2b45;color:#fff;padding:10px 16px;border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,.25);display:flex;gap:12px;align-items:center;font-weight:600;max-width:92vw';b.innerHTML='<span>🔄 فيه نسخة جديدة من السيستم</span><button type="button" style="background:#2b8fb8;color:#fff;border:0;border-radius:10px;padding:6px 14px;font:inherit;cursor:pointer">حدّث دلوقتي</button>';b.querySelector('button').onclick=()=>{location.replace(location.pathname+'?v='+encodeURIComponent(v)+location.hash)};document.body.appendChild(b)}
 setTimeout(checkUpdate,8000);setInterval(checkUpdate,5*60*1000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkUpdate()});
@@ -5923,16 +5923,20 @@ const frKg=v=>(Math.round(n(v)*1000)/1000).toLocaleString('en-US',{maximumFracti
 function frUsed(c){return (c.fills||[]).reduce((a,f)=>a+n(f.qty)*n(f.kg),0)}
 function frLeft(c){return Math.max(0,n(c.size)-frUsed(c)-n(c.lossKg))}
 const frKgPrice=c=>n(c.price)/Math.max(0.001,n(c.size));
-function frPartName(kg){return `أسطوانة فريون ${String(+n(kg))} كيلو`}
+function frPartName(kg){return S.parts.some(p=>p.freonKg&&n(p.freonKg)!==n(kg))?`أسطوانات فريون ${String(+n(kg))} كيلو`:'أسطوانات فريون'}
 function frPart(kg,create){let p=S.parts.find(x=>x.freonKg&&n(x.freonKg)===n(kg));if(!p&&create){p={id:uid(),code:nextCode('spare'),cat:'spare',name:frPartName(kg),ptype:'أسطوانة فريون',freonKg:n(kg),condition:'new',qty:0,min:2,buy:0,sell:0,wMonths:0,wPulses:0,photo:''};S.parts.push(p)}return p}
 const FR_PARTS=()=>S.parts.filter(p=>p.freonKg);
+function frPartOpts(kg){const cur=frPart(kg,false)||S.parts.find(p=>catOf(p)==='spare'&&!p.freonKg&&/فريون|كرايو|cryo/i.test(p.name));const L=S.parts.filter(p=>catOf(p)==='spare').sort((a,b)=>((/كرايو|cryo|فريون/i.test(b.name)?1:0)-(/كرايو|cryo|فريون/i.test(a.name)?1:0))||a.name.localeCompare(b.name,'ar'));
+  return `<option value="">+ صنف جديد: ${esc(frPartName(kg))}</option>${L.map(p=>`<option value="${p.id}" ${cur&&cur.id===p.id?'selected':''}>${esc(p.name)} — متاح ${n(p.qty)}${p.freonKg&&n(p.freonKg)!==n(kg)?` (مربوط بـ ${+n(p.freonKg)} كيلو)`:''}</option>`).join('')}`}
+function frLink(kg,pid){if(!pid)return;S.parts.forEach(p=>{if(p.freonKg&&n(p.freonKg)===n(kg)&&p.id!==pid)delete p.freonKg});const p=part(pid);if(p)p.freonKg=n(kg)}
+const frPartField=(id,kg)=>`<label class="f span2">الأسطوانات الصغيرة بتتضاف على صنف المخزن<select id="${id}">${frPartOpts(kg)}</select><span class="muted small">اختار صنف أسطوانات الكرايوجين اللي عندك في المخزن علشان العدد يتضاف عليه — الاختيار بيتحفظ للمرات الجاية.</span></label>`;
 function frAddStock(kg,q,unitCost){const p=frPart(kg,true);const oq=Math.max(0,n(p.qty));p.buy=n((oq*n(p.buy)+q*unitCost)/Math.max(1,oq+q));p.qty=n(p.qty)+q;if(!n(p.sell))p.sell=Math.ceil(unitCost*1.3);return p}
 let FRT='stock';
 function viewFreon(){
   const C=FRS(),open=C.filter(c=>c.status==='open'),empty=C.filter(c=>c.status==='empty'),P=FR_PARTS(),man=can('freon');
   const ready=P.reduce((a,p)=>a+n(p.qty),0),kgOpen=open.reduce((a,c)=>a+frLeft(c),0),val=P.reduce((a,p)=>a+n(p.qty)*n(p.buy),0)+open.reduce((a,c)=>a+frLeft(c)*frKgPrice(c),0);
   const tabs=[['stock','المخزن'],['big',`الأسطوانات الكبيرة (${C.length})`],['empty',`الفاضية والبيع (${empty.length})`],['mv','الحركة']];
-  const head=`<div class="row between"><div><h2 style="margin:0">الفريون</h2><div class="muted small">أسطوانات كبيرة بتتفضّى في أسطوانات صغيرة للأجهزة</div></div>${man?`<div class="row"><button class="btn" data-act="frFill">+ تعبئة من أسطوانة مفتوحة</button><button class="btn pri" data-act="frBuy">+ شراء أسطوانة كبيرة</button></div>`:''}</div>
+  const head=`<div class="row between"><div><h2 style="margin:0">الفريون</h2><div class="muted small">أسطوانات كبيرة بتتفضّى في أسطوانات صغيرة للأجهزة</div></div>${man?`<div class="row">${empty.length?`<button class="btn" data-act="frSell">💰 بيع أسطوانات فاضية (${empty.length})</button>`:''}<button class="btn" data-act="frFill">+ تعبئة من أسطوانة مفتوحة</button><button class="btn pri" data-act="frBuy">+ شراء أسطوانة كبيرة</button></div>`:''}</div>
   <div class="seg" style="flex-wrap:wrap">${tabs.map(([k,l])=>`<button data-frt="${k}" class="${FRT===k?'on':''}">${l}</button>`).join('')}</div>
   <div class="grid g4"><div class="panel kpi"><span>أسطوانات صغيرة جاهزة</span><b>${ready}</b><span class="muted small">${P.filter(p=>n(p.qty)>0).map(p=>`${n(p.qty)} × ${+n(p.freonKg)} كيلو`).join(' · ')||'—'}</span></div><div class="panel kpi"><span>فريون في الأسطوانات المفتوحة</span><b>${frKg(kgOpen)}</b><span class="muted small">${open.length} أسطوانة مفتوحة</span></div><div class="panel kpi"><span>أسطوانات كبيرة فاضية</span><b>${empty.length}</b><span class="muted small">جاهزة للبيع</span></div><div class="panel kpi"><span>قيمة الفريون في المخزن</span><b>${money(val)}</b><span class="muted small">بسعر التكلفة</span></div></div>`;
   const tank=c=>{const pct=c.status==='open'?Math.round(frLeft(c)/Math.max(0.001,n(c.size))*100):0;return `<div class="fr-tank"><i style="height:${pct}%"></i></div>`};
@@ -5946,11 +5950,11 @@ function viewFreon(){
   if(FRT==='empty'){const sold=C.filter(c=>c.status==='sold');return head+`<div class="panel"><h3>فاضية في المخزن (${empty.length})</h3>${empty.map(cyl).join('')||'<div class="empty">مفيش</div>'}</div>${sold.length?`<div class="panel"><h3>اتباعت (${sold.length})</h3>${sold.map(cyl).join('')}<div class="muted small">إجمالي بيع الفاضي: ${money(sold.reduce((a,c)=>a+n(c.sold?.price),0))}</div></div>`:''}`}
   if(FRT==='mv'){const M=frMoves();return head+`<div class="panel">${M.length?`<div class="tbl-wrap"><table class="t"><thead><tr><th>التاريخ</th><th>الحركة</th><th>الصنف</th><th>العدد</th></tr></thead><tbody>${M.slice(0,200).map(m=>`<tr><td>${fd(m.date)}</td><td>${m.lbl}</td><td class="small">${esc(m.name)}</td><td><b style="color:${m.q>0?'var(--ok)':'var(--bad)'}">${m.q>0?'+':'−'}${Math.abs(m.q)}</b></td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">لسه مفيش حركة</div>'}</div>`}
   return head+`<div class="grid g2"><div class="panel"><h3>الأسطوانات المفتوحة</h3>${open.map(cyl).join('')||'<div class="empty">مفيش أسطوانات مفتوحة — اشتري أسطوانة كبيرة</div>'}</div>
-   <div class="panel"><h3>الأسطوانات الصغيرة في المخزن</h3>${P.length?P.map(p=>`<div class="row between" style="padding:8px 0;border-bottom:1px solid var(--line)"><span><b>${esc(p.name)}</b> <span class="muted small num">${esc(p.code||'')}</span><div class="muted small">التكلفة ${money(p.buy)} · سعر البيع ${money(p.sell)}</div></span><span class="pill ${n(p.qty)<=n(p.min)?'p-bad':'p-ok'}">${n(p.qty)}</span></div>`).join('')+'<div class="muted small" style="margin-top:6px">الأسطوانات الصغيرة صنف عادي في المخزن: بتختارها في تقرير الصيانة أو فاتورة البيع وبتتخصم لوحدها. تقدر تغيّر سعر البيع من المخزن.</div>':'<div class="empty">لسه مفيش</div>'}</div></div>`;
+   <div class="panel"><h3>الأسطوانات الصغيرة (أصناف المخزن المربوطة)</h3>${P.length?P.map(p=>`<div class="row between" style="padding:8px 0;border-bottom:1px solid var(--line)"><span><b>${esc(p.name)}</b> <span class="pill p-info">${+n(p.freonKg)} كيلو</span> <span class="muted small num">${esc(p.code||'')}</span><div class="muted small">التكلفة ${money(p.buy)} · سعر البيع ${money(p.sell)}</div>${man?`<div class="row" style="gap:6px;margin-top:4px"><button class="btn sm" data-act="frRename" data-id="${p.id}">✏️ تغيير الاسم والسعر</button></div>`:''}</span><span class="pill ${n(p.qty)<=n(p.min)?'p-bad':'p-ok'}">${n(p.qty)}</span></div>`).join('')+'<div class="muted small" style="margin-top:6px">الأسطوانات الصغيرة صنف عادي في المخزن: بتختارها في تقرير الصيانة أو فاتورة البيع وبتتخصم لوحدها. تقدر تغيّر سعر البيع من المخزن.</div>':'<div class="empty">لسه مفيش</div>'}</div></div>`;
 }
 document.addEventListener('click',e=>{const t=e.target.closest('[data-frt]');if(t){FRT=t.dataset.frt;render()}});
 function frMoves(){const ids=new Set(FR_PARTS().map(p=>p.id));const M=[];
-  FRS().forEach(c=>(c.fills||[]).forEach(f=>M.push({date:f.date,lbl:`تعبئة من أسطوانة ${+n(c.size)} كيلو`,name:frPartName(f.kg),q:n(f.qty)})));
+  FRS().forEach(c=>(c.fills||[]).forEach(f=>M.push({date:f.date,lbl:`تعبئة من أسطوانة ${+n(c.size)} كيلو`,name:(f.partId&&part(f.partId)?.name)||frPart(f.kg,false)?.name||frPartName(f.kg),q:n(f.qty)})));
   S.reports.forEach(r=>(r.parts||[]).forEach(l=>{if(ids.has(l.partId))M.push({date:r.date,lbl:`اتركبت — <a href="#" data-view="${r.id}" class="num">#${pad(r.no)}</a> ${esc(cName(client(r.clientId))||'')}`,name:l.name,q:-n(l.qty)})}));
   (S.partSales||[]).forEach(x=>(x.lines||[]).forEach(l=>{if(ids.has(l.partId))M.push({date:x.date,lbl:`اتباعت — <a href="#" data-go="psale" data-p="${x.id}" class="num">فاتورة #${pad(x.no)}</a>`,name:l.name,q:-n(l.qty)})}));
   return M.sort((a,b)=>(b.date||'').localeCompare(a.date||''))}
@@ -5966,7 +5970,7 @@ function frBuy(){
    <label class="f">سعر الأسطوانة (اللي دفعته)<input type="number" min="0" step="any" id="fb_p"></label><label class="f">الدفع<select id="fb_t"><option value="credit">آجل على حساب المورد</option><option value="cash">دفعت دلوقتي</option></select></label>
    <label class="f fb-cash" hidden>طريقة الدفع<select id="fb_m">${S.settings.methods.map(m=>`<option>${esc(m)}</option>`).join('')}</select></label><label class="f fb-cr">ميعاد السداد<input type="date" id="fb_due" value="${addDays(today(),30)}"></label>
    <label class="f span2">وزن الأسطوانة الصغيرة اللي بتملاها (كيلو)<input type="number" min="0.05" step="any" id="fb_k" value="1">${chips('fb_k',FR_SMALL,1)}</label>
-   <label class="f span2">تكلفة الأسطوانة الصغيرة الفاضية نفسها (اختياري)<input type="number" min="0" step="any" id="fb_e" value="0"></label></div>
+   <label class="f span2">تكلفة الأسطوانة الصغيرة الفاضية نفسها (اختياري)<input type="number" min="0" step="any" id="fb_e" value="0"></label>${frPartField('fb_pt2',1)}</div>
    <div id="fb_calc"></div>
    <div class="grid g2"><label class="f">هتملى كام دلوقتي؟<input type="number" min="0" step="1" id="fb_q"></label><span class="muted small" style="align-self:center">الباقي يفضل في الأسطوانة وتملاه بعدين من "تعبئة من أسطوانة مفتوحة".</span></div>`,()=>{
     const size=n($('#fb_w').value),price=n($('#fb_p').value),kg=n($('#fb_k').value),ec=n($('#fb_e').value),q=Math.max(0,parseInt($('#fb_q').value)||0),sn=$('#fb_s').value.trim();
@@ -5975,40 +5979,49 @@ function frBuy(){
     const term=$('#fb_t').value,d=$('#fb_d').value||today();const cid=uid();const no=FRS().length+1;
     const pu={id:uid(),kind:'freon',supplierId:sup.id,date:d,invoiceNo:'فريون',lines:[{name:`أسطوانة فريون ${size} كيلو`,qty:1,price,partId:''}],extra:0,total:price,paid:term==='cash'?price:0,method:term==='cash'?$('#fb_m').value:'',due:term==='credit'?$('#fb_due').value:d,notes:'شراء أسطوانة فريون كبيرة',by:ME.id,freonId:cid};
     const c={id:cid,code:'FR-'+pad(no),size,price,supplierId:sup.id,date:d,purchaseId:pu.id,status:'open',smallKg:kg,emptyCost:ec,fills:[],lossKg:0,by:ME.id,createdAt:new Date().toISOString()};
-    if(q>0){const uc=frKgPrice(c)*kg+ec;frAddStock(kg,q,uc);c.fills.push({date:d,qty:q,kg,unitCost:n(uc),by:ME.id})}
+    frLink(kg,$('#fb_pt2').value);
+    if(q>0){const uc=frKgPrice(c)*kg+ec;frAddStock(kg,q,uc);c.fills.push({date:d,qty:q,kg,unitCost:n(uc),partId:frPart(kg,false)?.id||'',by:ME.id})}
     (S.freon=S.freon||[]).push(c);S.purchases.push(pu);save();toast(`اتسجلت الأسطوانة${q?` — اتضاف ${q} أسطوانة صغيرة للمخزن`:''}`);render();
   });
   const up=()=>{$('#fb_calc').innerHTML=frCalcBox($('#fb_w').value,$('#fb_p').value,$('#fb_k').value,$('#fb_e').value);const per=Math.floor((n($('#fb_w').value)+1e-9)/Math.max(0.001,n($('#fb_k').value)));if(!$('#fb_q').dataset.ed)$('#fb_q').value=per};
-  ['fb_w','fb_p','fb_k','fb_e'].forEach(i=>$('#'+i).addEventListener('input',up));$('#fb_q').oninput=()=>$('#fb_q').dataset.ed=1;up();
+  ['fb_w','fb_p','fb_k','fb_e'].forEach(i=>$('#'+i).addEventListener('input',up));$('#fb_k').addEventListener('input',()=>{$('#fb_pt2').innerHTML=frPartOpts(n($('#fb_k').value))});$('#fb_q').oninput=()=>$('#fb_q').dataset.ed=1;up();
   $('#fb_t').onchange=()=>{const cr=$('#fb_t').value==='credit';$$('.fb-cash').forEach(x=>x.hidden=cr);$$('.fb-cr').forEach(x=>x.hidden=!cr)};
 }
 function frFill(id){
   const open=FRS().filter(c=>c.status==='open');if(!open.length){toast('مفيش أسطوانة مفتوحة — اشتري أسطوانة كبيرة الأول');return}const c0=open.find(c=>c.id===id)||open[0];
   modal(`<h3>تعبئة أسطوانات صغيرة</h3><div class="grid g2"><label class="f span2">من أسطوانة<select id="ff_c">${open.map(c=>`<option value="${c.id}" ${c.id===c0.id?'selected':''}>${esc(c.code||'')} — ${+n(c.size)} كيلو · باقي ${frKg(frLeft(c))}</option>`).join('')}</select></label>
    <label class="f span2">وزن الأسطوانة الصغيرة (كيلو)<input type="number" min="0.05" step="any" id="ff_k" value="${n(c0.smallKg)||1}">${chips('ff_k',FR_SMALL,n(c0.smallKg)||1)}</label>
-   <label class="f">العدد<input type="number" min="1" step="1" id="ff_q"></label><label class="f">تكلفة الأسطوانة الفاضية (اختياري)<input type="number" min="0" step="any" id="ff_e" value="${n(c0.emptyCost)}"></label><label class="f">التاريخ<input type="date" id="ff_d" value="${today()}"></label></div><div id="ff_calc"></div>`,()=>{
+   <label class="f">العدد<input type="number" min="1" step="1" id="ff_q"></label><label class="f">تكلفة الأسطوانة الفاضية (اختياري)<input type="number" min="0" step="any" id="ff_e" value="${n(c0.emptyCost)}"></label><label class="f">التاريخ<input type="date" id="ff_d" value="${today()}"></label>${frPartField('ff_pt',n(c0.smallKg)||1)}</div><div id="ff_calc"></div>`,()=>{
     const c=FRS().find(x=>x.id===$('#ff_c').value);const kg=n($('#ff_k').value),q=parseInt($('#ff_q').value)||0,ec=n($('#ff_e').value);if(kg<=0||q<1){toast('اكتب الوزن والعدد');return false}
     if(q*kg>frLeft(c)+1e-9){toast(`الأسطوانة فاضل فيها ${frKg(frLeft(c))} بس — تكفي ${Math.floor((frLeft(c)+1e-9)/kg)}`);return false}
-    const uc=frKgPrice(c)*kg+ec;frAddStock(kg,q,uc);(c.fills=c.fills||[]).push({date:$('#ff_d').value||today(),qty:q,kg,unitCost:n(uc),by:ME.id});
+    frLink(kg,$('#ff_pt').value);const uc=frKgPrice(c)*kg+ec;frAddStock(kg,q,uc);(c.fills=c.fills||[]).push({date:$('#ff_d').value||today(),qty:q,kg,unitCost:n(uc),partId:frPart(kg,false)?.id||'',by:ME.id});
     if(frLeft(c)<0.001)c.status='empty';save();toast(`اتضاف ${q} أسطوانة ${kg} كيلو للمخزن${c.status==='empty'?' — والكبيرة خلصت':''}`);render();
   });
   const up=()=>{const c=FRS().find(x=>x.id===$('#ff_c').value);const kg=n($('#ff_k').value);const mx=Math.floor((frLeft(c)+1e-9)/Math.max(0.001,kg));if(!$('#ff_q').dataset.ed)$('#ff_q').value=mx;$('#ff_q').max=mx;$('#ff_calc').innerHTML=frCalcBox(frLeft(c),frLeft(c)*frKgPrice(c),kg,$('#ff_e').value)};
-  ['ff_k','ff_e'].forEach(i=>$('#'+i).addEventListener('input',up));$('#ff_c').onchange=()=>{$('#ff_q').dataset.ed='';up()};$('#ff_q').oninput=()=>$('#ff_q').dataset.ed=1;up();
+  ['ff_k','ff_e'].forEach(i=>$('#'+i).addEventListener('input',up));$('#ff_k').addEventListener('input',()=>{$('#ff_pt').innerHTML=frPartOpts(n($('#ff_k').value))});$('#ff_c').onchange=()=>{$('#ff_q').dataset.ed='';up()};$('#ff_q').oninput=()=>$('#ff_q').dataset.ed=1;up();
 }
 function frEmpty(id){const c=FRS().find(x=>x.id===id);if(!c)return;const l=frLeft(c);
   modal(`<h3>الأسطوانة ${esc(c.code||'')} خلصت</h3>${l>0.001?`<div class="banner">لسه متسجل فيها ${frKg(l)} — هتتسجل فاقد (${money(l*frKgPrice(c))}).</div>`:''}<div class="muted">الأسطوانة هتتنقل للفاضية في المخزن وتقدر تبيعها بعدين.</div>`,()=>{c.lossKg=n(n(c.lossKg)+l);c.status='empty';c.emptyAt=today();save();toast('اتنقلت للفاضية');render()})}
-function frSell(id){const c=FRS().find(x=>x.id===id);if(!c)return;const fin=can('part_sales')||can('freon');
-  modal(`<h3>بيع أسطوانة فاضية ${+n(c.size)} كيلو</h3><div class="grid g2"><label class="f">المشتري<select id="fs_bt"><option value="ext">حد من بره</option><option value="client">عميل من العملاء</option></select></label><label class="f" id="fs_cl" hidden>العميل<select id="fs_c">${CL().map(x=>`<option value="${x.id}">${esc(cName(x))}</option>`).join('')}</select></label><label class="f" id="fs_nl">اسم المشتري<input id="fs_n"></label><label class="f">التليفون<input id="fs_ph" type="tel"></label>
-   <label class="f">السعر<input type="number" min="0" step="any" id="fs_p"></label><label class="f">السداد<select id="fs_t"><option value="cash">كاش</option><option value="credit">آجل</option></select></label><label class="f">طريقة الدفع<select id="fs_m">${S.settings.methods.map(m=>`<option>${esc(m)}</option>`).join('')}</select></label><label class="f">التاريخ<input type="date" id="fs_d" value="${today()}"></label></div>`,async()=>{
-    const p=n($('#fs_p').value);if(p<=0){toast('اكتب السعر');return false}const isC=$('#fs_bt').value==='client';const cl=isC?client($('#fs_c').value):null;const buyer=isC?cName(cl):$('#fs_n').value.trim();if(!buyer){toast('اكتب اسم المشتري');return false}
-    const d=$('#fs_d').value||today(),tm=$('#fs_t').value;let no;try{no=await takeCounter('psale')}catch(e){toast('محتاج إنترنت');return false}const sid=uid();
-    S.partSales.push({id:sid,no,date:d,clientId:cl?.id||'',branch:'',address:'',buyer,phone:$('#fs_ph').value.trim()||cl?.phone||'',lines:[{partId:'',name:`أسطوانة فريون فاضية ${+n(c.size)} كيلو (${c.code||''})`,qty:1,price:p,cost:0,wMonths:0,wPulses:0}],discount:0,total:p,term:tm,paid:tm==='cash'?p:0,due:tm==='credit'?addDays(d,30):'',method:$('#fs_m').value,notes:'بيع أسطوانة فريون فاضية',by:ME.id});
-    c.status='sold';c.sold={date:d,buyer,price:p,saleId:sid};save();toast('اتباعت واتعملت فاتورة');render();
+function frSell(id){const E=FRS().filter(c=>c.status==='empty');if(!E.length){toast('مفيش أسطوانات فاضية');return}
+  modal(`<h3>💰 بيع أسطوانات فريون فاضية</h3><div class="sec-title">اختار الأسطوانات</div><div class="grid" style="gap:4px;max-height:220px;overflow:auto">${E.map(c=>`<label class="row" style="gap:8px"><input type="checkbox" class="fs-c" value="${c.id}" style="width:auto" ${!id||c.id===id?'checked':''}> <b>${+n(c.size)} كيلو</b> <span class="muted small num">${esc(c.code||'')}</span> <span class="muted small">فاضية من ${fd(c.emptyAt||c.date)}</span></label>`).join('')}</div>
+   <div class="grid g2"><label class="f">المشتري<select id="fs_bt"><option value="ext">حد من بره</option><option value="client">عميل من العملاء</option><option value="sup">مورد (بيرجّعها)</option></select></label><label class="f" id="fs_cl" hidden>العميل<select id="fs_c">${CL().map(x=>`<option value="${x.id}">${esc(cName(x))}</option>`).join('')}</select></label><label class="f" id="fs_sl" hidden>المورد<select id="fs_s">${SUPS().map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join('')}</select></label><label class="f" id="fs_nl">اسم المشتري<input id="fs_n"></label><label class="f">التليفون<input id="fs_ph" type="tel"></label>
+   <label class="f">سعر الأسطوانة الواحدة<input type="number" min="0" step="any" id="fs_p"></label><label class="f">الإجمالي<input id="fs_tot" disabled></label><label class="f">السداد<select id="fs_t"><option value="cash">كاش</option><option value="credit">آجل</option></select></label><label class="f">طريقة الدفع<select id="fs_m">${S.settings.methods.map(m=>`<option>${esc(m)}</option>`).join('')}</select></label><label class="f">التاريخ<input type="date" id="fs_d" value="${today()}"></label></div>`,async()=>{
+    const ids=$$('.fs-c:checked').map(x=>x.value);if(!ids.length){toast('اختار أسطوانة واحدة على الأقل');return false}
+    const p=n($('#fs_p').value);if(p<=0){toast('اكتب السعر');return false}const bt=$('#fs_bt').value;const cl=bt==='client'?client($('#fs_c').value):null;const sp=bt==='sup'?S.suppliers.find(x=>x.id===$('#fs_s').value):null;
+    const buyer=cl?cName(cl):sp?sp.name:$('#fs_n').value.trim();if(!buyer){toast('اكتب اسم المشتري');return false}
+    const d=$('#fs_d').value||today(),tm=$('#fs_t').value;let no;try{no=await takeCounter('psale')}catch(e){toast('محتاج إنترنت');return false}const sid=uid();const C=ids.map(i=>FRS().find(c=>c.id===i)).filter(Boolean);const tot=n(p*C.length);
+    const groups={};C.forEach(c=>{const k=+n(c.size);(groups[k]=groups[k]||[]).push(c)});
+    S.partSales.push({id:sid,no,date:d,clientId:cl?.id||'',branch:'',address:'',buyer,phone:$('#fs_ph').value.trim()||cl?.phone||sp?.phone||'',lines:Object.entries(groups).map(([k,L])=>({partId:'',name:`أسطوانة فريون فاضية ${k} كيلو (${L.map(c=>c.code).join('، ')})`,qty:L.length,price:p,cost:0,wMonths:0,wPulses:0})),discount:0,total:tot,term:tm,paid:tm==='cash'?tot:0,due:tm==='credit'?addDays(d,30):'',method:$('#fs_m').value,notes:'بيع أسطوانات فريون فاضية',by:ME.id});
+    C.forEach(c=>{c.status='sold';c.sold={date:d,buyer,price:p,saleId:sid}});save();toast(`اتباع ${C.length} أسطوانة فاضية بـ ${money(tot)} واتعملت فاتورة`);render();
   });
-  $('#fs_bt').onchange=()=>{const isC=$('#fs_bt').value==='client';$('#fs_cl').hidden=!isC;$('#fs_nl').hidden=isC};
+  const tt=()=>{$('#fs_tot').value=money(n($('#fs_p').value)*$$('.fs-c:checked').length)};$('#fs_p').oninput=tt;$$('.fs-c').forEach(x=>x.onchange=tt);
+  $('#fs_bt').onchange=()=>{const v=$('#fs_bt').value;$('#fs_cl').hidden=v!=='client';$('#fs_sl').hidden=v!=='sup';$('#fs_nl').hidden=v!=='ext'};
 }
-Object.assign(X9,{frBuy:()=>frBuy(),frFill:(t,id)=>frFill(id),frEmpty:(t,id)=>frEmpty(id),frSell:(t,id)=>frSell(id)});
-Object.assign(NEED9,{frBuy:'freon',frFill:'freon',frEmpty:'freon',frSell:'freon'});
+function frRename(id){const p=part(id);if(!p)return;
+  modal(`<h3>صنف الأسطوانات الصغيرة (${+n(p.freonKg)} كيلو)</h3><div class="grid g2"><label class="f span2">اسم الصنف في المخزن<input id="fr_nm" value="${esc(p.name)}"></label><div class="span2 fr-chips" data-for="fr_nm">${['أسطوانات فريون','أسطوانات كرايوجين',`أسطوانات فريون ${+n(p.freonKg)} كيلو`].map(x=>`<button type="button" data-v="${esc(x)}">${esc(x)}</button>`).join('')}</div><label class="f">سعر البيع<input type="number" min="0" step="any" id="fr_sl" value="${n(p.sell)}"></label><label class="f">حد التنبيه (أقل كمية)<input type="number" min="0" step="1" id="fr_mn" value="${n(p.min)}"></label></div><div class="muted small">الاسم بيتغير في المخزن والتقارير والفواتير الجاية، والصنف بيفضل مربوط بالفريون. التقارير والفواتير القديمة بتفضل بالاسم اللي اتعملت بيه.</div>`,()=>{const nm=$('#fr_nm').value.trim();if(!nm){toast('اكتب الاسم');return false}p.name=nm;p.sell=n($('#fr_sl').value);p.min=n($('#fr_mn').value);save();toast('اتحفظ');render()});
+}
+Object.assign(X9,{frRename:(t,id)=>frRename(id),frBuy:()=>frBuy(),frFill:(t,id)=>frFill(id),frEmpty:(t,id)=>frEmpty(id),frSell:(t,id)=>frSell(id||'')});
+Object.assign(NEED9,{frRename:'freon',frBuy:'freon',frFill:'freon',frEmpty:'freon',frSell:'freon'});
 (function(){const st=document.createElement('style');st.textContent=`
 .fr-cyl{display:grid;grid-template-columns:62px minmax(0,1fr) auto;gap:14px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)}.fr-cyl:last-child{border-bottom:0}
 .fr-tank{width:46px;height:74px;border:3px solid var(--accent);border-radius:14px 14px 9px 9px;position:relative;overflow:hidden;margin:auto;background:var(--surface-2)}.fr-tank i{position:absolute;bottom:0;left:0;right:0;background:linear-gradient(#5fb4d6,#2b8fb8)}

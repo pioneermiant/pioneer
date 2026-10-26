@@ -6101,7 +6101,7 @@ let XR_PRE='';
 
 
 /* ---------- فحص التحديثات ---------- */
-const APP_VER='2026.10.26.12';
+const APP_VER='2026.10.26.13';
 async function checkUpdate(){try{if(location.protocol==='file:')return;const t=await (await fetch(location.pathname+'?_='+Date.now(),{cache:'no-store'})).text();const m=t.match(/const APP_VER='([^']+)'/);if(m&&m[1]!==APP_VER)showUpd(m[1])}catch(e){}}
 function showUpd(v){if(document.getElementById('updBar'))return;const b=document.createElement('div');b.id='updBar';b.style.cssText='position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:80;background:#1d2b45;color:#fff;padding:10px 16px;border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,.25);display:flex;gap:12px;align-items:center;font-weight:600;max-width:92vw';b.innerHTML='<span>🔄 فيه نسخة جديدة من السيستم</span><button type="button" style="background:#2b8fb8;color:#fff;border:0;border-radius:10px;padding:6px 14px;font:inherit;cursor:pointer">حدّث دلوقتي</button>';b.querySelector('button').onclick=()=>{location.replace(location.pathname+'?v='+encodeURIComponent(v)+location.hash)};document.body.appendChild(b)}
 setTimeout(checkUpdate,8000);setInterval(checkUpdate,5*60*1000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkUpdate()});
@@ -6880,7 +6880,7 @@ Object.assign(NEED9,{frCollect:'freon_collect',frEAdj:'freon_edit'});
 let JB_P=null,ZX_P=null;
 function loadJB(){if(window.JsBarcode)return Promise.resolve();return JB_P||(JB_P=loadScript('https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.6/JsBarcode.all.min.js').catch(()=>loadScript('https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js')))}
 function loadZX(){if(window.ZXing)return Promise.resolve();return ZX_P||(ZX_P=loadScript('https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js').catch(()=>loadScript('https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js')))}
-const LBL_SIZES=[[50,30],[40,30],[50,25],[40,20],[58,40],[30,20]];
+const LBL_SIZES=[[50,30],[35,25],[25,35],[40,30],[50,25],[40,20],[58,40],[30,20]];
 const lblCfg=()=>({w:50,h:30,...(S.settings.label||{}),name:!!(S.settings.label||{}).name2,price:!!(S.settings.label||{}).price2});
 function partByCode(code){const raw=String(code||'');code=(typeof normD==='function'?normD(raw):raw).trim().toUpperCase();if(!code)return null;
   const N=x=>String(x||'').toUpperCase().replace(/[^A-Z0-9]/g,'').replace(/O/g,'0');const k=N(code);if(!k)return null;
@@ -6903,7 +6903,7 @@ function lblCanvas(p,cfg){const D=8;const W=Math.round(cfg.w*D),H=Math.round(cfg
 async function bcLabels(pre){await loadJB().catch(()=>{});if(!window.JsBarcode){toast('مقدرتش أحمّل مكتبة الباركود — اتأكد من النت');return}
   const cfg=lblCfg();const kind=window._BCK||'';const P=[...S.parts].filter(p=>!kind||catOf(p)===kind).sort((a,b)=>(a.code||'').localeCompare(b.code||''));const sel=new Set(pre||[]);
   modal(`<h3>🏷️ طباعة باركود للأصناف</h3><div class="grid g3">
-   <label class="f">مقاس الملصق (مم)<select id="bl_sz">${LBL_SIZES.map(([w,h])=>`<option value="${w}x${h}" ${cfg.w===w&&cfg.h===h?'selected':''}>${w} × ${h}</option>`).join('')}</select></label>
+   <label class="f">مقاس الملصق (عرض × طول بالمم)<select id="bl_sz">${(LBL_SIZES.some(([w,h])=>w===cfg.w&&h===cfg.h)?LBL_SIZES:[...LBL_SIZES,[cfg.w,cfg.h]]).map(([w,h])=>`<option value="${w}x${h}" ${cfg.w===w&&cfg.h===h?'selected':''}>${w} × ${h}</option>`).join('')}<option value="custom">مقاس تاني…</option></select></label>
    <label class="row" style="gap:6px;align-self:end"><input type="checkbox" id="bl_nm" style="width:auto" ${cfg.name?'checked':''}> اسم الصنف</label><label class="row" style="gap:6px;align-self:end"><input type="checkbox" id="bl_pr" style="width:auto" ${cfg.price?'checked':''}> سعر البيع</label></div>
    <div class="row" style="gap:6px"><input id="bl_q" placeholder="بحث باسم أو كود" style="flex:1"><select id="bl_k" style="width:auto"><option value="">كل الأصناف</option><option value="spare" ${kind==='spare'?'selected':''}>قطع الغيار</option><option value="cons" ${kind==='cons'?'selected':''}>المستهلكات</option></select><button type="button" class="btn sm" id="bl_all">تحديد الكل</button><button type="button" class="btn sm ghost" id="bl_none">شيل التحديد</button></div>
    <div id="bl_list" style="max-height:260px;overflow:auto;border:1px solid var(--line);border-radius:12px;padding:4px 10px"></div>
@@ -6916,6 +6916,7 @@ async function bcLabels(pre){await loadJB().catch(()=>{});if(!window.JsBarcode){
   const ok=$('#mOk');if(ok)ok.remove();
   const rows=()=>{const q=($('#bl_q').value||'').trim().toLowerCase(),k=$('#bl_k').value;return S.parts.filter(p=>(!k||catOf(p)===k)&&(!q||(p.name+' '+(p.code||'')).toLowerCase().includes(q))).sort((a,b)=>(a.code||'').localeCompare(b.code||''))};
   const cur=()=>{const [w,h]=$('#bl_sz').value.split('x').map(Number);return {w,h,name:$('#bl_nm').checked,price:$('#bl_pr').checked}};
+  $('#bl_sz').addEventListener('change',()=>{if($('#bl_sz').value!=='custom')return;const v=prompt('اكتب المقاس بالمم (العرض × الطول) — مثلاً 35x25','35x25');const m=String(v||'').replace(/[×*X]/g,'x').match(/^\s*(\d+(?:\.\d+)?)\s*x\s*(\d+(?:\.\d+)?)\s*$/);if(!m){$('#bl_sz').value=`${cfg.w}x${cfg.h}`;prev();return}const w=+m[1],h=+m[2];if(w<15||h<10||w>110||h>110){toast('المقاس ده مش منطقي');$('#bl_sz').value=`${cfg.w}x${cfg.h}`;prev();return}const o=document.createElement('option');o.value=`${w}x${h}`;o.textContent=`${w} × ${h}`;$('#bl_sz').insertBefore(o,$('#bl_sz').lastElementChild);$('#bl_sz').value=o.value;prev()},true);
   const draw=()=>{const L=rows();$('#bl_list').innerHTML=L.map(p=>`<div class="row between" style="padding:5px 0;border-bottom:1px solid var(--line)"><label class="row" style="gap:6px;flex:1;min-width:0"><input type="checkbox" class="bl-c" value="${p.id}" style="width:auto" ${sel.has(p.id)?'checked':''}><span>${esc(p.name)} <span class="muted small num">${esc(p.code||'(هيتعمله كود)')}</span></span></label><span class="row" style="gap:4px"><span class="muted small">نسخ</span><input type="number" min="1" max="999" class="bl-n" data-id="${p.id}" value="${window._BLN?.[p.id]||Math.max(1,Math.min(50,n(p.qty)||1))}" style="width:64px"></span></div>`).join('')||'<div class="empty">مفيش</div>';count()};
   const count=()=>{const ids=[...sel];const tot=ids.reduce((a,id)=>a+copies(id),0);$('#bl_cnt').textContent=ids.length?`${ids.length} صنف — ${tot} ملصق`:'اختار الأصناف';prev()};
   window._BLN=window._BLN||{};const copies=id=>Math.max(1,parseInt(window._BLN[id]||Math.max(1,Math.min(50,n(part(id)?.qty)||1))));

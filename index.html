@@ -6085,7 +6085,7 @@ let XR_PRE='';
 
 
 /* ---------- فحص التحديثات ---------- */
-const APP_VER='2026.10.26.4';
+const APP_VER='2026.10.26.5';
 async function checkUpdate(){try{if(location.protocol==='file:')return;const t=await (await fetch(location.pathname+'?_='+Date.now(),{cache:'no-store'})).text();const m=t.match(/const APP_VER='([^']+)'/);if(m&&m[1]!==APP_VER)showUpd(m[1])}catch(e){}}
 function showUpd(v){if(document.getElementById('updBar'))return;const b=document.createElement('div');b.id='updBar';b.style.cssText='position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:80;background:#1d2b45;color:#fff;padding:10px 16px;border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,.25);display:flex;gap:12px;align-items:center;font-weight:600;max-width:92vw';b.innerHTML='<span>🔄 فيه نسخة جديدة من السيستم</span><button type="button" style="background:#2b8fb8;color:#fff;border:0;border-radius:10px;padding:6px 14px;font:inherit;cursor:pointer">حدّث دلوقتي</button>';b.querySelector('button').onclick=()=>{location.replace(location.pathname+'?v='+encodeURIComponent(v)+location.hash)};document.body.appendChild(b)}
 setTimeout(checkUpdate,8000);setInterval(checkUpdate,5*60*1000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkUpdate()});
@@ -6914,13 +6914,15 @@ async function bcLabels(pre){await loadJB().catch(()=>{});if(!window.JsBarcode){
   draw();
 }
 /* ماسح الكاميرا — شغال على أندرويد (BarcodeDetector) وعلى آيفون (ZXing) */
-async function scanCodes(onCode,opt={}){
+let BEEP_CTX=null;
+function beep(ok=true){try{BEEP_CTX=BEEP_CTX||new (window.AudioContext||window.webkitAudioContext)();const c=BEEP_CTX;if(c.state==='suspended')c.resume();const o=c.createOscillator(),g=c.createGain();o.type='square';o.frequency.value=ok?2600:420;g.gain.setValueAtTime(0.0001,c.currentTime);g.gain.exponentialRampToValueAtTime(0.25,c.currentTime+0.01);g.gain.exponentialRampToValueAtTime(0.0001,c.currentTime+(ok?0.13:0.35));o.connect(g);g.connect(c.destination);o.start();o.stop(c.currentTime+(ok?0.15:0.4))}catch(e){}}
+async function scanCodes(onCode,opt={}){try{BEEP_CTX=BEEP_CTX||new (window.AudioContext||window.webkitAudioContext)();BEEP_CTX.resume&&BEEP_CTX.resume()}catch(e){}
   const ov=document.createElement('div');ov.id='scanOv';ov.style.cssText='position:fixed;inset:0;z-index:80;background:rgba(5,8,15,.92);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:16px';
   ov.innerHTML=`<div style="color:#fff;font-weight:700">${esc(opt.title||'📷 وجّه الكاميرا على الباركود')}</div><div style="position:relative;width:min(520px,100%)"><video id="scanV" playsinline muted style="width:100%;border-radius:14px;background:#000;max-height:60vh;object-fit:cover"></video><div style="position:absolute;left:8%;right:8%;top:45%;height:2px;background:#ff3b3b;box-shadow:0 0 8px #ff3b3b"></div></div><div id="scanMsg" style="color:#cfd6e4;min-height:22px;text-align:center"></div><div class="row"><button type="button" class="btn pri" id="scanDone">${opt.multi?'خلصت':'إلغاء'}</button><button type="button" class="btn" id="scanType">⌨️ اكتب الكود</button></div>`;
   document.body.appendChild(ov);let alive=true,stream=null,zx=null,last='',lastT=0;
   const stop=()=>{alive=false;try{zx&&zx.reset()}catch(e){}try{stream&&stream.getTracks().forEach(t=>t.stop())}catch(e){}ov.remove()};
   const got=code=>{code=String(code||'').trim();if(!code)return;const t=Date.now();if(code===last&&t-lastT<1800)return;last=code;lastT=t;try{navigator.vibrate&&navigator.vibrate(60)}catch(e){}
-    const r=onCode(code);$('#scanMsg').textContent=typeof r==='string'?r:'';if(!opt.multi)stop()};
+    const r=onCode(code);const bad=typeof r==='string'&&/^(❌|⚠️)/.test(r);beep(!bad);if(typeof r==='string'&&r){if(opt.multi)$('#scanMsg').textContent=r;else toast(r)}if(!opt.multi)stop()};
   $('#scanDone').onclick=stop;$('#scanType').onclick=()=>{const v=prompt('اكتب كود الصنف (مثلاً SP-0001)');if(v)got(v)};
   const v=$('#scanV');
   try{
@@ -6940,7 +6942,7 @@ function psAddByCode(code){const f=partByCode(code);if(!f)return '❌ الكود
   row=rowsAll.find(r=>!r.querySelector('.ps-part').value);let added=false;if(!row){box.insertAdjacentHTML('beforeend',psLineHTML());row=$$('#ps_lines .ps-row').pop();added=true}
   const sel=row.querySelector('.ps-part');const opt=[...sel.options].find(o=>o.value===val);if(!opt||opt.disabled){if(added)row.remove()}if(!opt){return `⚠️ "${nm}" مش من نوع الفاتورة دي (${window._PSK==='cons'?'مستهلكات':'قطع غيار'})`}
   if(opt.disabled)return `⚠️ ${nm} خلصان من المخزن`;sel.value=val;sel.dispatchEvent(new Event('change',{bubbles:true}));return `✅ اتضاف: ${nm}`}
-Object.assign(X9,{bcLabels:(t,id)=>{window._BCK=t.dataset.k||'';bcLabels(id?[id]:[])},psScan:()=>scanCodes(psAddByCode,{multi:true,title:'📷 امسح باركود الأصناف — كل مسحة بتضيف واحد'})});
+Object.assign(X9,{bcLabels:(t,id)=>{window._BCK=t.dataset.k||'';bcLabels(id?[id]:[])},psScan:()=>scanCodes(psAddByCode,{title:'📷 وجّه الكاميرا على باركود الصنف'})});
 Object.assign(NEED9,{bcLabels:'stock'});
 
 /* =====================================================================

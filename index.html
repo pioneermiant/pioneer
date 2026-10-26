@@ -426,7 +426,7 @@ const DEFAULT_SETTINGS={
   ]
 };
 const COLS=['policies','users','clients','parts','reports','contracts','payments','requests','units','partReturns','returns','catalog','tests','offers','meetings'];
-const PERM_COLS={capsnaps:['capital_view'],frret:['freon','freon_view','freon_buy','freon_fill','freon_empties','freon_sell','freon_ret','freon_send','freon_edit','accounts','capital_view'],stockcounts:['stock_count','stock_count_approve','accounts'],freon:['freon_buy','freon_fill','freon_empties','freon_sell','freon_ret','freon_send','freon_edit','capital_view','freon','freon_view','accounts'],suppliers:['freon_buy','capital_view','suppliers','accounts','devices','treasury','treasury_view','suppay_req','suppay_approve','ext_repair','freon','place_loc'],purchases:['freon_buy','capital_view','suppliers','accounts','devices','suppay_req','suppay_approve','treasury','treasury_view','ext_repair','freon'],supplierPayments:['capital_view','suppliers','accounts','suppay_req','suppay_approve','treasury','treasury_view'],sales:['capital_view','devices','ar','accounts','treasury','treasury_view'],rentals:['capital_view','devices','ar','accounts','part_rent'],stockDevices:['capital_view','devices','accounts'],partSales:['freon_sell','capital_view','part_sales','cons_sales','ar','accounts','orders_manage','orders_work','treasury','treasury_view','freon','ext_repair'],orders:['orders_manage','orders_work','ar','accounts'],testKeys:['tests'],attendance:['attendance','payroll_prep','payroll_approve','home_att'],salaries:['salary_set','payroll_prep','payroll_approve'],inspections:['inspections'],payroll:['capital_view','payroll_prep','payroll_approve','treasury','treasury_view'],treasury:['capital_view','treasury','treasury_view','accounts','treasury_cfg'],contractReqs:['contracts','clients']};
+const PERM_COLS={capsnaps:['capital_view'],frret:['freon_collect','freon','freon_view','freon_buy','freon_fill','freon_empties','freon_sell','freon_ret','freon_send','freon_edit','accounts','capital_view'],stockcounts:['stock_count','stock_count_approve','accounts'],freon:['freon_collect','freon_buy','freon_fill','freon_empties','freon_sell','freon_ret','freon_send','freon_edit','capital_view','freon','freon_view','accounts'],suppliers:['freon_buy','capital_view','suppliers','accounts','devices','treasury','treasury_view','suppay_req','suppay_approve','ext_repair','freon','place_loc'],purchases:['freon_buy','capital_view','suppliers','accounts','devices','suppay_req','suppay_approve','treasury','treasury_view','ext_repair','freon'],supplierPayments:['capital_view','suppliers','accounts','suppay_req','suppay_approve','treasury','treasury_view'],sales:['capital_view','devices','ar','accounts','treasury','treasury_view'],rentals:['capital_view','devices','ar','accounts','part_rent'],stockDevices:['capital_view','devices','accounts'],partSales:['freon_sell','capital_view','part_sales','cons_sales','ar','accounts','orders_manage','orders_work','treasury','treasury_view','freon','ext_repair'],orders:['orders_manage','orders_work','ar','accounts'],testKeys:['tests'],attendance:['attendance','payroll_prep','payroll_approve','home_att'],salaries:['salary_set','payroll_prep','payroll_approve'],inspections:['inspections'],payroll:['capital_view','payroll_prep','payroll_approve','treasury','treasury_view'],treasury:['capital_view','treasury','treasury_view','accounts','treasury_cfg'],contractReqs:['contracts','clients']};
 const OWN_COLS={custody:['capital_view','custody','accounts','treasury','treasury_view'],comps:['extra_pay','payroll_prep','payroll_approve','hr'],handovers:['capital_view','handover_recv','accounts','treasury','custody'],notes:[],vouchers:['capital_view','vouchers_approve','accounts','treasury','treasury_view'],hr:['capital_view','hr','payroll_prep','payroll_approve','loans','custody','home_att'],evals:['evals'],punches:['hr','payroll_prep','payroll_approve','home_att'],payslips:['payroll_approve'],testAnswers:['tests'],empFiles:['emp_files']};
 const SPECIAL_COLS=['notifs','ratings','penalties','empDocs','bonuses','weekrep'];
 const ALL_COLS=[...COLS,...Object.keys(PERM_COLS),...Object.keys(OWN_COLS),...SPECIAL_COLS,'secrets','audit','verify','archive'];
@@ -665,6 +665,7 @@ const PERMS=[
  ['freon_ret','الفريون: تسجيل مرتجع من عيادة','المستهلكات'],
  ['freon_send','الفريون: إرسال بدل للعيادة','المستهلكات'],
  ['freon_edit','الفريون: تعديل الأسماء والأسعار والحذف','المستهلكات'],
+ ['freon_collect','الفريون: استلام الأسطوانات الفاضية من العيادات (المندوب)','المستهلكات'],
  ['freon_view','يشوف صفحة الفريون','المستهلكات'],
  ['place_loc','تسجيل وتعديل مواقع العيادات والموردين على الخريطة','الشغل'],
  ['nav_order','ترتيب القايمة الجانبية (والقايمة اللي فوق في الموبايل) لكل المستخدمين','الإدارة'],
@@ -677,20 +678,20 @@ const ROLE_PERMS={
  accountant:{vouchers:1,treasury:1,treasury_view:1,home_money:1,client_pay:1,reports_all:1,clients:1,contracts:1,stock:1,stock_costs:1,part_sales:1,returns:1,devices:1,suppliers:1,ar:1,accounts:1,custody:1},
  staff:{},
  manager:{},
- courier:{orders_work:1},
+ courier:{orders_work:1,freon_collect:1},
  cons_staff:{orders_work:1,stock:1},
  exec:'ALL_BUT_SETTINGS'
 };
 const MGR_PERMS={
  maint:{attendance:1,requests:1,reports_write:1,reports_all:1,prices_edit:1,clients:1,contracts:1,stock:1,stock_edit:1,part_sales:1,returns:1,hr:1,evals:1,penalties:1,tests:1,custody:1,assign_mission:1,home_att:1,ext_repair:1,client_parts:1,part_rent:1,place_loc:1,freon:1,freon_view:1,stock_count:1},
- cons:{orders_manage:1,orders_work:1,shop_clients:1,clients:1,stock:1,stock_edit:1,stock_costs:1,part_sales:1,hr:1,evals:1,penalties:1,assign_mission:1,home_att:1,stock_count:1},
+ cons:{freon_collect:1,orders_manage:1,orders_work:1,shop_clients:1,clients:1,stock:1,stock_edit:1,stock_costs:1,part_sales:1,hr:1,evals:1,penalties:1,assign_mission:1,home_att:1,stock_count:1},
  acc:{bonuses:1,salary_set:1,payroll_prep:1,attendance:1,reports_all:1,clients:1,contracts:1,stock:1,stock_costs:1,part_sales:1,returns:1,devices:1,suppliers:1,ar:1,accounts:1,custody:1,delete:1,hr:1,evals:1,penalties:1,assign_mission:1,home_att:1},
  mkt:{clients:1,contracts:1,devices:1,hr:1,evals:1,penalties:1,assign_mission:1,home_att:1},
  sales:{clients:1,contracts:1,devices:1,part_sales:1,ar:1,stock:1,shop_clients:1,hr:1,evals:1,penalties:1}
 };
 function permsOf(u){if(!u)return{};if(u.owner||(u.role==='admin'&&!u.perms))return Object.fromEntries(PERMS.map(p=>[p[0],true]));let d=u.role==='admin'?'ALL':u.role==='manager'?(MGR_PERMS[u.dept]||{}):(ROLE_PERMS[u.role]||{});if(d==='ALL')d=Object.fromEntries(PERMS.map(p=>[p[0],true]));if(d==='ALL_BUT_SETTINGS')d=Object.fromEntries(PERMS.map(p=>[p[0],p[0]!=='settings']));return Object.fromEntries(PERMS.map(([k])=>[k,u.perms&&k in u.perms?!!u.perms[k]:!!d[k]]))}
 const can=p=>!!ME&&(isOwnerU(ME)||(isStaff()&&(!!permsOf(ME)[p]||(p.startsWith('freon_')&&!!permsOf(ME).freon))));
-const FR_SUB=['freon_buy','freon_fill','freon_empties','freon_sell','freon_ret','freon_send','freon_edit'];const frAny=()=>can('freon')||FR_SUB.some(k=>can(k));
+const FR_SUB=['freon_buy','freon_fill','freon_empties','freon_sell','freon_ret','freon_send','freon_edit','freon_collect'];const frAny=()=>can('freon')||FR_SUB.some(k=>can(k));
 const mine=r=>can('reports_all')||r.by===ME?.id;
 const CL=()=>S.clients.filter(c=>!c.deleted);
 const SUPS=()=>S.suppliers.filter(c=>!c.deleted);
@@ -1720,6 +1721,7 @@ function viewClient(id){
   <div class="panel"><h3>ضمان قطع الغيار</h3>${warrantyTable(warrantyRows(id),false)}</div>
   ${clientAcctPanel(c)}
   ${fin&&items.length?debtPanel(items,id):''}
+  ${(()=>{const L=frOwedOf(id);if(!L.length||!(can('freon_view')||frAny()))return '';return `<div class="panel row between"><span>🫙 <b>فوارغ أسطوانات عندها:</b> ${L.map(x=>`${x.q} × ${esc(x.p.name)}`).join(' · ')}${frCredit(id)>0.0005?` · ورصيد فريون ${frKg(frCredit(id))}`:''}</span>${can('freon_collect')?`<button class="btn sm pri" data-act="frCollect" data-id="${id}" data-p="${L[0].p.id}">استلام فوارغ</button>`:''}</div>`})()}
   ${fin&&items.length?`<div class="panel"><div class="row between"><h3 style="margin:0">المستحقات المفتوحة</h3>${can('client_pay')?`<button class="btn sm pri" data-act="clientPay" data-id="${c.id}">+ تسجيل دفعة على الحساب</button>`:''}</div>${items.map(i=>`<div class="row between" style="padding:6px 0;border-bottom:1px solid var(--line)"><span>${esc(i.label)} <span class="muted small">— ${fd(i.due)}</span></span><span class="row"><b class="num">${money(i.bal)}</b>${dueBadge(i.due)}${can('ar')?`<button class="btn sm pri" data-act="collect" data-type="${i.type}" data-id="${i.x.id}" data-sub="${i.sub??''}">تحصيل</button>`:''}</span></div>`).join('')}</div>`:''}
   <div class="panel"><div class="row between"><h3 style="margin:0">قطع الغيار اللي اتركبت عنده</h3>${can('stock')?`<button class="btn sm" data-act="mvClient" data-id="${c.id}">التفاصيل</button>`:''}</div>
     ${pa.length?`<div class="tbl-wrap" style="margin-top:8px"><table class="t"><thead><tr><th>القطعة</th><th>العدد</th><th>القيمة</th><th>آخر مرة</th></tr></thead><tbody>${pa.map(p=>`<tr><td>${esc(p.name)}</td><td><b>${p.qty}</b></td><td class="num">${money(p.val)}</td><td>${fd(p.last)}</td></tr>`).join('')}</tbody></table></div>`:'<div class="empty" style="margin-top:8px">لسه مفيش قطع اتركبت</div>'}</div>
@@ -1838,7 +1840,7 @@ function viewStock(){
   const sold={};S.reports.forEach(r=>r.parts.forEach(p=>{if(!p.unitId)sold[p.partId]=(sold[p.partId]||0)+p.qty}));
   return head+`
   ${costs?`<div class="grid g3"><div class="panel kpi"><span>عدد الأصناف</span><b>${SPARES().length}</b></div><div class="panel kpi"><span>قيمة الأصناف (بسعر الشراء)</span><b>${money(val)}</b></div><div class="panel kpi"><span>تحت الحد الأدنى</span><b>${SPARES().filter(p=>n(p.qty)<=n(p.min)).length}</b></div></div>`:''}
-  <div class="row between"><div class="row"><input id="sq" placeholder="بحث باسم القطعة أو الكود" value="${esc(SQ)}" style="max-width:260px"><select id="scf" style="width:auto"><option value="">كل الحالات</option>${Object.entries(CONDS).map(([k,[l]])=>`<option value="${k}" ${k===SCF?'selected':''}>${l}</option>`).join('')}</select>${(()=>{const T=[...new Set(SPARES().map(p=>p.ptype).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ar'));return T.length?`<select id="spt" style="width:auto"><option value="">كل الأنواع</option>${T.map(t=>`<option ${t===SPT?'selected':''}>${esc(t)}</option>`).join('')}</select>`:''})()}</div>${edit?'<button class="btn pri" data-act="addPart">+ صنف جديد</button>':''}</div>
+  <div class="row between"><div class="row"><input id="sq" placeholder="بحث باسم القطعة أو الكود" value="${esc(SQ)}" style="max-width:260px"><select id="scf" style="width:auto"><option value="">كل الحالات</option>${Object.entries(CONDS).map(([k,[l]])=>`<option value="${k}" ${k===SCF?'selected':''}>${l}</option>`).join('')}</select>${(()=>{const T=[...new Set(SPARES().map(p=>p.ptype).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ar'));return T.length?`<select id="spt" style="width:auto"><option value="">كل الأنواع</option>${T.map(t=>`<option ${t===SPT?'selected':''}>${esc(t)}</option>`).join('')}</select>`:''})()}</div><div class="row">${can('stock')?'<button class="btn" data-act="bcLabels" data-k="spare">🏷️ باركود</button>':''}${edit?'<button class="btn pri" data-act="addPart">+ صنف جديد</button>':''}</div></div>
   <div class="muted small">كل صنف بياخد كود لوحده (SP-…). دوس على الصورة تكبّرها، و"اتركب فين" بيوريك العيادات اللي اتركب عندها.</div>
   ${list.length?`<div class="pgrid">${list.sort((a,b)=>a.name.localeCompare(b.name,'ar')).map(p=>`<div class="pcard">${p.photo?`<img src="${p.photo}" data-act="showImg" data-src="pt:${p.id}" alt="" style="cursor:zoom-in">`:'<div class="noimg">⚙️</div>'}<div class="pbody">${p.ptype?`<span class="pill p-info" style="justify-self:start">${esc(p.ptype)}</span>`:''}<b>${esc(p.name)}</b><div class="muted small num">${esc(p.code||'')}${p.ref?' · '+esc(p.ref):''}</div>
     <div class="row between"><span class="num">${money(p.sell)}</span>${n(p.qty)<=n(p.min)?`<span class="pill p-bad">${n(p.qty)}</span>`:`<span class="pill p-ok">${n(p.qty)}</span>`}</div>
@@ -2201,7 +2203,7 @@ function openPartSale(kind){
    <label class="f" id="ps_bp_l">تليفونه<input id="ps_bp" type="tel"></label>
    <label class="f" id="ps_bc_l" hidden>العيادة<select id="ps_bc">${CL().map(c=>`<option value="${c.id}">${esc(cName(c))}${cSub(c)?' – '+esc(cSub(c)):''}</option>`).join('')}</select></label>
    <label class="f" id="ps_bb_l" hidden>الفرع (الأوردر رايح فين)<select id="ps_bb"></select></label><div id="ps_binf" class="muted small span2"></div></div>
-   <div class="sec-title">القطع</div><div id="ps_lines" class="grid" style="gap:8px">${psLineHTML()}</div><div><button type="button" class="btn sm" id="ps_add">+ قطعة</button></div>
+   <div class="sec-title">القطع</div><div id="ps_lines" class="grid" style="gap:8px">${psLineHTML()}</div><div class="row"><button type="button" class="btn sm" id="ps_add">+ قطعة</button><button type="button" class="btn sm pri" data-act="psScan">📷 مسح باركود</button></div>
    <div class="grid g3"><label class="f">خصم<input type="number" min="0" step="any" id="ps_disc" value="0"></label><label class="f">🚚 خدمة توصيل<span class="row" style="gap:6px;flex-wrap:nowrap"><input type="checkbox" id="ps_dlv" style="width:auto"><input type="number" min="0" step="any" id="ps_dfee" value="${n(S.settings.deliveryFee)}" disabled></span></label><label class="f">طريقة الدفع<select id="ps_m">${S.settings.methods.map(m=>`<option>${esc(m)}</option>`).join('')}</select></label>
    <label class="f">السداد<select id="ps_term"><option value="cash">كاش (مدفوع بالكامل)</option><option value="credit">آجل</option></select></label>
    <label class="f" id="ps_paid_l" hidden>المدفوع دلوقتي<input type="number" min="0" step="any" id="ps_paid" value="0"></label><label class="f" id="ps_due_l" hidden>ميعاد التحصيل<input type="date" id="ps_due" value="${addDays(today(),30)}"></label>
@@ -2220,7 +2222,7 @@ function openPartSale(kind){
     const c=bt==='client'?client($('#ps_bc').value):null;
     const brn=c&&branchesOf(c).length?$('#ps_bb').value:'';const bri=c&&brn?branchInfo(c,brn):null;
     S.partSales.push({id,no,kind,date:$('#ps_d').value,clientId:c?.id||'',branch:brn,address:c?(bri?bri.address:c.address)||'':'',buyer:c?c.name:$('#ps_bn').value.trim(),phone:c?(bri?.phone||c.phone):$('#ps_bp').value.trim(),lines,discount:disc,delivery:dlv,total,term:tm,paid:tm==='cash'?total:Math.min(total,n($('#ps_paid').value)),due:tm==='credit'?$('#ps_due').value:'',method:$('#ps_m').value,notes:$('#ps_notes').value.trim(),by:ME.id});
-    try{writeVerify('i',(S.partSales||[]).find(y=>y.id===id))}catch(e){}window.JUST_PS=id;save();toast('اتسجلت الفاتورة');go('psale',id);
+    try{writeVerify('i',(S.partSales||[]).find(y=>y.id===id))}catch(e){}window.JUST_PS=id;save();toast('اتسجلت الفاتورة');go('psale',id);frAfterDeliver(c?.id,lines);
   });
   const box=$('#ps_lines');
   const calc=()=>{let t=0;$$('#ps_lines .ps-row').forEach(r=>{const q=parseInt(r.querySelector('.ps-qty').value)||0,p=n(r.querySelector('.ps-price').value);r.querySelector('.lt').textContent=r.querySelector('.ps-part').value?money(q*p):'—';if(r.querySelector('.ps-part').value)t+=q*p});t-=n($('#ps_disc').value);const dv=$('#ps_dlv').checked?n($('#ps_dfee').value):0;t+=dv;$('#ps_tot').innerHTML=`${dv?`<div class="row between small"><span>🚚 خدمة توصيل</span><span class="num">${money(dv)}</span></div>`:''}<div class="grand"><span>الإجمالي</span><span class="num">${money(t)}</span></div>`};
@@ -2788,7 +2790,7 @@ service cloud.firestore {
     match /sales/{id} { allow read: if can('capital_view') || can('devices') || can('ar') || can('accounts') || can('treasury') || can('treasury_view') || ownClient(); allow write: if can('devices'); }
     match /rentals/{id} { allow read: if can('capital_view') || can('devices') || can('ar') || can('accounts') || can('part_rent') || ownClient(); allow write: if can('devices') || can('part_rent'); }
     match /stockcounts/{id} { allow read: if can('stock_count') || can('stock_count_approve') || can('accounts'); allow create, update: if can('stock_count') || can('stock_count_approve'); allow delete: if can('stock_count_approve'); }
-    match /freon/{id} { allow read: if can('freon_buy') || can('freon_fill') || can('freon_empties') || can('freon_sell') || can('freon_ret') || can('freon_send') || can('freon_edit') || can('capital_view') || can('freon') || can('freon_view') || can('accounts') || can('invoice_delete'); allow write: if can('freon') || can('freon_buy') || can('freon_fill') || can('freon_sell') || can('freon_edit') || can('invoice_delete'); }
+    match /freon/{id} { allow read: if can('freon_collect') || can('freon_buy') || can('freon_fill') || can('freon_empties') || can('freon_sell') || can('freon_ret') || can('freon_send') || can('freon_edit') || can('capital_view') || can('freon') || can('freon_view') || can('accounts') || can('invoice_delete'); allow write: if can('freon') || can('freon_buy') || can('freon_fill') || can('freon_sell') || can('freon_edit') || can('invoice_delete'); }
     match /stockDevices/{id} { allow read: if can('capital_view') || can('devices') || can('accounts'); allow write: if can('devices'); }
     match /partSales/{id} { allow read: if can('freon_sell') || can('capital_view') || can('part_sales') || can('cons_sales') || can('ar') || can('accounts') || can('orders_manage') || can('orders_work') || can('treasury') || can('treasury_view') || ownClient(); allow write: if can('freon_sell') || can('part_sales') || can('cons_sales') || can('orders_manage') || can('orders_work') || can('freon') || can('ext_repair') || can('invoice_delete'); }
     match /offers/{id} { allow read: if active(); allow write: if can('offers'); }
@@ -2850,7 +2852,7 @@ service cloud.firestore {
     match /comps/{id} { allow read: if can('extra_pay') || can('payroll_prep') || can('payroll_approve') || can('hr') || mineDoc(); allow write: if can('extra_pay'); }
     match /treasury/{id} { allow read: if can('treasury') || can('treasury_view') || can('accounts') || can('treasury_cfg') || can('capital_view'); allow create, update: if can('treasury') || (can('treasury_cfg') && id == 'cfg') || (can('capital_move') && request.resource.data.get('cap', false) == true); allow delete: if can('treasury') || (can('capital_move') && resource.data.get('cap', false) == true); }
     match /capsnaps/{id} { allow read, write: if can('capital_view'); }
-    match /frret/{id} { allow read: if can('freon_buy') || can('freon_fill') || can('freon_empties') || can('freon_sell') || can('freon_ret') || can('freon_send') || can('freon_edit') || can('freon') || can('freon_view') || can('accounts') || can('capital_view'); allow write: if can('freon') || can('freon_ret') || can('freon_send') || can('freon_edit'); }
+    match /frret/{id} { allow read: if can('freon_collect') || can('freon_buy') || can('freon_fill') || can('freon_empties') || can('freon_sell') || can('freon_ret') || can('freon_send') || can('freon_edit') || can('freon') || can('freon_view') || can('accounts') || can('capital_view'); allow write: if can('freon') || can('freon_ret') || can('freon_send') || can('freon_edit') || can('freon_collect'); }
     match /vouchers/{id} {
       allow read: if can('capital_view') || can('vouchers_approve') || can('suppay_approve') || can('treasury') || can('treasury_view') || can('accounts') || mineDoc() || approver();
       allow create: if can('treasury') || ((can('vouchers') || can('suppay_req')) && request.resource.data.uid == request.auth.uid && request.resource.data.status == 'pending');
@@ -3262,7 +3264,7 @@ function viewCons(){
   const list=all.filter(p=>(!q||(p.name+' '+(p.code||'')+' '+(p.ref||'')+' '+(p.group||'')).toLowerCase().includes(q))&&(!CNG||p.group===CNG)).sort((a,b)=>(a.group||'').localeCompare(b.group||'','ar')||a.name.localeCompare(b.name,'ar'));
   const val=all.reduce((a,p)=>a+n(p.qty)*n(p.buy),0);
   return `${costs?`<div class="grid g3"><div class="panel kpi"><span>عدد المنتجات</span><b>${all.length}</b></div><div class="panel kpi"><span>قيمة المستهلكات (بسعر الشراء)</span><b>${money(val)}</b></div><div class="panel kpi"><span>ظاهرة للعيادات</span><b>${all.filter(p=>p.shop!==false).length}</b></div></div>`:''}
-  <div class="row between"><div class="row"><input id="sq" placeholder="بحث بالاسم أو الكود" value="${esc(SQ)}" style="max-width:260px">${groups.length?`<select id="cng" style="width:auto"><option value="">كل الأقسام</option>${groups.map(g=>`<option ${g===CNG?'selected':''}>${esc(g)}</option>`).join('')}</select>`:''}</div>${edit?'<button class="btn pri" data-act="addCons">+ منتج جديد</button>':''}</div>
+  <div class="row between"><div class="row"><input id="sq" placeholder="بحث بالاسم أو الكود" value="${esc(SQ)}" style="max-width:260px">${groups.length?`<select id="cng" style="width:auto"><option value="">كل الأقسام</option>${groups.map(g=>`<option ${g===CNG?'selected':''}>${esc(g)}</option>`).join('')}</select>`:''}</div><div class="row">${can('stock')?'<button class="btn" data-act="bcLabels" data-k="cons">🏷️ باركود</button>':''}${edit?'<button class="btn pri" data-act="addCons">+ منتج جديد</button>':''}</div></div>
   <div class="muted small">كل منتج بياخد كود لوحده (CN-…). المنتجات اللي عليها "ظاهر للعيادات" بتظهر في صفحة المستهلكات عند العيادات اللي مسموح لها.</div>
   ${list.length?`<div class="pgrid">${list.map(p=>`<div class="pcard">${p.photo?`<img src="${p.photo}" alt="">`:'<div class="noimg">📦</div>'}<div class="pbody"><b>${esc(p.name)}</b><div class="muted small num">${esc(p.code||'')}${p.group?' · '+esc(p.group):''}</div>
     <div class="row between"><span class="num">${money(p.sell)}${p.unit?` <span class="muted small">/ ${esc(p.unit)}</span>`:''}</span>${n(p.qty)<=n(p.min)?`<span class="pill p-bad">${n(p.qty)}</span>`:`<span class="pill p-ok">${n(p.qty)}</span>`}</div>
@@ -3349,7 +3351,7 @@ function viewOrders(){
   const workers=ORD_WORKERS();
   const card=o=>{const c=client(o.clientId)||{};const br=branchInfo(c,o.branch);const st=ORD_ST[o.status]||ORD_ST.new;const late=!['delivered','cancelled'].includes(o.status)&&o.wantDate<today();
     const short=(o.lines||[]).filter(l=>{const p=part(l.partId);return !p||n(p.qty)<n(l.qty)});
-    return `<div class="req"><div class="row between"><span class="row"><b class="num">${ordNo(o)}</b><b>${esc(c.clinic||c.name||'—')}</b>${o.branch?`<span class="pill p-info">${esc(o.branch)}</span>`:''}</span><span class="pill ${late?'p-bad':st[1]}">${late?'متأخر':st[0]}</span></div>
+    return `<div class="req"><div class="row between"><span class="row"><b class="num">${ordNo(o)}</b><b>${esc(c.clinic||c.name||'—')}</b>${o.branch?`<span class="pill p-info">${esc(o.branch)}</span>`:''}${!['delivered','cancelled'].includes(o.status)?frOwedPill(o.clientId):''}</span><span class="pill ${late?'p-bad':st[1]}">${late?'متأخر':st[0]}</span></div>
     <div class="small muted">${esc(c.name||'')} · <span class="num">${esc(br?.phone||c.phone||'')}</span> · ${esc(br?.address||c.address||'')}</div>
     <div class="when">مطلوب يوصل: ${dayLabel(o.wantDate)}${o.wantTime!==''&&o.wantTime!=null?' — حوالي '+fmtH(+o.wantTime):''}</div>
     <div class="tbl-wrap"><table class="t"><tbody>${(o.lines||[]).map(l=>{const p=part(l.partId);return `<tr><td>${esc(l.name)} <span class="muted small num">${esc(l.code||'')}</span></td><td><b>${l.qty}</b> ${esc(l.unit||'')}</td><td class="num">${money(l.qty*l.price)}</td><td class="small">${p?(n(p.qty)>=n(l.qty)?`<span class="pill p-ok">المخزن ${n(p.qty)}</span>`:`<span class="pill p-bad">المخزن ${n(p.qty)} بس</span>`):'<span class="pill p-bad">اتشال من المخزن</span>'}</td></tr>`}).join('')}<tr><td colspan="2"><b>الإجمالي</b></td><td class="num"><b>${money(o.total)}</b></td><td></td></tr></tbody></table></div>
@@ -3389,7 +3391,7 @@ function openDeliver(id){
     S.partSales.push({id:sid,no,date:today(),clientId:o.clientId,branch:o.branch||'',address:(o.branch?branchInfo(c,o.branch)?.address:c.address)||'',buyer:c.name||'',phone:(o.branch&&branchInfo(c,o.branch)?.phone)||c.phone||'',lines,discount:0,delivery:dlv,total:TT,term,paid,due:term==='credit'?$('#dl_d').value:'',method:$('#dl_m').value,notes:('طلب مستهلكات '+ordNo(o)+' '+$('#dl_n').value).trim(),by:ME.id,orderId:o.id});
     o.status='delivered';o.saleId=sid;o.deliveredAt=new Date().toISOString();o.updatedAt=o.deliveredAt;(o.log=o.log||[]).push({st:'delivered',at:o.deliveredAt,by:pubName()});
     notify(['perm:orders_manage'],'طلب مستهلكات اتسلم',`${c.clinic||c.name||''} — ${ordNo(o)} — اتحصّل ${money(paid)}`,'orders');
-    save();toast('اتسلم الطلب واتعملت الفاتورة');render();
+    save();toast('اتسلم الطلب واتعملت الفاتورة');render();frAfterDeliver(o.clientId,lines);
   });
   const dU=()=>{const tt=n(n(o.total)+($('#dl_dv').checked?n($('#dl_df').value):0));$('#dl_df').disabled=!$('#dl_dv').checked;$('#dl_t').textContent=money(tt);$('#dl_p').value=tt};$('#dl_dv').onchange=dU;$('#dl_df').oninput=dU;dU();
 }
@@ -6083,7 +6085,7 @@ let XR_PRE='';
 
 
 /* ---------- فحص التحديثات ---------- */
-const APP_VER='2026.10.26.1';
+const APP_VER='2026.10.26.4';
 async function checkUpdate(){try{if(location.protocol==='file:')return;const t=await (await fetch(location.pathname+'?_='+Date.now(),{cache:'no-store'})).text();const m=t.match(/const APP_VER='([^']+)'/);if(m&&m[1]!==APP_VER)showUpd(m[1])}catch(e){}}
 function showUpd(v){if(document.getElementById('updBar'))return;const b=document.createElement('div');b.id='updBar';b.style.cssText='position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:80;background:#1d2b45;color:#fff;padding:10px 16px;border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,.25);display:flex;gap:12px;align-items:center;font-weight:600;max-width:92vw';b.innerHTML='<span>🔄 فيه نسخة جديدة من السيستم</span><button type="button" style="background:#2b8fb8;color:#fff;border:0;border-radius:10px;padding:6px 14px;font:inherit;cursor:pointer">حدّث دلوقتي</button>';b.querySelector('button').onclick=()=>{location.replace(location.pathname+'?v='+encodeURIComponent(v)+location.hash)};document.body.appendChild(b)}
 setTimeout(checkUpdate,8000);setInterval(checkUpdate,5*60*1000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkUpdate()});
@@ -6113,8 +6115,8 @@ let FRT='stock';
 function viewFreon(){if(can('freon')&&(!ONLINE||SYNCED.parts)&&frMigrate())setTimeout(save,0);
   const C=FRS(),open=C.filter(c=>c.status==='open'),empty=C.filter(c=>c.status==='empty'),P=FR_PARTS(),man=frAny();
   const ready=P.reduce((a,p)=>a+n(p.qty),0),kgOpen=open.reduce((a,c)=>a+frLeft(c),0),val=P.reduce((a,p)=>a+n(p.qty)*n(p.buy),0)+open.reduce((a,c)=>a+frLeft(c)*frKgPrice(c),0);
-  const crN=frCreditRows().length;const tabs=[['stock','المخزن'],['big',`الأسطوانات الكبيرة (${C.length})`],['empty',`الفاضية والبيع (${empty.length})`],['ret',`مرتجعات العيادات${crN?` (${crN})`:''}`],['mv','الحركة']];
-  const head=`<div class="row between"><div><h2 style="margin:0">الفريون</h2><div class="muted small">أسطوانات كبيرة بتتفضّى في أسطوانات صغيرة للأجهزة</div></div>${man?`<div class="row">${empty.length?`<button class="btn" data-act="frSell">💰 بيع أسطوانات فاضية (${empty.length})</button>`:''}<button class="btn" data-act="frRet">↩️ مرتجع من عيادة</button><button class="btn" data-act="frFill">+ تعبئة من أسطوانة مفتوحة</button><button class="btn pri" data-act="frBuy">+ شراء أسطوانة كبيرة</button></div>`:''}</div>
+  const crN=frCreditRows().length;const tabs=[['stock','المخزن'],['big',`الأسطوانات الكبيرة (${C.length})`],['empty',`الفاضية والبيع (${empty.length})`],['ret',`مرتجعات العيادات${crN?` (${crN})`:''}`],['owed',`فوارغ عند العيادات${(()=>{const t=frOwedRows().reduce((a,r)=>a+r.owed,0);return t?` (${t})`:''})()}`],['mv','الحركة']];
+  const head=`<div class="row between"><div><h2 style="margin:0">الفريون</h2><div class="muted small">أسطوانات كبيرة بتتفضّى في أسطوانات صغيرة للأجهزة</div></div>${man?`<div class="row">${empty.length?`<button class="btn" data-act="frSell">💰 بيع أسطوانات فاضية (${empty.length})</button>`:''}<button class="btn" data-act="frCollect">🫙 استلام فوارغ</button><button class="btn" data-act="frRet">↩️ مرتجع من عيادة</button><button class="btn" data-act="frFill">+ تعبئة من أسطوانة مفتوحة</button><button class="btn pri" data-act="frBuy">+ شراء أسطوانة كبيرة</button></div>`:''}</div>
   <div class="seg" style="flex-wrap:wrap">${tabs.map(([k,l])=>`<button data-frt="${k}" class="${FRT===k?'on':''}">${l}</button>`).join('')}</div>
   <div class="grid g4"><div class="panel kpi"><span>أسطوانات صغيرة جاهزة</span><b>${ready}</b><span class="muted small">${P.filter(p=>n(p.qty)>0).map(p=>`${n(p.qty)} × ${+n(p.freonKg)} كيلو`).join(' · ')||'—'}</span></div><div class="panel kpi"><span>فريون في الأسطوانات المفتوحة</span><b>${frKg(kgOpen)}</b><span class="muted small">${open.length} أسطوانة مفتوحة</span></div><div class="panel kpi"><span>أسطوانات كبيرة فاضية</span><b>${empty.length}</b><span class="muted small">جاهزة للبيع</span></div><div class="panel kpi"><span>قيمة الفريون في المخزن</span><b>${money(val)}</b><span class="muted small">بسعر التكلفة</span></div></div>`;
   const tank=c=>{const pct=c.status==='open'?Math.round(frLeft(c)/Math.max(0.001,n(c.size))*100):0;return `<div class="fr-tank"><i style="height:${pct}%"></i></div>`};
@@ -6125,6 +6127,7 @@ function viewFreon(){if(can('freon')&&(!ONLINE||SYNCED.parts)&&frMigrate())setTi
      ${c.sold?`<div class="muted small">اتباعت ${fd(c.sold.date)} لـ ${esc(c.sold.buyer||'')} بـ ${money(c.sold.price)}</div>`:''}</div>
      <div class="fr-act">${(can('invoice_delete')||can('suppliers'))&&c.purchaseId?`<button class="btn sm ghost" data-act="delPurchase" data-id="${c.purchaseId}">حذف الفاتورة</button>`:''}${man&&c.status==='open'?`<button class="btn sm pri" data-act="frFill" data-id="${c.id}">تعبئة صغيرة</button><button class="btn sm" data-act="frEmpty" data-id="${c.id}">خلصت (فاضية)</button>`:''}${man&&c.status==='empty'?`<button class="btn sm pri" data-act="frSell" data-id="${c.id}">بيع الفاضية</button>`:''}</div></div>`};
   if(FRT==='ret')return head+frRetView(man);
+  if(FRT==='owed')return head+frOwedView();
   if(FRT==='big')return head+`<div class="panel">${C.length?[...C].sort((a,b)=>(b.date||'').localeCompare(a.date||'')).map(cyl).join(''):'<div class="empty">لسه مفيش أسطوانات</div>'}</div>`;
   if(FRT==='empty'){const sold=C.filter(c=>c.status==='sold');return head+`<div class="panel"><h3>فاضية في المخزن (${empty.length})</h3>${empty.map(cyl).join('')||'<div class="empty">مفيش</div>'}</div>${sold.length?`<div class="panel"><h3>اتباعت (${sold.length})</h3>${sold.map(cyl).join('')}<div class="muted small">إجمالي بيع الفاضي: ${money(sold.reduce((a,c)=>a+n(c.sold?.price),0))}</div></div>`:''}`}
   if(FRT==='mv'){const M=frMoves();return head+`<div class="panel">${M.length?`<div class="tbl-wrap"><table class="t"><thead><tr><th>التاريخ</th><th>الحركة</th><th>الصنف</th><th>العدد</th></tr></thead><tbody>${M.slice(0,200).map(m=>`<tr><td>${fd(m.date)}</td><td>${m.lbl}</td><td class="small">${esc(m.name)}</td><td><b style="color:${m.q>0?'var(--ok)':'var(--bad)'}">${m.q>0?'+':'−'}${Math.abs(m.q)}</b></td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">لسه مفيش حركة</div>'}</div>`}
@@ -6338,14 +6341,7 @@ document.addEventListener('click',e=>{const f=e.target.closest('[data-scf]');if(
   const b=e.target.closest('[data-scd]');if(b){const inp=document.querySelector(`.sc-in[data-id="${b.dataset.id}"]`);const v=Math.max(0,n(inp.value||0)+(+b.dataset.scd));inp.value=v;scSet(b.dataset.id,v);const card=document.getElementById('scc_'+b.dataset.id);if(card)card.classList.add('ok')}});
 document.addEventListener('change',e=>{if(e.target.classList?.contains('sc-in')){scSet(e.target.dataset.id,e.target.value);const y=scrollY;render();scrollTo(0,y)}});
 document.addEventListener('input',e=>{if(e.target.id==='scq'){SCQQ=e.target.value;clearTimeout(window._scqT);window._scqT=setTimeout(()=>{const pos=e.target.selectionStart;render();const i=$('#scq');if(i){i.focus();try{i.setSelectionRange(pos,pos)}catch(_){}}},250)}});
-async function scScan(){
-  if(!('BarcodeDetector' in window)){const v=prompt('الكاميرا مش مدعومة على المتصفح ده — اكتب كود الصنف (مثلاً SP-0001)');if(v)scJump(v);return}
-  modal(`<h3>📷 امسح كود الصنف</h3><video id="scv" playsinline muted style="width:100%;border-radius:12px;background:#000;max-height:60vh"></video><div class="muted small">وجّه الكاميرا على ملصق الـ QR أو الباركود بتاع الصنف.</div>`,()=>true);
-  const ok=$('#mOk');if(ok)ok.remove();let stream;try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}})}catch(e){closeModal(true);toast('مقدرتش أفتح الكاميرا');return}
-  const v=$('#scv');v.srcObject=stream;await v.play().catch(()=>{});const det=new BarcodeDetector({formats:['qr_code','code_128','ean_13','code_39']});let alive=true;
-  const stop=()=>{alive=false;stream.getTracks().forEach(t=>t.stop())};$('#mCancel').addEventListener('click',stop);
-  const loop=async()=>{if(!alive||!document.getElementById('scv')){stop();return}try{const r=await det.detect(v);if(r&&r[0]){stop();closeModal(true);scJump(r[0].rawValue);return}}catch(e){}requestAnimationFrame(loop)};loop();
-}
+async function scScan(){scanCodes(c=>{scJump(c)},{title:'📷 امسح كود الصنف'})}
 function scJump(code){code=String(code||'').trim();const m=code.match(/(SP|CN)-\d+/i);const key=(m?m[0]:code).toUpperCase();const p=S.parts.find(x=>(x.code||'').toUpperCase()===key||(x.ref||'').toUpperCase()===key);
   if(!p){toast('الكود ده مش متسجل: '+code);return}SCQQ='';SCFL='all';render();setTimeout(()=>{const el=document.getElementById('scc_'+p.id);if(el){el.scrollIntoView({behavior:'smooth',block:'center'});el.classList.add('flash');const i=el.querySelector('.sc-in');if(i){i.focus();i.select&&i.select()}}else toast(`"${p.name}" مش ضمن الجرد ده`)},80)}
 function scLabels(){const P=[...S.parts].sort((a,b)=>(a.code||'').localeCompare(b.code||''));
@@ -6597,7 +6593,7 @@ const TI_MAP={
  stab:{items:'gear',cons:'drop',cp:'users',xr:'tool',count:'clip',moves:'pin',warr:'shield'},
  hrf:{appr:'check',att:'clock',pending:'hour',leave:'cal',mission:'brief',all:'list',punch:'finger',bal:'pie',loan:'coins',comp:'plane',pen:'alert',mine:'user'},
  trt:{bal:'wallet',led:'swap',vch:'receipt',cat:'pie',cfg:'cog'},
- frt:{stock:'box',big:'tank',empty:'tank',ret:'swap',mv:'list'},
+ frt:{stock:'box',big:'tank',empty:'tank',ret:'swap',owed:'users',mv:'list'},
  acct:{inc:'trend',tb:'scale',j:'book',vat:'pct'},
  dtab:{stock:'monitor',sale:'cart',rent:'key'},
  payt:{month:'cal',sal:'money',bon:'gift'},
@@ -6632,7 +6628,7 @@ const FRR=()=>S.frret||[];
 function frStrip(h){return h.replace(/<button[^>]*data-act="(fr[A-Za-z]+)"[^>]*>[\s\S]*?<\/button>/g,(m,a)=>NEED9[a]&&!can(NEED9[a])?'':m)}
 const FRR_ST={faulty:'فيها مشكلة',leak:'منفّسة / بتسرّب',ok:'سليمة'};
 function frCredit(cid,pid){const L=FRR().filter(x=>x.clientId===cid&&(!pid||x.partId===pid));
-  const inK=L.filter(x=>x.kind==='ret').reduce((a,x)=>a+n(x.creditKg),0),outK=L.filter(x=>x.kind==='send').reduce((a,x)=>a+n(x.kg),0);return n(Math.round((inK-outK)*1000)/1000)}
+  const inK=L.filter(x=>x.kind==='ret'||x.kind==='collect').reduce((a,x)=>a+n(x.creditKg),0),outK=L.filter(x=>x.kind==='send').reduce((a,x)=>a+n(x.kg),0);return n(Math.round((inK-outK)*1000)/1000)}
 function frCreditRows(){const m=new Map();FRR().forEach(x=>{const k=x.clientId+'|'+x.partId;if(!m.has(k))m.set(k,{cid:x.clientId,pid:x.partId});});
   return [...m.values()].map(r=>{const p=part(r.pid);const kg=n(p?.freonKg)||1;const c=frCredit(r.cid,r.pid);return{...r,p,kg,credit:c,cyl:Math.floor((c+1e-9)/kg),rem:n(Math.round((c-Math.floor((c+1e-9)/kg)*kg)*1000)/1000)}}).filter(r=>r.credit>0.0005)}
 function frCreditValue(){return frCreditRows().reduce((a,r)=>a+r.credit*(n(r.p?.buy)/Math.max(0.001,r.kg)),0)}
@@ -6697,7 +6693,7 @@ function frEmpties(pid){const p=part(pid);if(!p)return;
   modal(`<h3>الأسطوانات الفاضية — ${esc(p.name)}</h3><div class="grid g2"><label class="f">عدد الأسطوانات الصغيرة الفاضية اللي عندك دلوقتي<input type="number" min="0" step="1" id="fe_q" value="${n(p.emptyQty)}"></label><label class="f">وزن الأسطوانة وهي فاضية (كيلو)<input type="number" min="0" step="any" id="fe_t" value="${n(p.tareKg)||''}"></label></div>
    <div class="muted small">الفاضي بيقل لوحده لما تعبّي أسطوانات صغيرة، وبيزيد لما عيادة ترجّع أسطوانة سليمة.</div>`,()=>{p.emptyQty=Math.max(0,parseInt($('#fe_q').value)||0);p.tareKg=n($('#fe_t').value);save();toast('اتحفظ');render()})}
 Object.assign(X9,{frRet:(t,id)=>frRet(id||''),frSend:(t,id)=>frSend(id,t.dataset.p),frEmpties:(t,id)=>frEmpties(id),
-  frRetDel:(t,id)=>confirmBox('حذف الحركة دي؟',()=>{const x=FRR().find(y=>y.id===id);if(x){const p=part(x.partId);if(p){if(x.kind==='send')p.qty=n(p.qty)+n(x.qty);else p.emptyQty=Math.max(0,n(p.emptyQty)-(x.lines||[]).filter(l=>l.shell==='empty').length)}}S.frret=FRR().filter(y=>y.id!==id);save();toast('اتحذفت');render()})});
+  frRetDel:(t,id)=>confirmBox('حذف الحركة دي؟',()=>{const x=FRR().find(y=>y.id===id);if(x){const p=part(x.partId);if(p){if(x.kind==='send')p.qty=n(p.qty)+n(x.qty);else if(x.kind==='collect')p.emptyQty=Math.max(0,n(p.emptyQty)-(x.lines||[]).filter(l=>l.state!=='bad').length);else if(x.kind==='ret')p.emptyQty=Math.max(0,n(p.emptyQty)-(x.lines||[]).filter(l=>l.shell==='empty').length)}}S.frret=FRR().filter(y=>y.id!==id);save();toast('اتحذفت');render()})});
 Object.assign(NEED9,{frRet:'freon_ret',frSend:'freon_send',frEmpties:'freon_empties',frRetDel:'freon_edit'});
 
 /* =====================================================================
@@ -6791,6 +6787,161 @@ Object.assign(X9,{
   gsTest:async()=>{const ok=await gsPost({ops:[{s:'اختبار',id:'test',row:{'الوقت':new Date().toLocaleString('ar-EG'),'من':pubName()}}]});toast(ok?'اتبعت — افتح الشيت وشوف شيت "اختبار"':'مقدرتش أبعت — اتأكد من الرابط والنت')}
 });
 Object.assign(NEED9,{gsSave:'settings',gsCode:'settings',gsFull:'settings',gsTest:'settings'});
+
+/* =====================================================================
+   v42 — فوارغ الأسطوانات الصغيرة عند العيادات (تسليم مليان / استلام فاضي)
+   ===================================================================== */
+const FRX_ST={ok:'فاضية سليمة',gas:'فيها فريون',bad:'تالفة'};
+function frDelivered(cid,pid){let q=0;
+  (S.partSales||[]).forEach(x=>{if(x.clientId!==cid)return;(x.lines||[]).forEach(l=>{if(l.partId===pid&&!l.unitId)q+=n(l.qty)})});
+  S.reports.forEach(r=>{if(r.clientId!==cid)return;(r.parts||[]).forEach(l=>{if(l.partId===pid&&!l.unitId)q+=n(l.qty)})});
+  FRR().forEach(x=>{if(x.clientId===cid&&x.partId===pid&&x.kind==='send')q+=n(x.qty)});
+  (S.partReturns||[]).forEach(x=>{if(x.clientId===cid&&x.partId===pid)q-=n(x.qty)});
+  return q}
+function frOwed(cid,pid){const L=FRR().filter(x=>x.clientId===cid&&x.partId===pid);
+  return Math.max(0,frDelivered(cid,pid)-L.filter(x=>x.kind==='collect').reduce((a,x)=>a+n(x.qty),0)+L.filter(x=>x.kind==='eadj').reduce((a,x)=>a+n(x.qty),0))}
+function frOwedRows(){const P=FR_PARTS();const ids=new Set(P.map(p=>p.id));const pairs=new Map();
+  const add=(cid,pid)=>{if(cid&&ids.has(pid))pairs.set(cid+'|'+pid,{cid,pid})};
+  (S.partSales||[]).forEach(x=>(x.lines||[]).forEach(l=>add(x.clientId,l.partId)));S.reports.forEach(r=>(r.parts||[]).forEach(l=>add(r.clientId,l.partId)));FRR().forEach(x=>add(x.clientId,x.partId));
+  return [...pairs.values()].map(r=>{const last=FRR().filter(x=>x.clientId===r.cid&&x.partId===r.pid&&x.kind==='collect').map(x=>x.date).sort().pop()||'';return{...r,p:part(r.pid),owed:frOwed(r.cid,r.pid),last}}).filter(r=>r.owed>0)}
+const frOwedOf=cid=>FR_PARTS().map(p=>({p,q:frOwed(cid,p.id)})).filter(x=>x.q>0);
+function frOwedPill(cid){const L=frOwedOf(cid);if(!L.length)return '';return `<span class="pill p-warn">🫙 اسحب ${L.reduce((a,x)=>a+x.q,0)} فوارغ${L.length>1?'':' '+esc(L[0].p.name.replace(/^أسطوانات\s*/,''))}</span>`}
+/* شاشة الاستلام — بتستخدم بعد التسليم أو لوحدها */
+function frCollect(cid,pid0,expect,note){
+  const P=FR_PARTS();if(!P.length){toast('مفيش صنف أسطوانات صغيرة مربوط بالفريون');return}
+  const cl=S.clients.filter(c=>!c.deleted);const pid=pid0||P[0].id;
+  modal(`<h3>🫙 استلام أسطوانات فاضية من العيادة</h3>${note?`<div class="banner info small">${note}</div>`:''}
+   <div class="grid g2"><label class="f">العيادة<select id="fx_c">${cl.map(c=>`<option value="${c.id}" ${c.id===cid?'selected':''}>${esc(cName(c))}</option>`).join('')}</select></label>
+   <label class="f">نوع الأسطوانة<select id="fx_p">${P.map(p=>`<option value="${p.id}" ${p.id===pid?'selected':''}>${esc(p.name)} — ${+n(p.freonKg)} كيلو</option>`).join('')}</select></label>
+   <label class="f">استلمت كام أسطوانة فاضية؟<input type="number" min="0" step="1" id="fx_q" value="${expect!=null?expect:''}"></label>
+   <label class="f">التاريخ<input type="date" id="fx_d" value="${today()}"></label></div>
+   <div id="fx_info"></div>
+   <div class="grid g2"><label class="f">منهم تالف<input type="number" min="0" step="1" id="fx_bad" value="0"></label><label class="f">وزن الأسطوانة فاضية (كيلو)<input type="number" min="0" step="any" id="fx_t"></label></div>
+   <div class="sec-title row between"><span>منهم فيها فريون (اكتب وزن كل واحدة)</span><button type="button" class="btn sm" id="fx_add">+ أسطوانة فيها فريون</button></div><div id="fx_rows" class="grid" style="gap:6px"></div>
+   <div id="fx_sum"></div><label class="f">ملاحظة<input id="fx_n"></label>`,()=>{
+    const c=$('#fx_c').value,p=part($('#fx_p').value);const q=Math.max(0,parseInt($('#fx_q').value)||0);const bad=Math.max(0,parseInt($('#fx_bad').value)||0);const tare=n($('#fx_t').value);const kg=n(p.freonKg)||1;
+    const gw=$$('#fx_rows .fx-g').map(i=>n(i.value)).filter(v=>v>0);
+    if(!q){toast('لو مستلمتش فوارغ اضغط إلغاء — الفوارغ هتفضل متسجلة على العيادة');return false}
+    if(bad+gw.length>q){toast('التالف + اللي فيها فريون أكتر من اللي استلمته');return false}
+    if(gw.length&&!tare){toast('اكتب وزن الأسطوانة فاضية علشان أحسب الفريون');return false}
+    if(tare)p.tareKg=tare;
+    const lines=[...gw.map(g=>({state:'gas',gross:g,tare,leftKg:n(Math.round(Math.min(kg,Math.max(0,g-tare))*1000)/1000)})),...Array(bad).fill(0).map(()=>({state:'bad'})),...Array(q-bad-gw.length).fill(0).map(()=>({state:'ok'}))];
+    const creditKg=n(Math.round(lines.reduce((a,l)=>a+n(l.leftKg),0)*1000)/1000);
+    p.emptyQty=n(p.emptyQty)+(q-bad);
+    (S.frret=S.frret||[]).push({id:uid(),kind:'collect',clientId:c,partId:p.id,qty:q,lines,creditKg,date:$('#fx_d').value||today(),notes:$('#fx_n').value.trim(),by:ME.id,byName:pubName(),createdAt:new Date().toISOString()});
+    save();toast(`اتسجل استلام ${q} فاضية${creditKg?` — ورصيد فريون للعيادة ${frKg(creditKg)}`:''} — فاضل عندها ${frOwed(c,p.id)}`);render();
+  });
+  const info=()=>{const c=$('#fx_c').value,p=part($('#fx_p').value);if(!$('#fx_t').dataset.ed)$('#fx_t').value=n(p?.tareKg)||'';$('#fx_info').innerHTML=c&&p?`<div class="muted small">العيادة دي عندها دلوقتي <b style="color:var(--ink)">${frOwed(c,p.id)}</b> أسطوانة فاضية بتاعتنا (من غير الاستلام ده)</div>`:'';sum()};
+  const sum=()=>{const p=part($('#fx_p').value);const kg=n(p?.freonKg)||1,t=n($('#fx_t').value);const L=$$('#fx_rows .fx-g').map(i=>i.value===''?null:Math.min(kg,Math.max(0,n(i.value)-t)));
+    $$('#fx_rows .fx-r').forEach((r,i)=>{r.querySelector('.fx-h').textContent=L[i]==null?'':'فيها '+(Math.round(L[i]*1000)/1000)+' ك'});
+    const tot=L.reduce((a,v)=>a+(v||0),0);const q=parseInt($('#fx_q').value)||0,bad=parseInt($('#fx_bad').value)||0;
+    $('#fx_sum').innerHTML=q?`<div class="row" style="gap:6px;flex-wrap:wrap"><span class="pill p-ok">ترجع للفاضي: ${Math.max(0,q-bad)}</span>${bad?`<span class="pill p-bad">تالف: ${bad}</span>`:''}${tot?`<span class="pill p-info">رصيد فريون للعيادة: ${frKg(tot)} = ${frCylTxt(tot,kg)}</span>`:''}</div>`:''};
+  $('#fx_add').onclick=()=>{$('#fx_rows').insertAdjacentHTML('beforeend',`<div class="row fx-r" style="flex-wrap:nowrap;gap:6px"><input class="fx-g" type="number" min="0" step="any" placeholder="الوزن (كيلو)" style="flex:1"><span class="fx-h small num" style="width:90px;text-align:center"></span><button type="button" class="btn sm ghost fx-del">✕</button></div>`)};
+  $('#fx_rows').addEventListener('input',sum);$('#fx_rows').onclick=e=>{if(e.target.classList.contains('fx-del')){e.target.closest('.fx-r').remove();sum()}};
+  $('#fx_c').onchange=info;$('#fx_p').onchange=()=>{$('#fx_t').dataset.ed='';info()};$('#fx_t').oninput=()=>{$('#fx_t').dataset.ed=1;sum()};$('#fx_q').oninput=sum;$('#fx_bad').oninput=sum;info();
+}
+/* بعد التسليم: لو فيه أسطوانات صغيرة اتسلمت لعيادة */
+function frAfterDeliver(cid,lines){if(!cid||!can('freon_collect'))return;const ids=new Set(FR_PARTS().map(p=>p.id));const L=(lines||[]).filter(l=>ids.has(l.partId)&&!l.unitId);if(!L.length)return;
+  const pid=L[0].partId;const q=L.filter(l=>l.partId===pid).reduce((a,l)=>a+n(l.qty),0);const old=frOwed(cid,pid)-q;
+  setTimeout(()=>frCollect(cid,pid,q,`اتسلم للعيادة ${q} أسطوانة مليانة — سجّل الفوارغ اللي استلمتها مكانهم.${old>0?` وكان عندها ${old} فوارغ قديمة تقدر تستلمهم كمان.`:''} لو مستلمتش حاجة دوس إلغاء والفوارغ هتتسجل عليها.`),350)}
+function frEAdj(cid,pid){const p=part(pid);modal(`<h3>تعديل رصيد الفوارغ — ${esc(cName(client(cid))||'')}</h3><div class="muted small">${esc(p?.name||'')} — في السيستم عندها <b>${frOwed(cid,pid)}</b></div>
+  <label class="f">العدد الحقيقي اللي عندها دلوقتي<input type="number" min="0" step="1" id="fe2_q" value="${frOwed(cid,pid)}"></label><label class="f">السبب<input id="fe2_n" placeholder="مثلاً: رصيد قديم قبل السيستم"></label>`,()=>{
+  const want=Math.max(0,parseInt($('#fe2_q').value)||0);const d=want-frOwed(cid,pid);if(!d){toast('مفيش تغيير');return}
+  (S.frret=S.frret||[]).push({id:uid(),kind:'eadj',clientId:cid,partId:pid,qty:d,date:today(),notes:$('#fe2_n').value.trim(),by:ME.id,byName:pubName(),createdAt:new Date().toISOString()});save();toast('اتعدل');render()})}
+function frOwedView(){const R=frOwedRows().sort((a,b)=>b.owed-a.owed);const col=can('freon_collect'),ed=can('freon_edit');
+  const L=FRR().filter(x=>x.kind==='collect'||x.kind==='eadj').sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||'')).slice(0,80);
+  return `<div class="grid g2" style="align-items:start"><div class="panel"><h3 class="row between" style="margin:0 0 6px"><span>فوارغ عند العيادات (${R.reduce((a,r)=>a+r.owed,0)})</span>${col?'<button class="btn sm pri" data-act="frCollect">+ استلام فوارغ</button>':''}</h3>
+   ${R.length?R.map(r=>`<div class="fr-rr"><div style="flex:1;min-width:0"><b>${esc(cName(client(r.cid))||'عيادة')}</b><div class="muted small">${esc(r.p?.name||'')}${r.last?` · آخر استلام ${fd(r.last)}`:' · لسه مستلمناش منها'}</div></div><div style="text-align:center"><b style="font-size:18px">${r.owed}</b><div class="muted small">فاضية</div></div>${col?`<button class="btn sm pri" data-act="frCollect" data-id="${r.cid}" data-p="${r.pid}">استلام</button>`:''}${ed?`<button class="btn sm ghost" data-act="frEAdj" data-id="${r.cid}" data-p="${r.pid}">تعديل</button>`:''}</div>`).join(''):'<div class="empty">مفيش فوارغ عند العيادات</div>'}
+   <div class="muted small" style="margin-top:6px">العدد = الأسطوانات الصغيرة اللي اتسلمت للعيادة (فواتير + تقارير صيانة + بدل) − الفوارغ اللي استلمناها. ولو العيادة كان عندها فوارغ قبل السيستم اضغط "تعديل".</div></div>
+   <div class="panel"><h3 style="margin:0 0 6px">آخر استلامات</h3>${L.length?L.map(x=>`<div class="fr-rr"><span class="pill ${x.kind==='collect'?'p-ok':'p-mut'}">${x.kind==='collect'?'استلام':'تعديل'}</span><div style="flex:1;min-width:0"><b>${esc(cName(client(x.clientId))||'')}</b> <span class="muted small">${fd(x.date)} · ${x.kind==='collect'?`${n(x.qty)} فاضية`:`${n(x.qty)>0?'+':''}${n(x.qty)}`}${x.byName?' · '+esc(x.byName):''}</span>${x.kind==='collect'?`<div class="muted small">${Object.entries((x.lines||[]).reduce((m,l)=>{m[l.state]=(m[l.state]||0)+1;return m},{})).map(([k,v])=>`${FRX_ST[k]} ${v}`).join(' · ')}${n(x.creditKg)?` · رصيد فريون ${frKg(x.creditKg)}`:''}</div>`:''}${x.notes?`<div class="muted small">${esc(x.notes)}</div>`:''}</div>${ed?`<button class="btn sm ghost" data-act="frRetDel" data-id="${x.id}">حذف</button>`:''}</div>`).join(''):'<div class="empty">لسه مفيش</div>'}</div></div>`}
+Object.assign(X9,{frCollect:(t,id)=>frCollect(id||'',t.dataset.p||'',null,''),frEAdj:(t,id)=>frEAdj(id,t.dataset.p)});
+Object.assign(NEED9,{frCollect:'freon_collect',frEAdj:'freon_edit'});
+
+/* =====================================================================
+   v43 — باركود الأصناف: طباعة ملصقات + مسح بالكاميرا في الفاتورة
+   ===================================================================== */
+let JB_P=null,ZX_P=null;
+function loadJB(){if(window.JsBarcode)return Promise.resolve();return JB_P||(JB_P=loadScript('https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.6/JsBarcode.all.min.js').catch(()=>loadScript('https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js')))}
+function loadZX(){if(window.ZXing)return Promise.resolve();return ZX_P||(ZX_P=loadScript('https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js').catch(()=>loadScript('https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js')))}
+const LBL_SIZES=[[50,30],[40,30],[50,25],[40,20],[58,40],[30,20]];
+const lblCfg=()=>({w:50,h:30,...(S.settings.label||{}),name:!!(S.settings.label||{}).name2,price:!!(S.settings.label||{}).price2});
+function partByCode(code){code=String(code||'').trim().toUpperCase();if(!code)return null;
+  const p=S.parts.find(x=>(x.code||'').toUpperCase()===code||(x.ref||'').toUpperCase()===code);if(p)return {p};
+  const u=(S.units||[]).find(x=>(x.code||'').toUpperCase()===code);if(u)return {u};
+  const m=code.match(/[A-Z]{2,4}-\d+/);if(m&&m[0]!==code)return partByCode(m[0]);return null}
+function ensureCode(p){if(!p.code){p.code=nextCode(catOf(p));return true}return false}
+function lblCanvas(p,cfg){const D=8;const W=Math.round(cfg.w*D),H=Math.round(cfg.h*D);const cv=document.createElement('canvas');cv.width=W;cv.height=H;const g=cv.getContext('2d');
+  g.fillStyle='#fff';g.fillRect(0,0,W,H);g.fillStyle='#000';const pad=Math.round(1.5*D);let top=pad;
+  const fit=(t,max,size,bold)=>{let s=size;g.font=`${bold?'700 ':''}${s}px Tahoma, Arial, sans-serif`;while(g.measureText(t).width>max&&s>10){s-=1;g.font=`${bold?'700 ':''}${s}px Tahoma, Arial, sans-serif`}return s};
+  g.textAlign='center';g.textBaseline='top';g.direction='rtl';
+  if(cfg.name){let t=p.name||'';const s=fit(t,W-2*pad,Math.round(H*0.15),true);if(g.measureText(t).width>W-2*pad){while(t.length>3&&g.measureText(t+'…').width>W-2*pad)t=t.slice(0,-1);t+='…'}g.fillText(t,W/2,top);top+=s+Math.round(0.6*D)}
+  const bottomText=(cfg.price&&n(p.sell)?`${n(p.sell).toLocaleString('en-US')} ج.م   `:'')+p.code;const bs=Math.round(H*0.13);const barH=H-top-bs-pad-Math.round(0.8*D);
+  const bc=document.createElement('canvas');try{JsBarcode(bc,p.code,{format:'CODE128',displayValue:false,margin:0,height:Math.max(20,barH),width:3,background:'#ffffff',lineColor:'#000000'})}catch(e){}
+  if(bc.width){const maxW=W-2*pad;let bw=bc.width;let scale=Math.min(1,maxW/bw);if(scale<1){try{JsBarcode(bc,p.code,{format:'CODE128',displayValue:false,margin:0,height:Math.max(20,barH),width:Math.max(1,Math.floor(3*scale)),background:'#ffffff'})}catch(e){}bw=bc.width;scale=Math.min(1,maxW/bw)}
+    g.imageSmoothingEnabled=false;const dw=Math.round(bw*scale);g.drawImage(bc,Math.round((W-dw)/2),top,dw,Math.max(20,barH))}
+  g.direction='ltr';fit(bottomText,W-2*pad,bs,true);g.fillText(bottomText,W/2,H-pad-bs);return cv}
+async function bcLabels(pre){await loadJB().catch(()=>{});if(!window.JsBarcode){toast('مقدرتش أحمّل مكتبة الباركود — اتأكد من النت');return}
+  const cfg=lblCfg();const kind=window._BCK||'';const P=[...S.parts].filter(p=>!kind||catOf(p)===kind).sort((a,b)=>(a.code||'').localeCompare(b.code||''));const sel=new Set(pre||[]);
+  modal(`<h3>🏷️ طباعة باركود للأصناف</h3><div class="grid g3">
+   <label class="f">مقاس الملصق (مم)<select id="bl_sz">${LBL_SIZES.map(([w,h])=>`<option value="${w}x${h}" ${cfg.w===w&&cfg.h===h?'selected':''}>${w} × ${h}</option>`).join('')}</select></label>
+   <label class="row" style="gap:6px;align-self:end"><input type="checkbox" id="bl_nm" style="width:auto" ${cfg.name?'checked':''}> اسم الصنف</label><label class="row" style="gap:6px;align-self:end"><input type="checkbox" id="bl_pr" style="width:auto" ${cfg.price?'checked':''}> سعر البيع</label></div>
+   <div class="row" style="gap:6px"><input id="bl_q" placeholder="بحث باسم أو كود" style="flex:1"><select id="bl_k" style="width:auto"><option value="">كل الأصناف</option><option value="spare" ${kind==='spare'?'selected':''}>قطع الغيار</option><option value="cons" ${kind==='cons'?'selected':''}>المستهلكات</option></select><button type="button" class="btn sm" id="bl_all">تحديد الكل</button><button type="button" class="btn sm ghost" id="bl_none">شيل التحديد</button></div>
+   <div id="bl_list" style="max-height:260px;overflow:auto;border:1px solid var(--line);border-radius:12px;padding:4px 10px"></div>
+   <div class="row between"><b id="bl_cnt"></b><div id="bl_prev" style="border:1px dashed var(--line);border-radius:8px;padding:6px;background:#fff"></div></div>
+   <div class="muted small">على الموبايل: اضغط "مشاركة" واختار أبلكيشن الطابعة. على الكمبيوتر: "طباعة" (اختار الطابعة ومقاس الورق نفس مقاس الملصق، والهوامش None).</div>
+   <div class="row" style="flex-wrap:wrap"><button type="button" class="btn pri" id="bl_share">📤 مشاركة لأبلكيشن الطابعة</button><button type="button" class="btn" id="bl_print">🖨️ طباعة</button><button type="button" class="btn" id="bl_dl">⬇️ تحميل الصور</button></div>`,()=>true);
+  const ok=$('#mOk');if(ok)ok.remove();
+  const rows=()=>{const q=($('#bl_q').value||'').trim().toLowerCase(),k=$('#bl_k').value;return S.parts.filter(p=>(!k||catOf(p)===k)&&(!q||(p.name+' '+(p.code||'')).toLowerCase().includes(q))).sort((a,b)=>(a.code||'').localeCompare(b.code||''))};
+  const cur=()=>{const [w,h]=$('#bl_sz').value.split('x').map(Number);return {w,h,name:$('#bl_nm').checked,price:$('#bl_pr').checked}};
+  const draw=()=>{const L=rows();$('#bl_list').innerHTML=L.map(p=>`<div class="row between" style="padding:5px 0;border-bottom:1px solid var(--line)"><label class="row" style="gap:6px;flex:1;min-width:0"><input type="checkbox" class="bl-c" value="${p.id}" style="width:auto" ${sel.has(p.id)?'checked':''}><span>${esc(p.name)} <span class="muted small num">${esc(p.code||'(هيتعمله كود)')}</span></span></label><span class="row" style="gap:4px"><span class="muted small">نسخ</span><input type="number" min="1" max="999" class="bl-n" data-id="${p.id}" value="${window._BLN?.[p.id]||Math.max(1,Math.min(50,n(p.qty)||1))}" style="width:64px"></span></div>`).join('')||'<div class="empty">مفيش</div>';count()};
+  const count=()=>{const ids=[...sel];const tot=ids.reduce((a,id)=>a+copies(id),0);$('#bl_cnt').textContent=ids.length?`${ids.length} صنف — ${tot} ملصق`:'اختار الأصناف';prev()};
+  window._BLN=window._BLN||{};const copies=id=>Math.max(1,parseInt(window._BLN[id]||Math.max(1,Math.min(50,n(part(id)?.qty)||1))));
+  const prev=()=>{const id=[...sel][0]||rows()[0]?.id;const p=part(id);const box=$('#bl_prev');if(!p||!box){if(box)box.innerHTML='';return}const c=lblCanvas({...p,code:p.code||'SP-0000'},cur());c.style.width=(cur().w*3)+'px';c.style.height=(cur().h*3)+'px';box.innerHTML='';box.appendChild(c)};
+  $('#bl_list').addEventListener('change',e=>{if(e.target.classList.contains('bl-c')){e.target.checked?sel.add(e.target.value):sel.delete(e.target.value);count()}if(e.target.classList.contains('bl-n')){window._BLN[e.target.dataset.id]=e.target.value;count()}});
+  $('#bl_q').oninput=draw;$('#bl_k').onchange=draw;['bl_sz','bl_nm','bl_pr'].forEach(i=>$('#'+i).onchange=prev);
+  $('#bl_all').onclick=()=>{rows().forEach(p=>sel.add(p.id));draw()};$('#bl_none').onclick=()=>{sel.clear();draw()};
+  const build=()=>{const ids=[...sel];if(!ids.length){toast('اختار صنف واحد على الأقل');return null}let ch=false;ids.forEach(id=>{const p=part(id);if(p&&ensureCode(p))ch=true});if(ch)save();const c=cur();S.settings.label={...(S.settings.label||{}),w:c.w,h:c.h,name2:c.name,price2:c.price};if(can('settings'))save();
+    return ids.map(id=>({p:part(id),n:copies(id),cv:lblCanvas(part(id),c)}))};
+  const blobOf=cv=>new Promise(r=>cv.toBlob(r,'image/png'));
+  $('#bl_share').onclick=async()=>{const L=build();if(!L)return;const files=[];for(const x of L){const b=await blobOf(x.cv);for(let i=0;i<Math.min(x.n,30);i++)files.push(new File([b],`${x.p.code}${x.n>1?'-'+(i+1):''}.png`,{type:'image/png'}))}
+    if(navigator.canShare&&navigator.canShare({files})){try{await navigator.share({files,title:'ملصقات باركود'})}catch(e){}}else{toast('المشاركة مش مدعومة هنا — هنزّل الصور');dl(L)}};
+  const dl=L=>{L.forEach((x,i)=>setTimeout(()=>{const a=document.createElement('a');a.href=x.cv.toDataURL('image/png');a.download=`${x.p.code}.png`;document.body.appendChild(a);a.click();a.remove()},i*250))};
+  $('#bl_dl').onclick=()=>{const L=build();if(L)dl(L)};
+  $('#bl_print').onclick=()=>{const L=build();if(!L)return;const c=cur();const imgs=L.flatMap(x=>Array(x.n).fill(x.cv.toDataURL('image/png')));
+    const f=document.createElement('iframe');f.style.cssText='position:fixed;left:-10000px;top:0;width:400px;height:400px;border:0';document.body.appendChild(f);const d=f.contentDocument;
+    d.open();d.write(`<!doctype html><html><head><meta charset="utf-8"><style>@page{size:${c.w}mm ${c.h}mm;margin:0}html,body{margin:0;padding:0}img{display:block;width:${c.w}mm;height:${c.h}mm;page-break-after:always;break-after:page}</style></head><body>${imgs.map(s=>`<img src="${s}">`).join('')}</body></html>`);d.close();
+    setTimeout(()=>{try{f.contentWindow.focus();f.contentWindow.print()}catch(e){toast('معرفتش أفتح الطباعة')}setTimeout(()=>f.remove(),60000)},400)};
+  draw();
+}
+/* ماسح الكاميرا — شغال على أندرويد (BarcodeDetector) وعلى آيفون (ZXing) */
+async function scanCodes(onCode,opt={}){
+  const ov=document.createElement('div');ov.id='scanOv';ov.style.cssText='position:fixed;inset:0;z-index:80;background:rgba(5,8,15,.92);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:16px';
+  ov.innerHTML=`<div style="color:#fff;font-weight:700">${esc(opt.title||'📷 وجّه الكاميرا على الباركود')}</div><div style="position:relative;width:min(520px,100%)"><video id="scanV" playsinline muted style="width:100%;border-radius:14px;background:#000;max-height:60vh;object-fit:cover"></video><div style="position:absolute;left:8%;right:8%;top:45%;height:2px;background:#ff3b3b;box-shadow:0 0 8px #ff3b3b"></div></div><div id="scanMsg" style="color:#cfd6e4;min-height:22px;text-align:center"></div><div class="row"><button type="button" class="btn pri" id="scanDone">${opt.multi?'خلصت':'إلغاء'}</button><button type="button" class="btn" id="scanType">⌨️ اكتب الكود</button></div>`;
+  document.body.appendChild(ov);let alive=true,stream=null,zx=null,last='',lastT=0;
+  const stop=()=>{alive=false;try{zx&&zx.reset()}catch(e){}try{stream&&stream.getTracks().forEach(t=>t.stop())}catch(e){}ov.remove()};
+  const got=code=>{code=String(code||'').trim();if(!code)return;const t=Date.now();if(code===last&&t-lastT<1800)return;last=code;lastT=t;try{navigator.vibrate&&navigator.vibrate(60)}catch(e){}
+    const r=onCode(code);$('#scanMsg').textContent=typeof r==='string'?r:'';if(!opt.multi)stop()};
+  $('#scanDone').onclick=stop;$('#scanType').onclick=()=>{const v=prompt('اكتب كود الصنف (مثلاً SP-0001)');if(v)got(v)};
+  const v=$('#scanV');
+  try{
+    if('BarcodeDetector' in window){stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});v.srcObject=stream;await v.play().catch(()=>{});
+      const det=new BarcodeDetector({formats:['code_128','qr_code','ean_13','code_39','ean_8','upc_a']});
+      const loop=async()=>{if(!alive)return;try{const r=await det.detect(v);if(r&&r[0])got(r[0].rawValue)}catch(e){}if(alive)setTimeout(loop,120)};loop();return}
+    $('#scanMsg').textContent='بيحمّل الماسح…';await loadZX();if(!alive)return;zx=new ZXing.BrowserMultiFormatReader();$('#scanMsg').textContent='';
+    await zx.decodeFromConstraints({video:{facingMode:'environment'}},v,(res)=>{if(res&&alive)got(res.getText())});
+  }catch(e){$('#scanMsg').textContent='مقدرتش أفتح الكاميرا — اسمح للمتصفح بالكاميرا أو اضغط "اكتب الكود"'}
+}
+/* إضافة صنف للفاتورة بالباركود */
+function psAddByCode(code){const f=partByCode(code);if(!f)return '❌ الكود ده مش متسجل: '+code;const box=$('#ps_lines');if(!box)return '';
+  const val=f.u?'u:'+f.u.id:f.p.id;const nm=f.u?f.u.name:f.p.name;
+  const rowsAll=$$('#ps_lines .ps-row');let row=rowsAll.find(r=>r.querySelector('.ps-part').value===val);
+  if(row&&!f.u){const q=row.querySelector('.ps-qty');const before=parseInt(q.value)||0;q.value=before+1;q.dispatchEvent(new Event('input',{bubbles:true}));return (parseInt(q.value)||0)>before?`✅ ${nm} — بقوا ${q.value}`:`⚠️ ${nm} — مفيش كمية تانية في المخزن`}
+  if(row&&f.u)return `⚠️ ${nm} موجودة في الفاتورة`;
+  row=rowsAll.find(r=>!r.querySelector('.ps-part').value);let added=false;if(!row){box.insertAdjacentHTML('beforeend',psLineHTML());row=$$('#ps_lines .ps-row').pop();added=true}
+  const sel=row.querySelector('.ps-part');const opt=[...sel.options].find(o=>o.value===val);if(!opt||opt.disabled){if(added)row.remove()}if(!opt){return `⚠️ "${nm}" مش من نوع الفاتورة دي (${window._PSK==='cons'?'مستهلكات':'قطع غيار'})`}
+  if(opt.disabled)return `⚠️ ${nm} خلصان من المخزن`;sel.value=val;sel.dispatchEvent(new Event('change',{bubbles:true}));return `✅ اتضاف: ${nm}`}
+Object.assign(X9,{bcLabels:(t,id)=>{window._BCK=t.dataset.k||'';bcLabels(id?[id]:[])},psScan:()=>scanCodes(psAddByCode,{multi:true,title:'📷 امسح باركود الأصناف — كل مسحة بتضيف واحد'})});
+Object.assign(NEED9,{bcLabels:'stock'});
 
 /* =====================================================================
    التشغيل

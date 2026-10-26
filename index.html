@@ -221,6 +221,7 @@ body.lay-compact h2{font-size:1.25rem}
 .hubbar{margin-bottom:12px}
 @media(max-width:760px){.seg.tiles{grid-template-columns:repeat(3,1fr);gap:8px!important}.seg.tiles>button{min-height:78px;padding:10px 8px!important;font-size:12.5px}.ti-ic{width:31px;height:31px}}
 .fr-rr{display:flex;gap:10px;align-items:center;padding:9px 0;border-top:1px solid var(--line)}.fr-rr:first-of-type{border-top:0}
+.cg-t{display:grid;gap:4px;margin:6px 0;border-top:1px solid var(--line);padding-top:6px}.cg-r{display:grid;gap:2px;padding:4px 0;border-bottom:1px dashed var(--line)}.cg-a{display:flex;gap:6px;align-items:center;min-width:0}.cg-c{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.cg-c{color:var(--muted);direction:ltr;text-align:right}.cg-low{color:var(--bad)}.cg-r .btn.sm{padding:2px 6px!important;min-width:0}
 .cap-hero{background:linear-gradient(135deg,var(--accent),color-mix(in srgb,var(--accent) 70%,#000));color:#fff;border-radius:18px;padding:20px;display:grid;grid-template-columns:1.3fr 1fr;gap:16px}
 .cap-big{font-size:36px;font-weight:800}.cap-lbl{opacity:.8;font-size:14px}
 .cap-eq{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px;font-size:13.5px}.cap-eq span{background:rgba(255,255,255,.12);padding:3px 10px;border-radius:8px}
@@ -1848,10 +1849,10 @@ function viewStock(){
   <div class="row between"><div class="row"><input id="sq" placeholder="بحث باسم القطعة أو الكود" value="${esc(SQ)}" style="max-width:260px"><select id="scf" style="width:auto"><option value="">كل الحالات</option>${Object.entries(CONDS).map(([k,[l]])=>`<option value="${k}" ${k===SCF?'selected':''}>${l}</option>`).join('')}</select>${(()=>{const T=[...new Set(SPARES().map(p=>p.ptype).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ar'));return T.length?`<select id="spt" style="width:auto"><option value="">كل الأنواع</option>${T.map(t=>`<option ${t===SPT?'selected':''}>${esc(t)}</option>`).join('')}</select>`:''})()}${(()=>{const B=[...new Set(SPARES().map(p=>p.brand).filter(Boolean))].sort();return B.length?`<select id="spb" style="width:auto"><option value="">كل الماركات</option>${B.map(t=>`<option ${t===SPB?'selected':''}>${esc(t)}</option>`).join('')}</select>`:''})()}</div><div class="row">${can('stock')?'<button class="btn" data-act="bcLabels" data-k="spare">🏷️ باركود</button>':''}${edit?'<button class="btn pri" data-act="addPart">+ صنف جديد</button>':''}</div></div>
   ${can('stock_edit')&&condGroups().length?`<div class="banner info row between"><span>فيه ${condGroups().length} قطعة متسجلة بكذا حالة بأكواد مختلفة — اربطهم علشان ياخدوا نفس الرقم وآخره حرف الحالة.</span><button class="btn sm pri" data-act="condMerge">اربطهم</button></div>`:''}
   <div class="muted small">كل صنف بياخد كود لوحده، وآخره حرف الحالة: N جديدة · U مستعملة · F مجددة · R إصلاح · D تالفة. دوس على الصورة تكبّرها، و"اتركب فين" بيوريك العيادات اللي اتركب عندها.</div>
-  ${list.length?`<div class="pgrid">${list.sort((a,b)=>a.name.localeCompare(b.name,'ar')).map(p=>`<div class="pcard">${p.photo?`<img src="${p.photo}" data-act="showImg" data-src="pt:${p.id}" alt="" style="cursor:zoom-in">`:'<div class="noimg">⚙️</div>'}<div class="pbody">${p.ptype?`<span class="pill p-info" style="justify-self:start">${esc(p.ptype)}</span>`:''}<b>${esc(p.name)}</b>${p.brand||p.model?`<div class="small" style="font-weight:600;color:var(--accent)">${esc([p.brand,p.model].filter(Boolean).join(' · '))}</div>`:''}<div class="muted small num">${esc(p.code||'')}${p.ref?' · '+esc(p.ref):''}</div>${sibLine(p)}${kitCardLine(p)}
-    <div class="row between"><span class="num">${money(p.sell)}</span>${n(p.qty)<=n(p.min)?`<span class="pill p-bad">${n(p.qty)}</span>`:`<span class="pill p-ok">${n(p.qty)}</span>`}</div>
-    ${costs?`<div class="muted small">الشراء: <span class="num">${money(p.buy)}</span></div>`:''}
-    <div class="row" style="gap:4px">${condPill(p.condition)}${wLabel(p)?`<span class="pill p-info">ضمان ${wLabel(p)}</span>`:''}</div>
+  ${list.length?`<div class="pgrid">${groupLeads(list.sort((a,b)=>a.name.localeCompare(b.name,'ar'))).map(p=>`<div class="pcard">${p.photo?`<img src="${p.photo}" data-act="showImg" data-src="pt:${p.id}" alt="" style="cursor:zoom-in">`:'<div class="noimg">⚙️</div>'}<div class="pbody">${p.ptype?`<span class="pill p-info" style="justify-self:start">${esc(p.ptype)}</span>`:''}<b>${esc(p.name)}</b>${p.brand||p.model?`<div class="small" style="font-weight:600;color:var(--accent)">${esc([p.brand,p.model].filter(Boolean).join(' · '))}</div>`:''}<div class="muted small num">${esc(p.code||'')}${p.ref?' · '+esc(p.ref):''}</div>${condTable(p,edit,costs)}${kitCardLine(p)}
+    ${isKit(p)?`<div class="row between"><span class="num">${money(p.sell)}</span>${n(p.qty)<=n(p.min)?`<span class="pill p-bad">${n(p.qty)}</span>`:`<span class="pill p-ok">${n(p.qty)}</span>`}</div>
+    ${costs?`<div class="muted small">الشراء: <span class="num">${money(p.buy)}</span></div>`:''}`:''}
+    <div class="row" style="gap:4px">${isKit(p)?condPill(p.condition):''}${wLabel(p)?`<span class="pill p-info">ضمان ${wLabel(p)}</span>`:''}</div>
     ${sold[p.id]?`<div class="small"><a href="#" data-act="mvPart" data-id="${p.id}">اتركب ${sold[p.id]} ← فين؟</a></div>`:''}
     ${rq[p.id]?`<div class="small"><a href="#" data-act="partRents" data-id="${p.id}">🔑 مؤجّر ${rq[p.id]} ← عند مين؟</a></div>`:''}
     ${edit?`<div class="row"><button class="btn sm" data-act="restock" data-id="${p.id}">+ كمية</button>${can('part_rent')?`<button class="btn sm" data-act="rentPart" data-id="${p.id}">🔑 تأجير</button>`:''}<button class="btn sm ghost" data-act="editPart" data-id="${p.id}">تعديل</button></div>`:''}</div></div>`).join('')}</div>`:'<div class="panel"><div class="empty">مفيش أصناف بالفلتر ده</div></div>'}`;
@@ -1952,13 +1953,13 @@ function openPartModal(id){
    <label class="f">سعر الشراء<input type="number" min="0" step="any" id="p_buy" value="${p.buy}"></label>
    <label class="f">سعر البيع<input type="number" min="0" step="any" id="p_sell" value="${p.sell}"></label>
    <label class="f">ضمان للعميل (شهور)<input type="number" min="0" step="1" id="p_wm" value="${p.wMonths||''}"></label>
-   <label class="f">ضمان للعميل (نبضات)<input type="number" min="0" step="1000" id="p_wp" value="${p.wPulses||''}"></label>${kitEditorHTML(p)}${partPhotoField(p)}</div>
+   <label class="f">ضمان للعميل (نبضات)<input type="number" min="0" step="1000" id="p_wp" value="${p.wPulses||''}"></label>${kitEditorHTML(p)}${condQtyHTML(p)}${partPhotoField(p)}</div>
    ${ll&&(ll.supWMonths||ll.supWPulses)?`<div class="muted small">آخر ضمان من المورد (${esc(S.suppliers.find(x=>x.id===lastSup.supplierId)?.name||'')} — ${fd(lastSup.date)}): ${wLabel({wMonths:ll.supWMonths,wPulses:ll.supWPulses})}</div>`:''}
    ${id?`<div class="row"><button type="button" class="btn sm" data-act="partVariant" data-id="${id}">+ نفس القطعة بحالة تانية</button><button type="button" class="btn sm danger" id="p_del">حذف الصنف</button></div>${sibsOf(p).length?`<div class="muted small">الحالات التانية: ${sibsOf(p).map(x=>`${condTxt(x)} (${esc(x.code)}) — ${n(x.qty)}`).join(' · ')}</div>`:''}`:''}`,()=>{
     const name=$('#p_name').value.trim();if(!name){toast('اكتب اسم القطعة');return false}
     const d={name,ptype:$('#p_type').value.trim(),brand:$('#p_brand').value.trim(),model:$('#p_model').value.trim(),ref:$('#p_ref').value.trim(),condition:$('#p_cond').value,buy:n($('#p_buy').value),sell:n($('#p_sell').value),qty:n($('#p_qty').value),min:n($('#p_min').value),wMonths:n($('#p_wm').value),wPulses:n($('#p_wp').value),photo:pPhoto,kit:kitRead()};if(!d.kit.length)d.kit=null;else{if(d.kit.some(c=>c.partId===id)){toast('القطعة مينفعش تبقى مكون في نفسها');return false}d.buy=kitCost(d);d.sell=kitSell(d)}
     if(id&&d.condition!==(p.condition||'new')&&sibsOf(p).some(x=>(x.condition||'new')===d.condition)){toast(`فيه صنف تاني لنفس القطعة بحالة "${CONDS[d.condition][0]}" — زوّد الكمية عليه بدل ما تغيّر الحالة`);return false}
-    if(id)Object.assign(p,d);else S.parts.push({id:uid(),code:nextCode('spare'),cat:'spare',...d});save();toast('اتحفظ الصنف');render();
+    if(id){Object.assign(p,d);condQtySave(p)}else S.parts.push({id:uid(),code:nextCode('spare'),cat:'spare',...d});save();toast('اتحفظ الصنف');render();
   });
   $('#p_ph').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{pPhoto=await compress(f,700,.6);$('#p_box').innerHTML=`<figure><img src="${pPhoto}" alt=""></figure>`}catch(_){toast('معرفتش أقرا الصورة')}};if($('#p_phd'))$('#p_phd').onclick=()=>{pPhoto='';$('#p_box').innerHTML=''};
   if(id)$('#p_del').onclick=()=>confirmBox(`حذف "${p.name}" من المخزن؟ التقارير القديمة هتفضل زي ما هي.`,()=>{S.parts=S.parts.filter(x=>x.id!==id);save();render()});
@@ -6100,7 +6101,7 @@ let XR_PRE='';
 
 
 /* ---------- فحص التحديثات ---------- */
-const APP_VER='2026.10.26.10';
+const APP_VER='2026.10.26.12';
 async function checkUpdate(){try{if(location.protocol==='file:')return;const t=await (await fetch(location.pathname+'?_='+Date.now(),{cache:'no-store'})).text();const m=t.match(/const APP_VER='([^']+)'/);if(m&&m[1]!==APP_VER)showUpd(m[1])}catch(e){}}
 function showUpd(v){if(document.getElementById('updBar'))return;const b=document.createElement('div');b.id='updBar';b.style.cssText='position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:80;background:#1d2b45;color:#fff;padding:10px 16px;border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,.25);display:flex;gap:12px;align-items:center;font-weight:600;max-width:92vw';b.innerHTML='<span>🔄 فيه نسخة جديدة من السيستم</span><button type="button" style="background:#2b8fb8;color:#fff;border:0;border-radius:10px;padding:6px 14px;font:inherit;cursor:pointer">حدّث دلوقتي</button>';b.querySelector('button').onclick=()=>{location.replace(location.pathname+'?v='+encodeURIComponent(v)+location.hash)};document.body.appendChild(b)}
 setTimeout(checkUpdate,8000);setInterval(checkUpdate,5*60*1000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkUpdate()});
@@ -6908,7 +6909,10 @@ async function bcLabels(pre){await loadJB().catch(()=>{});if(!window.JsBarcode){
    <div id="bl_list" style="max-height:260px;overflow:auto;border:1px solid var(--line);border-radius:12px;padding:4px 10px"></div>
    <div class="row between"><b id="bl_cnt"></b><div id="bl_prev" style="border:1px dashed var(--line);border-radius:8px;padding:6px;background:#fff"></div></div>
    <div class="muted small">على الموبايل: اضغط "مشاركة" واختار أبلكيشن الطابعة. على الكمبيوتر: "طباعة" (اختار الطابعة ومقاس الورق نفس مقاس الملصق، والهوامش None).</div>
-   <div class="row" style="flex-wrap:wrap"><button type="button" class="btn pri" id="bl_share">📤 مشاركة لأبلكيشن الطابعة</button><button type="button" class="btn" id="bl_print">🖨️ طباعة</button><button type="button" class="btn" id="bl_dl">⬇️ تحميل الصور</button></div>`,()=>true);
+   <div class="panel" style="padding:10px 12px"><div class="row between"><b>🔵 طباعة مباشرة بالبلوتوث</b><span class="muted small">كروم على أندرويد أو كمبيوتر</span></div>
+   <div class="row" style="gap:6px;margin-top:6px;flex-wrap:wrap"><select id="bl_mode" style="width:auto"><option value="tspl" ${btMode()==='tspl'?'selected':''}>طريقة 1 (TSPL — طابعات الملصقات)</option><option value="escpos" ${btMode()==='escpos'?'selected':''}>طريقة 2 (ESC/POS)</option></select><button type="button" class="btn pri" id="bl_bt">🔵 اطبع على الطابعة</button><button type="button" class="btn sm ghost" id="bl_btnew">طابعة تانية</button></div>
+   <div class="muted small" style="margin-top:4px">أول مرة: اقفل أبلكيشن eleph-label، وشغّل الطابعة، واضغط "اطبع" واختار اسم الطابعة من القايمة. لو الملصق طلع فاضي أو مقلوب أو كلام غريب، غيّر الطريقة وجرب تاني بنسخة واحدة.</div></div>
+   <div class="row" style="flex-wrap:wrap"><button type="button" class="btn" id="bl_share">📤 مشاركة لأبلكيشن الطابعة</button><button type="button" class="btn" id="bl_print">🖨️ طباعة</button><button type="button" class="btn" id="bl_dl">⬇️ تحميل الصور</button></div>`,()=>true);
   const ok=$('#mOk');if(ok)ok.remove();
   const rows=()=>{const q=($('#bl_q').value||'').trim().toLowerCase(),k=$('#bl_k').value;return S.parts.filter(p=>(!k||catOf(p)===k)&&(!q||(p.name+' '+(p.code||'')).toLowerCase().includes(q))).sort((a,b)=>(a.code||'').localeCompare(b.code||''))};
   const cur=()=>{const [w,h]=$('#bl_sz').value.split('x').map(Number);return {w,h,name:$('#bl_nm').checked,price:$('#bl_pr').checked}};
@@ -6926,6 +6930,8 @@ async function bcLabels(pre){await loadJB().catch(()=>{});if(!window.JsBarcode){
     if(navigator.canShare&&navigator.canShare({files})){try{await navigator.share({files,title:'ملصقات باركود'})}catch(e){}}else{toast('المشاركة مش مدعومة هنا — هنزّل الصور');dl(L)}};
   const dl=L=>{L.forEach((x,i)=>setTimeout(()=>{const a=document.createElement('a');a.href=x.cv.toDataURL('image/png');a.download=`${x.p.code}.png`;document.body.appendChild(a);a.click();a.remove()},i*250))};
   $('#bl_dl').onclick=()=>{const L=build();if(L)dl(L)};
+  $('#bl_mode').onchange=()=>{try{localStorage.setItem('pm-bt-mode',$('#bl_mode').value)}catch(e){}};$('#bl_btnew').onclick=()=>{try{BT.dev?.gatt?.disconnect()}catch(e){}BT={dev:null,ch:null};toast('هيطلب منك تختار الطابعة المرة الجاية')};
+  $('#bl_bt').onclick=async()=>{const L=build();if(!L)return;$('#bl_bt').disabled=true;try{await btPrintLabels(L,cur())}finally{const b=$('#bl_bt');if(b)b.disabled=false}};
   $('#bl_print').onclick=()=>{const L=build();if(!L)return;const c=cur();const imgs=L.flatMap(x=>Array(x.n).fill(x.cv.toDataURL('image/png')));
     const f=document.createElement('iframe');f.style.cssText='position:fixed;left:-10000px;top:0;width:400px;height:400px;border:0';document.body.appendChild(f);const d=f.contentDocument;
     d.open();d.write(`<!doctype html><html><head><meta charset="utf-8"><style>@page{size:${c.w}mm ${c.h}mm;margin:0}html,body{margin:0;padding:0}img{display:block;width:${c.w}mm;height:${c.h}mm;page-break-after:always;break-after:page}</style></head><body>${imgs.map(s=>`<img src="${s}">`).join('')}</body></html>`);d.close();
@@ -7106,6 +7112,47 @@ document.addEventListener('change',e=>{const s=e.target.closest&&(e.target.close
 document.addEventListener('input',e=>{if(!e.target.classList?.contains('kv-q'))return;const row=e.target.closest('.part-row,.ps-row');const sel=row&&row.querySelector('.pr-part,.ps-part');const p=sel&&part(sel.value);if(!isKit(p))return;const pr=row.querySelector('.pr-price,.ps-price');if(pr&&!pr.readOnly){pr.value=kitSell(p,kitVarRead(row));pr.dispatchEvent(new Event('input',{bubbles:true}))}});
 Object.assign(X9,{kitBuild:(t,id)=>kitBuild(id,false),kitUndo:(t,id)=>kitBuild(id,true)});
 Object.assign(NEED9,{kitBuild:'stock_edit',kitUndo:'stock_edit'});
+
+/* =====================================================================
+   v48 — طباعة مباشرة على طابعة الملصقات بالبلوتوث (كروم أندرويد / كمبيوتر)
+   ===================================================================== */
+const BT_SVCS=['000018f0-0000-1000-8000-00805f9b34fb','0000ff00-0000-1000-8000-00805f9b34fb','0000ffe0-0000-1000-8000-00805f9b34fb','0000ae30-0000-1000-8000-00805f9b34fb','0000fee7-0000-1000-8000-00805f9b34fb','49535343-fe7d-4ae5-8fa9-9fafd205e455','e7810a71-73ae-499d-8c15-faa9aef0c3f2','0000ff80-0000-1000-8000-00805f9b34fb','0000abf0-0000-1000-8000-00805f9b34fb'];
+let BT={dev:null,ch:null};
+const btMode=()=>{try{return localStorage.getItem('pm-bt-mode')||'tspl'}catch(e){return 'tspl'}};
+async function btConnect(){if(!navigator.bluetooth)throw new Error('nobt');
+  if(BT.ch&&BT.dev?.gatt?.connected)return BT.ch;
+  const dev=BT.dev||await navigator.bluetooth.requestDevice({acceptAllDevices:true,optionalServices:BT_SVCS});BT.dev=dev;
+  const g=await dev.gatt.connect();let ch=null;
+  for(const s of await g.getPrimaryServices()){try{for(const c of await s.getCharacteristics()){if(c.properties.writeWithoutResponse||c.properties.write){ch=c;break}}}catch(e){}if(ch)break}
+  if(!ch)throw new Error('nochar');BT.ch=ch;dev.addEventListener('gattserverdisconnected',()=>{BT.ch=null});return ch}
+async function btWrite(bytes){const ch=await btConnect();const N=ch.properties.writeWithoutResponse?180:100;for(let i=0;i<bytes.length;i+=N){const part=bytes.slice(i,i+N);if(ch.properties.writeWithoutResponse&&ch.writeValueWithoutResponse)await ch.writeValueWithoutResponse(part);else await ch.writeValue(part);await new Promise(r=>setTimeout(r,ch.properties.writeWithoutResponse?18:4))}}
+function cvBits(cv,black1){const W=cv.width,H=cv.height,bw=Math.ceil(W/8);const d=cv.getContext('2d').getImageData(0,0,W,H).data;const out=new Uint8Array(bw*H);
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++){const i=(y*W+x)*4;const dark=(d[i]+d[i+1]+d[i+2])/3<128&&d[i+3]>100;const bit=black1?dark:!dark;if(bit)out[y*bw+(x>>3)]|=0x80>>(x&7)}
+  if(!black1)for(let y=0;y<H;y++)for(let x=W;x<bw*8;x++)out[y*bw+(x>>3)]|=0x80>>(x&7);return {bw,H,data:out}}
+const enc=s=>new TextEncoder().encode(s);
+function catBytes(arr){const L=arr.reduce((a,x)=>a+x.length,0);const o=new Uint8Array(L);let k=0;arr.forEach(x=>{o.set(x,k);k+=x.length});return o}
+function lblBytes(cv,cfg,copies,mode){
+  if(mode==='escpos'){const b=cvBits(cv,true);const head=new Uint8Array([0x1b,0x40,0x1d,0x76,0x30,0x00,b.bw&255,b.bw>>8,b.H&255,b.H>>8]);const one=catBytes([head,b.data,new Uint8Array([0x0a,0x1d,0x0c])]);return catBytes(Array(copies).fill(one))}
+  const b=cvBits(cv,false);return catBytes([enc(`SIZE ${cfg.w} mm,${cfg.h} mm\r\nGAP 2 mm,0 mm\r\nDIRECTION 1\r\nDENSITY 10\r\nCLS\r\nBITMAP 0,0,${b.bw},${b.H},0,`),b.data,enc(`\r\nPRINT ${copies},1\r\n`)])}
+async function btPrintLabels(L,cfg){if(!navigator.bluetooth){toast('الطباعة بالبلوتوث شغالة على كروم (أندرويد أو كمبيوتر) بس — على الآيفون استخدم "مشاركة"');return false}
+  const mode=btMode();try{toast('بيوصل بالطابعة…');for(const x of L){await btWrite(lblBytes(x.cv,cfg,x.n,mode));await new Promise(r=>setTimeout(r,300))}toast(`اتبعت ${L.reduce((a,x)=>a+x.n,0)} ملصق للطابعة`);return true}
+  catch(e){BT.ch=null;const m=String(e&&e.message||e);toast(m==='nobt'?'المتصفح ده مش بيدعم البلوتوث':m==='nochar'?'الطابعة اتوصلت بس مش بتستقبل — جرّب طريقة الطباعة التانية':/cancel/i.test(m)?'اتلغى':'مقدرتش أوصل بالطابعة — اتأكد إنها شغالة والبلوتوث مفتوح ومش متوصلة بأبلكيشن تاني');return false}}
+
+/* ---------- القطعة بكل حالاتها في كارت واحد ---------- */
+const COND_ORD=['new','used','refurb','repaired','damaged'];
+const groupOf=p=>[p,...sibsOf(p)].sort((a,b)=>COND_ORD.indexOf(a.condition||'new')-COND_ORD.indexOf(b.condition||'new'));
+function condTable(p,edit,costs){if(isKit(p))return '';const G=groupOf(p);
+  return `<div class="cg-t">${G.map(x=>`<div class="cg-r"><div class="cg-a">${condPill(x.condition)}<span class="num small cg-c">${esc(x.code||'')}</span><b class="num ${n(x.qty)<=n(x.min)?'cg-low':''}" style="margin-inline-start:auto">${n(x.qty)}</b></div><div class="cg-a"><span class="num small">${money(x.sell)}</span><span class="row" style="gap:2px;flex-wrap:nowrap;margin-inline-start:auto"><button class="btn sm ghost" data-act="bcLabels" data-id="${x.id}" title="باركود">🏷️</button>${edit?`<button class="btn sm ghost" data-act="restock" data-id="${x.id}" title="+ كمية">+</button><button class="btn sm ghost" data-act="editPart" data-id="${x.id}" title="تعديل">✏️</button>`:''}</span></div></div>`).join('')}
+   ${edit?`<button class="btn sm ghost" data-act="partVariant" data-id="${p.id}" style="justify-self:start">+ حالة تانية</button>`:''}</div>`}
+function groupLeads(list){const seen=new Set();return list.filter(p=>{if(isKit(p)||catOf(p)!=='spare')return true;const b=baseOf(p);if(seen.has(b))return false;seen.add(b);return true}).map(p=>{if(isKit(p)||catOf(p)!=='spare')return p;const G=groupOf(p).filter(x=>list.includes(x));return G[0]||p})}
+/* في شاشة تعديل الصنف: كميات الحالات التانية */
+function condQtyHTML(p){if(!p.id||isKit(p)||catOf(p)!=='spare')return '';const S2=sibsOf(p);const have=new Set([p.condition||'new',...S2.map(x=>x.condition||'new')]);const miss=COND_ORD.filter(c=>!have.has(c));
+  return `<div class="panel" style="padding:10px 12px;grid-column:1/-1"><b>نفس القطعة بحالات تانية</b> <span class="muted small">— كل حالة ليها كودها وباركودها وكميتها</span>
+   <div class="grid" style="gap:6px;margin-top:6px">${[...S2.map(x=>({c:x.condition||'new',x})),...miss.map(c=>({c,x:null}))].map(({c,x})=>`<div class="row cq-r" data-c="${c}" data-id="${x?.id||''}" style="flex-wrap:nowrap;gap:6px"><span style="width:84px">${condPill(c)}</span><span class="num small muted" style="width:96px">${esc(x?.code||baseOf(p)+'-'+COND_L[c])}</span><input type="number" step="1" class="cq-q" value="${x?n(x.qty):''}" placeholder="الكمية" style="width:80px"><input type="number" min="0" step="any" class="cq-b" value="${x?n(x.buy):''}" placeholder="شراء" style="width:90px"><input type="number" min="0" step="any" class="cq-s" value="${x?n(x.sell):''}" placeholder="بيع" style="width:90px"></div>`).join('')}</div>
+   <div class="muted small">اكتب كمية لأي حالة جديدة وهتتعمل لوحدها بكودها. الأسعار لو سبتها فاضية هتاخد نفس أسعار القطعة دي.</div></div>`}
+function condQtySave(p){let k=0;$$('.cq-r').forEach(r=>{const c=r.dataset.c,id=r.dataset.id;const qv=r.querySelector('.cq-q').value,bv=r.querySelector('.cq-b').value,sv=r.querySelector('.cq-s').value;
+  if(id){const x=part(id);if(!x)return;if(qv!=='')x.qty=n(qv);if(bv!=='')x.buy=n(bv);if(sv!=='')x.sell=n(sv);['name','ptype','brand','model'].forEach(f=>x[f]=p[f]);return}
+  if(qv===''||n(qv)<=0)return;S.parts.push({id:uid(),cat:'spare',name:p.name,ptype:p.ptype||'',brand:p.brand||'',model:p.model||'',ref:p.ref||'',condition:c,base:baseOf(p),code:baseOf(p)+'-'+COND_L[c],buy:bv!==''?n(bv):n(p.buy),sell:sv!==''?n(sv):n(p.sell),qty:n(qv),min:0,wMonths:c==='new'?n(p.wMonths):0,wPulses:c==='new'?n(p.wPulses):0,photo:p.photo||''});k++});return k}
 
 /* =====================================================================
    التشغيل

@@ -6101,7 +6101,7 @@ let XR_PRE='';
 
 
 /* ---------- فحص التحديثات ---------- */
-const APP_VER='2026.10.26.14';
+const APP_VER='2026.10.26.15';
 async function checkUpdate(){try{if(location.protocol==='file:')return;const t=await (await fetch(location.pathname+'?_='+Date.now(),{cache:'no-store'})).text();const m=t.match(/const APP_VER='([^']+)'/);if(m&&m[1]!==APP_VER)showUpd(m[1])}catch(e){}}
 function showUpd(v){if(document.getElementById('updBar'))return;const b=document.createElement('div');b.id='updBar';b.style.cssText='position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:80;background:#1d2b45;color:#fff;padding:10px 16px;border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,.25);display:flex;gap:12px;align-items:center;font-weight:600;max-width:92vw';b.innerHTML='<span>🔄 فيه نسخة جديدة من السيستم</span><button type="button" style="background:#2b8fb8;color:#fff;border:0;border-radius:10px;padding:6px 14px;font:inherit;cursor:pointer">حدّث دلوقتي</button>';b.querySelector('button').onclick=()=>{location.replace(location.pathname+'?v='+encodeURIComponent(v)+location.hash)};document.body.appendChild(b)}
 setTimeout(checkUpdate,8000);setInterval(checkUpdate,5*60*1000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkUpdate()});
@@ -6901,17 +6901,15 @@ function lblCanvas(p,cfg){if((cfg.kind||'qr')==='qr'&&window.qrcode)return lblCa
     g.imageSmoothingEnabled=false;const dw=Math.round(bw*scale);g.drawImage(bc,Math.round((W-dw)/2),top,dw,Math.max(20,barH))}
   g.direction='ltr';fit(bottomText,W-2*pad,bs,true);g.fillText(bottomText,W/2,H-pad-bs);return cv}
 function lblCanvasQR(p,cfg){const D=8;const W=Math.round(cfg.w*D),H=Math.round(cfg.h*D);const cv=document.createElement('canvas');cv.width=W;cv.height=H;const g=cv.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,W,H);g.fillStyle='#000';
-  const q=qrcode(0,'M');q.addData(String(p.code));q.make();const nM=q.getModuleCount();const pad=Math.round(1.2*D);const land=W>=H*1.15;
-  const avail=land?H-2*pad:Math.min(W-2*pad,H-2*pad-Math.round(H*0.22));const ms=Math.max(2,Math.floor(avail/(nM+4)));const qs=ms*(nM+4);
-  const qx=land?pad:Math.round((W-qs)/2),qy=land?Math.round((H-qs)/2):pad;
-  for(let r=0;r<nM;r++)for(let c=0;c<nM;c++)if(q.isDark(r,c))g.fillRect(qx+ms*(c+2),qy+ms*(r+2),ms,ms);
-  g.textBaseline='middle';g.direction='ltr';const m=String(p.code).match(/^(.*?)(?:-([A-Z]))?$/);const main=m[1],L=m[2]||'';
-  const fit=(t,max,size)=>{let z=size;g.font=`700 ${z}px Arial, sans-serif`;while(g.measureText(t).width>max&&z>10){z--;g.font=`700 ${z}px Arial, sans-serif`}return z};
-  if(land){const tx=qx+qs+Math.round(0.8*D),tw=W-tx-pad;g.textAlign='center';const cx=tx+tw/2;
-    if(cfg.name&&p.name){fit(p.name,tw,Math.round(H*0.13));g.direction='rtl';g.fillText(p.name,cx,H*0.2);g.direction='ltr'}
-    fit(main,tw,Math.round(H*0.2));g.fillText(main,cx,cfg.name?H*0.47:H*0.36);
-    if(L){const z=fit(L,tw,Math.round(H*0.34));g.fillText(L,cx,cfg.name?H*0.76:H*0.7)}}
-  else{g.textAlign='center';fit(p.code,W-2*pad,Math.round(H*0.14));g.fillText(p.code,W/2,qy+qs+(H-qy-qs)/2)}
+  const q=qrcode(0,'M');q.addData(String(p.code));q.make();const nM=q.getModuleCount();const pad=Math.round(0.8*D);
+  const txt=String(p.code);let tz=Math.round(Math.min(H*0.15,W*0.13));g.font=`700 ${tz}px Arial, sans-serif`;while(g.measureText(txt).width>W-2*pad&&tz>10){tz--;g.font=`700 ${tz}px Arial, sans-serif`}
+  const nameH=cfg.name&&p.name?Math.round(tz*0.9):0;
+  const avail=Math.min(W-2*pad,H-2*pad-tz-Math.round(0.5*D)-nameH);const ms=Math.max(2,Math.floor(avail/(nM+2)));const qs=ms*(nM+2);
+  const qx=Math.round((W-qs)/2),qy=pad+nameH;
+  for(let r=0;r<nM;r++)for(let c=0;c<nM;c++)if(q.isDark(r,c))g.fillRect(qx+ms*(c+1),qy+ms*(r+1),ms,ms);
+  g.textAlign='center';g.textBaseline='top';
+  if(nameH){let nz=Math.round(nameH*0.85);g.font=`700 ${nz}px Tahoma, Arial, sans-serif`;let t=p.name;while(g.measureText(t).width>W-2*pad&&t.length>3)t=t.slice(0,-1);g.direction='rtl';g.fillText(t,W/2,Math.max(1,pad-2));g.direction='ltr'}
+  g.font=`700 ${tz}px Arial, sans-serif`;g.direction='ltr';const ty=qy+qs+Math.max(1,Math.round((H-pad-(qy+qs)-tz)/2));g.fillText(txt,W/2,ty);
   return cv}
 async function bcLabels(pre){await loadJB().catch(()=>{});await loadQR().catch(()=>{});if(!window.JsBarcode){toast('مقدرتش أحمّل مكتبة الباركود — اتأكد من النت');return}
   const cfg=lblCfg();const kind=window._BCK||'';const P=[...S.parts].filter(p=>!kind||catOf(p)===kind).sort((a,b)=>(a.code||'').localeCompare(b.code||''));const sel=new Set(pre||[]);

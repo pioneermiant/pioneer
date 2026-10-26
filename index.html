@@ -931,6 +931,7 @@ function backfill(){
   if(can('users'))S.users.forEach(u=>{if(STAFF_ROLES.includes(u.role)&&u.role!=='admin'&&!u.perms){u.perms=permsOf(u);ch=true;if(ONLINE)saveUserDoc(u).catch(()=>{})}});
   if(can('stock_edit')&&autoCodes())ch=true;
   if(can('stock_edit')&&condCodes())ch=true;
+  if(can('stock_edit')&&kitSync())ch=true;
   if(isOwner()&&ME.role==='admin'&&!ME.owner&&!S.users.some(u=>u.owner)&&(!ONLINE||window.META_ADMIN===ME.id)){ME.owner=true;const mu=S.users.find(u=>u.id===ME.id);if(mu)mu.owner=true;saveUserDoc(mu||ME).catch(()=>{})}
   if(ch)save();
   if(can('stock_edit')&&(S.returns||[]).length&&!MIGRATING){MIGRATING=true;migrateReturns().finally(()=>{MIGRATING=false})}
@@ -1398,7 +1399,7 @@ function viewForm(id){
 }
 function partRowHTML(it={}){
   const units=(S.units||[]).filter(u=>u.status==='in_stock'&&u.condition!=='damaged'||u.id===it.unitId);
-  const opts=S.parts.filter(p=>catOf(p)==='spare'||p.freonKg||p.id===it.partId).map(p=>`<option value="${p.id}" ${!it.unitId&&p.id===it.partId?'selected':''}>${esc(p.name)}${esc(pBM(p))}${p.condition&&p.condition!=='new'?' ('+(CONDS[p.condition]?.[0]||'')+')':''} — متاح ${n(p.qty)}</option>`).join('');
+  const opts=S.parts.filter(p=>catOf(p)==='spare'||p.freonKg||p.id===it.partId).map(p=>`<option value="${p.id}" ${!it.unitId&&p.id===it.partId?'selected':''}>${esc(p.name)}${esc(pBM(p))}${isKit(p)?' [مجمّعة]':''}${p.condition&&p.condition!=='new'?' ('+(CONDS[p.condition]?.[0]||'')+')':''} — متاح ${partAvail(p)}</option>`).join('');
   const uo=units.length?`<optgroup label="قطع مكوّدة (كل قطعة لوحدها)">${units.map(u=>`<option value="u:${u.id}" ${u.id===it.unitId?'selected':''}>${esc(u.code)} — ${esc(u.name)} (${CONDS[u.condition]?.[0]||''})</option>`).join('')}</optgroup>`:'';
   const k=uid(); if(it.photo)FORM.partPhotos[k]=it.photo;
   const fc=document.getElementById('f_client')?.value||'';const cu=(S.units||[]).filter(u=>(can('client_parts')||it.unitId===u.id)&&(['pulled','ready_client'].includes(u.status)&&u.srcClientId&&u.srcClientId===fc)||(it.unitId===u.id&&it.mode==='back'));
@@ -1414,6 +1415,7 @@ function initForm(){
   const r=FORM.id?S.reports.find(x=>x.id===FORM.id):null, pre=FORM.pre;
   const rows=$('#partRows');
   (r?.parts||[]).forEach(it=>rows.insertAdjacentHTML('beforeend',partRowHTML(it)));
+  $$('#partRows .part-row').forEach((row,i)=>{const it=(r?.parts||[])[i];if(it&&!it.unitId&&it.partId)kitRowUpdate(row,row.querySelector('.pr-part'),it.kitQ)});
   if(!S.parts.length)rows.innerHTML='<div class="muted" style="font-size:.9rem">المخزن فاضي — ضيف قطع الغيار من تبويب "المخزن".</div>';
   const fBr=()=>$('#f_branch')?.disabled?'':($('#f_branch')?.value||'');const kNow=()=>contractOn($('#f_client').value,$('#f_date').value||today(),fBr(),$('#f_dserial').value.trim());
   const kOk=()=>!!kNow()||(can('contract_grace')&&!!$('#f_grace')?.checked);
@@ -1471,7 +1473,7 @@ function readParts(){return $$('#partRows .part-row').map(row=>{const v=row.quer
   const fix=o=>{o.mode=md;o.cond=cd;if(rid)o.rentalId=rid;if(md==='swap'){o.price=0}if(md==='rent'){o.rentAmt=o.price;o.price=0}return o};
   if(v.startsWith('c:')){const u=unitById(v.slice(2));return u?{...base,unitId:u.id,unitCode:u.code,partId:u.partId||'',name:u.name,qty:1,mode:'back',cond:'repaired'}:null}
   if(v.startsWith('u:')){const u=unitById(v.slice(2));return u?fix({...base,unitId:u.id,unitCode:u.code,partId:u.partId||'',name:u.name,qty:1}):null}
-  const p=part(v);return p?fix({...base,partId:p.id,name:p.name,qty:Math.max(1,parseInt(row.querySelector('.pr-qty').value)||1),src:row.querySelector('.pr-src')?.value==='eng'?'eng':'stock'}):null}).filter(Boolean)}
+  const p=part(v);return p?fix({...base,partId:p.id,name:p.name,qty:Math.max(1,parseInt(row.querySelector('.pr-qty').value)||1),src:row.querySelector('.pr-src')?.value==='eng'?'eng':'stock',...(isKit(p)?{kit:true,kitQ:kitVarRead(row),kitParts:kitPartsOf(p,kitVarRead(row))}:{})}):null}).filter(Boolean)}
 function calc(){
   const parts=readParts();
   $$('#partRows .part-row').forEach(row=>{const q=parseInt(row.querySelector('.pr-qty').value)||0,pr=n(row.querySelector('.pr-price').value);const md=row.querySelector('.pr-mode')?.value||'sale';const v=row.querySelector('.pr-part').value;if(v.startsWith('c:')&&row.querySelector('.pr-mode')){row.querySelector('.pr-mode').value='back'}row.querySelector('.lt').textContent=v?(md==='swap'?'مجاناً':md==='rent'?'إيجار '+money(q*pr):money(q*pr)):'—';const h=row.querySelector('.pr-mhint');if(h)h.textContent=md==='swap'?'القطعة بتتسجل عند العيادة لحد ما قطعتها ترجع، ومش بتتحسب في الفاتورة':md==='rent'?'المبلغ ده بيتسجل إيجار على العيادة في الآجل، ولما القطعة ترجع بتستلمها من المخزن':md==='back'?'اكتب في السعر تكلفة التصليح على العميل (لو فيه)':''});
@@ -1490,13 +1492,14 @@ async function saveReport(){
   {const eng=old?.by||ME.id;const nE={},bE={};parts.filter(l=>!l.unitId&&l.partId&&l.src==='eng').forEach(l=>nE[l.partId]=(nE[l.partId]||0)+l.qty);(old?.parts||[]).filter(l=>!l.unitId&&l.partId&&l.src==='eng').forEach(l=>bE[l.partId]=(bE[l.partId]||0)+l.qty);for(const pid in nE){const av=engBal(eng,pid)+(bE[pid]||0);if(nE[pid]>av){toast(`عهدة المهندس فيها ${av} بس من "${part(pid)?.name||''}" — غيّر المصدر لمخزن الشركة`);return}}}
   const need={};parts.filter(qp).forEach(p=>need[p.partId]=(need[p.partId]||0)+p.qty);
   const back={};(old?.parts||[]).filter(qp).forEach(p=>back[p.partId]=(back[p.partId]||0)+p.qty);
-  for(const pid in need){const p=part(pid);const avail=n(p.qty)+(back[pid]||0);if(need[pid]>avail){toast(`الكمية المتاحة من "${p.name}" ${avail} بس`);return}}
+  const VQ={};parts.forEach(l=>{if(l.kitQ)VQ[l.partId]=l.kitQ});
+  for(const pid in need){const p=part(pid);const avail=partAvail(p,VQ[pid])+(back[pid]||0);if(need[pid]>avail){toast(`الكمية المتاحة من "${p.name}" ${avail} بس`);return}}
   const uIds=parts.filter(l=>l.unitId).map(l=>l.unitId);if(new Set(uIds).size!==uIds.length){toast('نفس القطعة المكوّدة متكررة مرتين');return}
   const btn=$('#saveBtn');btn.disabled=true;
   let no=old?.no;
   let pendNo=false;if(!old){try{no=await Promise.race([takeReportNo(),new Promise((_,j)=>setTimeout(()=>j('timeout'),9000))])}catch(e){no=null;pendNo=true}}
   for(const pid in back){const p=part(pid);if(p)p.qty=n(p.qty)+back[pid]}
-  for(const pid in need){const p=part(pid);p.qty=n(p.qty)-need[pid]}
+  for(const pid in need){const p=part(pid);partTake(p,need[pid],VQ[pid])}
   const g=id=>$('#'+id).value.trim();
   const rid=old?.id||uid(),ppNow=g('f_pp');
   (old?.parts||[]).filter(l=>l.unitId&&!uIds.includes(l.unitId)).forEach(l=>{const u=unitById(l.unitId);if(u&&u.reportId===rid){u.status='in_stock';u.reportId='';u.clientId=''}});
@@ -1548,7 +1551,7 @@ function reportHTML(r){
   const textBox=(v,mh)=>`<div style="background:#fff;border:1px solid ${LN};border-radius:10px;padding:10px 14px;white-space:pre-wrap;min-height:${mh||24}px;font-weight:600">${esc(v)||'—'}</div>`;
   const cell='padding:11px 10px;border-bottom:1px solid '+LN;
   const heads=[['#','center','36px'],['الصنف','right',''],['الكمية','center','64px'],['الضمان','center','110px'],...(sp?[['السعر','center','100px'],['الإجمالي','center','110px']]:[])];
-  const partsRows=r.parts.length?r.parts.map((p,i)=>`<tr style="background:${i%2?BG:'#fff'}"><td style="${cell};text-align:center;color:${MU}">${i+1}</td><td style="${cell}"><b>${esc(p.name)}</b>${p.mode&&p.mode!=='sale'?` <span style="font-size:12px;color:#1b5f7c;background:#e4f2f8;border-radius:99px;padding:1px 8px;white-space:nowrap;display:inline-block">${{swap:'بديل مؤقت',rent:'إيجار '+money(p.rentAmt||0),back:'قطعة العيادة بعد التصليح'}[p.mode]||''}</span>`:''}${p.cond&&p.cond!=='new'?` <span style="font-size:12px;color:${MU}">(${(CONDS[p.cond]||[''])[0]})</span>`:''}${p.unitCode?`<div style="color:${MU};font-family:Arial;font-size:12.5px">${esc(p.unitCode)}</div>`:''}</td><td style="${cell};text-align:center">${p.qty}</td><td style="${cell};text-align:center;font-size:14px;color:${MU}">${wLabel(p)||'—'}</td>${sp?`<td style="${cell};text-align:center">${money(p.price)}</td><td style="${cell};text-align:center;font-weight:700">${money(p.qty*p.price)}</td>`:''}</tr>`).join(''):`<tr><td colspan="${heads.length}" style="${cell};text-align:center;color:${MU}">لم يتم تغيير قطع غيار</td></tr>`;
+  const partsRows=r.parts.length?r.parts.map((p,i)=>`<tr style="background:${i%2?BG:'#fff'}"><td style="${cell};text-align:center;color:${MU}">${i+1}</td><td style="${cell}"><b>${esc(p.name)}</b>${kitLabel(p)?`<div style="color:${MU};font-size:12.5px">${esc(kitLabel(p))}</div>`:''}${p.mode&&p.mode!=='sale'?` <span style="font-size:12px;color:#1b5f7c;background:#e4f2f8;border-radius:99px;padding:1px 8px;white-space:nowrap;display:inline-block">${{swap:'بديل مؤقت',rent:'إيجار '+money(p.rentAmt||0),back:'قطعة العيادة بعد التصليح'}[p.mode]||''}</span>`:''}${p.cond&&p.cond!=='new'?` <span style="font-size:12px;color:${MU}">(${(CONDS[p.cond]||[''])[0]})</span>`:''}${p.unitCode?`<div style="color:${MU};font-family:Arial;font-size:12.5px">${esc(p.unitCode)}</div>`:''}</td><td style="${cell};text-align:center">${p.qty}</td><td style="${cell};text-align:center;font-size:14px;color:${MU}">${wLabel(p)||'—'}</td>${sp?`<td style="${cell};text-align:center">${money(p.price)}</td><td style="${cell};text-align:center;font-weight:700">${money(p.qty*p.price)}</td>`:''}</tr>`).join(''):`<tr><td colspan="${heads.length}" style="${cell};text-align:center;color:${MU}">لم يتم تغيير قطع غيار</td></tr>`;
   const row=(l,v,st)=>`<div style="display:flex;justify-content:space-between;padding:5px 0;${st||''}"><span>${l}</span><span>${v}</span></div>`;
   const vt=visitLabel(r.visitType);
   return `<div dir="rtl" style="width:794px;background:#fff;color:${TX};font-family:Tahoma,'Segoe UI',Arial,sans-serif;font-size:15px;line-height:1.65;box-sizing:border-box">
@@ -1845,7 +1848,7 @@ function viewStock(){
   <div class="row between"><div class="row"><input id="sq" placeholder="بحث باسم القطعة أو الكود" value="${esc(SQ)}" style="max-width:260px"><select id="scf" style="width:auto"><option value="">كل الحالات</option>${Object.entries(CONDS).map(([k,[l]])=>`<option value="${k}" ${k===SCF?'selected':''}>${l}</option>`).join('')}</select>${(()=>{const T=[...new Set(SPARES().map(p=>p.ptype).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ar'));return T.length?`<select id="spt" style="width:auto"><option value="">كل الأنواع</option>${T.map(t=>`<option ${t===SPT?'selected':''}>${esc(t)}</option>`).join('')}</select>`:''})()}${(()=>{const B=[...new Set(SPARES().map(p=>p.brand).filter(Boolean))].sort();return B.length?`<select id="spb" style="width:auto"><option value="">كل الماركات</option>${B.map(t=>`<option ${t===SPB?'selected':''}>${esc(t)}</option>`).join('')}</select>`:''})()}</div><div class="row">${can('stock')?'<button class="btn" data-act="bcLabels" data-k="spare">🏷️ باركود</button>':''}${edit?'<button class="btn pri" data-act="addPart">+ صنف جديد</button>':''}</div></div>
   ${can('stock_edit')&&condGroups().length?`<div class="banner info row between"><span>فيه ${condGroups().length} قطعة متسجلة بكذا حالة بأكواد مختلفة — اربطهم علشان ياخدوا نفس الرقم وآخره حرف الحالة.</span><button class="btn sm pri" data-act="condMerge">اربطهم</button></div>`:''}
   <div class="muted small">كل صنف بياخد كود لوحده، وآخره حرف الحالة: N جديدة · U مستعملة · F مجددة · R إصلاح · D تالفة. دوس على الصورة تكبّرها، و"اتركب فين" بيوريك العيادات اللي اتركب عندها.</div>
-  ${list.length?`<div class="pgrid">${list.sort((a,b)=>a.name.localeCompare(b.name,'ar')).map(p=>`<div class="pcard">${p.photo?`<img src="${p.photo}" data-act="showImg" data-src="pt:${p.id}" alt="" style="cursor:zoom-in">`:'<div class="noimg">⚙️</div>'}<div class="pbody">${p.ptype?`<span class="pill p-info" style="justify-self:start">${esc(p.ptype)}</span>`:''}<b>${esc(p.name)}</b>${p.brand||p.model?`<div class="small" style="font-weight:600;color:var(--accent)">${esc([p.brand,p.model].filter(Boolean).join(' · '))}</div>`:''}<div class="muted small num">${esc(p.code||'')}${p.ref?' · '+esc(p.ref):''}</div>${sibLine(p)}
+  ${list.length?`<div class="pgrid">${list.sort((a,b)=>a.name.localeCompare(b.name,'ar')).map(p=>`<div class="pcard">${p.photo?`<img src="${p.photo}" data-act="showImg" data-src="pt:${p.id}" alt="" style="cursor:zoom-in">`:'<div class="noimg">⚙️</div>'}<div class="pbody">${p.ptype?`<span class="pill p-info" style="justify-self:start">${esc(p.ptype)}</span>`:''}<b>${esc(p.name)}</b>${p.brand||p.model?`<div class="small" style="font-weight:600;color:var(--accent)">${esc([p.brand,p.model].filter(Boolean).join(' · '))}</div>`:''}<div class="muted small num">${esc(p.code||'')}${p.ref?' · '+esc(p.ref):''}</div>${sibLine(p)}${kitCardLine(p)}
     <div class="row between"><span class="num">${money(p.sell)}</span>${n(p.qty)<=n(p.min)?`<span class="pill p-bad">${n(p.qty)}</span>`:`<span class="pill p-ok">${n(p.qty)}</span>`}</div>
     ${costs?`<div class="muted small">الشراء: <span class="num">${money(p.buy)}</span></div>`:''}
     <div class="row" style="gap:4px">${condPill(p.condition)}${wLabel(p)?`<span class="pill p-info">ضمان ${wLabel(p)}</span>`:''}</div>
@@ -1949,16 +1952,17 @@ function openPartModal(id){
    <label class="f">سعر الشراء<input type="number" min="0" step="any" id="p_buy" value="${p.buy}"></label>
    <label class="f">سعر البيع<input type="number" min="0" step="any" id="p_sell" value="${p.sell}"></label>
    <label class="f">ضمان للعميل (شهور)<input type="number" min="0" step="1" id="p_wm" value="${p.wMonths||''}"></label>
-   <label class="f">ضمان للعميل (نبضات)<input type="number" min="0" step="1000" id="p_wp" value="${p.wPulses||''}"></label>${partPhotoField(p)}</div>
+   <label class="f">ضمان للعميل (نبضات)<input type="number" min="0" step="1000" id="p_wp" value="${p.wPulses||''}"></label>${kitEditorHTML(p)}${partPhotoField(p)}</div>
    ${ll&&(ll.supWMonths||ll.supWPulses)?`<div class="muted small">آخر ضمان من المورد (${esc(S.suppliers.find(x=>x.id===lastSup.supplierId)?.name||'')} — ${fd(lastSup.date)}): ${wLabel({wMonths:ll.supWMonths,wPulses:ll.supWPulses})}</div>`:''}
    ${id?`<div class="row"><button type="button" class="btn sm" data-act="partVariant" data-id="${id}">+ نفس القطعة بحالة تانية</button><button type="button" class="btn sm danger" id="p_del">حذف الصنف</button></div>${sibsOf(p).length?`<div class="muted small">الحالات التانية: ${sibsOf(p).map(x=>`${condTxt(x)} (${esc(x.code)}) — ${n(x.qty)}`).join(' · ')}</div>`:''}`:''}`,()=>{
     const name=$('#p_name').value.trim();if(!name){toast('اكتب اسم القطعة');return false}
-    const d={name,ptype:$('#p_type').value.trim(),brand:$('#p_brand').value.trim(),model:$('#p_model').value.trim(),ref:$('#p_ref').value.trim(),condition:$('#p_cond').value,buy:n($('#p_buy').value),sell:n($('#p_sell').value),qty:n($('#p_qty').value),min:n($('#p_min').value),wMonths:n($('#p_wm').value),wPulses:n($('#p_wp').value),photo:pPhoto};
+    const d={name,ptype:$('#p_type').value.trim(),brand:$('#p_brand').value.trim(),model:$('#p_model').value.trim(),ref:$('#p_ref').value.trim(),condition:$('#p_cond').value,buy:n($('#p_buy').value),sell:n($('#p_sell').value),qty:n($('#p_qty').value),min:n($('#p_min').value),wMonths:n($('#p_wm').value),wPulses:n($('#p_wp').value),photo:pPhoto,kit:kitRead()};if(!d.kit.length)d.kit=null;else{if(d.kit.some(c=>c.partId===id)){toast('القطعة مينفعش تبقى مكون في نفسها');return false}d.buy=kitCost(d);d.sell=kitSell(d)}
     if(id&&d.condition!==(p.condition||'new')&&sibsOf(p).some(x=>(x.condition||'new')===d.condition)){toast(`فيه صنف تاني لنفس القطعة بحالة "${CONDS[d.condition][0]}" — زوّد الكمية عليه بدل ما تغيّر الحالة`);return false}
     if(id)Object.assign(p,d);else S.parts.push({id:uid(),code:nextCode('spare'),cat:'spare',...d});save();toast('اتحفظ الصنف');render();
   });
   $('#p_ph').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{pPhoto=await compress(f,700,.6);$('#p_box').innerHTML=`<figure><img src="${pPhoto}" alt=""></figure>`}catch(_){toast('معرفتش أقرا الصورة')}};if($('#p_phd'))$('#p_phd').onclick=()=>{pPhoto='';$('#p_box').innerHTML=''};
   if(id)$('#p_del').onclick=()=>confirmBox(`حذف "${p.name}" من المخزن؟ التقارير القديمة هتفضل زي ما هي.`,()=>{S.parts=S.parts.filter(x=>x.id!==id);save();render()});
+  kitEditorBind();
 }
 function openRestock(id){
   const p=part(id);
@@ -2196,7 +2200,7 @@ function viewPartSales(){
 }
 function psLineHTML(kind){
   kind=kind||window._PSK||'spare';const units=kind==='cons'?[]:(S.units||[]).filter(u=>u.status==='in_stock'&&u.condition!=='damaged');
-  return `<div class="ps-row part-row"><select class="ps-part"><option value="">${kind==='cons'?'اختار المنتج…':'اختار القطعة…'}</option>${S.parts.filter(p=>catOf(p)===kind).map(p=>`<option value="${p.id}" ${n(p.qty)<=0?'disabled':''}>${esc(p.name)}${esc(pBM(p))}${p.condition&&p.condition!=='new'?' ('+CONDS[p.condition][0]+')':''} — ${n(p.qty)<=0?'خلصان':'متاح '+n(p.qty)}</option>`).join('')}${units.length?`<optgroup label="قطع مكوّدة">${units.map(u=>`<option value="u:${u.id}">${esc(u.code)} — ${esc(u.name)} (${CONDS[u.condition]?.[0]||''})</option>`).join('')}</optgroup>`:''}</select><input class="ps-qty" type="number" min="1" step="1" value="1"><input class="ps-price" type="number" min="0" step="any" placeholder="السعر"><span class="lt num">—</span><span></span><button type="button" class="btn sm ghost ps-del">✕</button><div class="pr-w"><span class="muted small">الضمان:</span><input class="ps-wm" type="number" min="0" step="1" placeholder="0"><span class="muted small">شهر</span><input class="ps-wp" type="number" min="0" step="1000" placeholder="0" style="width:120px"><span class="muted small">نبضة</span></div></div>`;
+  return `<div class="ps-row part-row"><select class="ps-part"><option value="">${kind==='cons'?'اختار المنتج…':'اختار القطعة…'}</option>${S.parts.filter(p=>catOf(p)===kind).map(p=>`<option value="${p.id}" ${partAvail(p)<=0?'disabled':''}>${esc(p.name)}${esc(pBM(p))}${isKit(p)?' [مجمّعة]':''}${p.condition&&p.condition!=='new'?' ('+CONDS[p.condition][0]+')':''} — ${partAvail(p)<=0?'خلصان':'متاح '+partAvail(p)}</option>`).join('')}${units.length?`<optgroup label="قطع مكوّدة">${units.map(u=>`<option value="u:${u.id}">${esc(u.code)} — ${esc(u.name)} (${CONDS[u.condition]?.[0]||''})</option>`).join('')}</optgroup>`:''}</select><input class="ps-qty" type="number" min="1" step="1" value="1"><input class="ps-price" type="number" min="0" step="any" placeholder="السعر"><span class="lt num">—</span><span></span><button type="button" class="btn sm ghost ps-del">✕</button><div class="pr-w"><span class="muted small">الضمان:</span><input class="ps-wm" type="number" min="0" step="1" placeholder="0"><span class="muted small">شهر</span><input class="ps-wp" type="number" min="0" step="1000" placeholder="0" style="width:120px"><span class="muted small">نبضة</span></div></div>`;
 }
 function openPartSale(kind){
   kind=kind||'spare';window._PSK=kind;
@@ -2216,14 +2220,15 @@ function openPartSale(kind){
    <label class="f span2">ملاحظات<input id="ps_notes"></label></div>
    <div class="totals" id="ps_tot"></div>`,async()=>{
     const lines=[];for(const row of $$('#ps_lines .ps-row')){const v=row.querySelector('.ps-part').value;if(!v)continue;const base={price:n(row.querySelector('.ps-price').value),wMonths:n(row.querySelector('.ps-wm').value),wPulses:n(row.querySelector('.ps-wp').value)};
-      if(v.startsWith('u:')){const u=unitById(v.slice(2));lines.push({...base,unitId:u.id,unitCode:u.code,partId:u.partId||'',name:u.name,qty:1,cost:unitCost(u)})}else{const p=part(v);lines.push({...base,partId:p.id,name:p.name,qty:Math.max(1,parseInt(row.querySelector('.ps-qty').value)||1),cost:n(p.buy)})}}
+      if(v.startsWith('u:')){const u=unitById(v.slice(2));lines.push({...base,unitId:u.id,unitCode:u.code,partId:u.partId||'',name:u.name,qty:1,cost:unitCost(u)})}else{const p=part(v);const vq=isKit(p)?kitVarRead(row):null;lines.push({...base,partId:p.id,name:p.name,qty:Math.max(1,parseInt(row.querySelector('.ps-qty').value)||1),cost:isKit(p)?kitCost(p,vq):n(p.buy),...(isKit(p)?{kit:true,kitQ:vq,kitParts:kitPartsOf(p,vq)}:{})})}}
     if(!lines.length){toast('ضيف قطعة واحدة على الأقل');return false}
     const need={};lines.filter(l=>!l.unitId).forEach(l=>need[l.partId]=(need[l.partId]||0)+l.qty);
-    for(const pid in need){const p=part(pid);if(need[pid]>n(p.qty)){toast(`المتاح من "${p.name}" ${n(p.qty)} بس`);return false}}
+    const VQ={};lines.forEach(l=>{if(l.kitQ)VQ[l.partId]=l.kitQ});
+    for(const pid in need){const p=part(pid);const av=partAvail(p,VQ[pid]);if(need[pid]>av){toast(`المتاح من "${p.name}" ${av} بس`);return false}}
     const bt=$('#ps_bt').value;if(bt==='ext'&&!$('#ps_bn').value.trim()){toast('اكتب اسم المشتري');return false}
     const disc=n($('#ps_disc').value),dlv=$('#ps_dlv').checked?n($('#ps_dfee').value):0,total=n(lines.reduce((a,l)=>a+l.qty*l.price,0)-disc+dlv),tm=$('#ps_term').value;
     const no=await takeCounter('psale');const id=uid();
-    for(const pid in need){const p=part(pid);p.qty=n(p.qty)-need[pid]}
+    for(const pid in need){const p=part(pid);partTake(p,need[pid],VQ[pid])}
     lines.filter(l=>l.unitId).forEach(l=>{const u=unitById(l.unitId);u.status='sold';u.saleId=id;u.clientId=bt==='client'?$('#ps_bc').value:''});
     const c=bt==='client'?client($('#ps_bc').value):null;
     const brn=c&&branchesOf(c).length?$('#ps_bb').value:'';const bri=c&&brn?branchInfo(c,brn):null;
@@ -2232,7 +2237,7 @@ function openPartSale(kind){
   });
   const box=$('#ps_lines');
   const calc=()=>{let t=0;$$('#ps_lines .ps-row').forEach(r=>{const q=parseInt(r.querySelector('.ps-qty').value)||0,p=n(r.querySelector('.ps-price').value);r.querySelector('.lt').textContent=r.querySelector('.ps-part').value?money(q*p):'—';if(r.querySelector('.ps-part').value)t+=q*p});t-=n($('#ps_disc').value);const dv=$('#ps_dlv').checked?n($('#ps_dfee').value):0;t+=dv;$('#ps_tot').innerHTML=`${dv?`<div class="row between small"><span>🚚 خدمة توصيل</span><span class="num">${money(dv)}</span></div>`:''}<div class="grand"><span>الإجمالي</span><span class="num">${money(t)}</span></div>`};
-  const psClamp=row=>{const v=row.querySelector('.ps-part').value,q=row.querySelector('.ps-qty');if(!v||v.startsWith('u:'))return;const p=part(v);if(!p)return;const other=$$('#ps_lines .ps-row').filter(r=>r!==row&&r.querySelector('.ps-part').value===v).reduce((a,r)=>a+(parseInt(r.querySelector('.ps-qty').value)||0),0);const mx=Math.max(0,n(p.qty)-other);q.max=mx;if((parseInt(q.value)||0)>mx){q.value=mx;toast(`المتاح من "${p.name}" في المخزن ${mx} بس`)}};
+  const psClamp=row=>{const v=row.querySelector('.ps-part').value,q=row.querySelector('.ps-qty');if(!v||v.startsWith('u:'))return;const p=part(v);if(!p)return;const other=$$('#ps_lines .ps-row').filter(r=>r!==row&&r.querySelector('.ps-part').value===v).reduce((a,r)=>a+(parseInt(r.querySelector('.ps-qty').value)||0),0);const mx=Math.max(0,partAvail(p,kitVarRead(row))-other);q.max=mx;if((parseInt(q.value)||0)>mx){q.value=mx;toast(`المتاح من "${p.name}" في المخزن ${mx} بس`)}};
   box.addEventListener('input',e=>{if(e.target.classList.contains('ps-qty'))psClamp(e.target.closest('.ps-row'));calc()});
   box.addEventListener('change',e=>{if(e.target.classList.contains('ps-part'))setTimeout(()=>{psClamp(e.target.closest('.ps-row'));calc()},0);if(e.target.classList.contains('ps-part')){const row=e.target.closest('.ps-row'),v=e.target.value,q=row.querySelector('.ps-qty');if(v.startsWith('u:')){const u=unitById(v.slice(2));q.value=1;q.readOnly=true;row.querySelector('.ps-price').value=u?.sell||part(u?.partId)?.sell||'';row.querySelector('.ps-wm').value=u?.wMonths||'';row.querySelector('.ps-wp').value=u?.wPulses||''}else{q.readOnly=false;const p=part(v);if(p){row.querySelector('.ps-price').value=p.sell;row.querySelector('.ps-wm').value=p.wMonths||'';row.querySelector('.ps-wp').value=p.wPulses||''}}}calc()});
   box.addEventListener('click',e=>{if(e.target.classList.contains('ps-del')){e.target.closest('.ps-row').remove();calc()}});
@@ -2270,7 +2275,7 @@ function invoiceHTML(x){
    </div>
    <table style="width:100%;border-collapse:separate;border-spacing:0;margin-top:22px;font-size:15px">
     <thead><tr style="background:${NV};color:#fff">${[['#','center','36px'],['الصنف','right',''],['الكمية','center','60px'],['الضمان','center','90px'],['السعر','center','100px'],['الإجمالي','center','110px']].map(([h,a,w],i,A)=>`<th style="padding:12px 10px;text-align:${a};font-weight:700;${w?'width:'+w+';':''}${i===0?'border-radius:0 10px 10px 0;':''}${i===A.length-1?'border-radius:10px 0 0 10px;':''}">${h}</th>`).join('')}</tr></thead>
-    <tbody>${(x.lines||[]).map((l,i)=>`<tr style="background:${i%2?BG:'#fff'}"><td style="padding:12px 10px;text-align:center;color:${MU};border-bottom:1px solid ${LN}">${i+1}</td><td style="padding:12px 10px;border-bottom:1px solid ${LN}"><b style="font-weight:700">${esc(l.name)}</b>${l.unitCode?`<div style="color:${MU};font-family:Arial;font-size:12.5px">${esc(l.unitCode)}</div>`:''}</td><td style="padding:12px 10px;text-align:center;border-bottom:1px solid ${LN}">${l.qty}</td><td style="padding:12px 10px;text-align:center;font-size:14px;color:${MU};border-bottom:1px solid ${LN}">${wLabel(l)||'—'}</td><td style="padding:12px 10px;text-align:center;border-bottom:1px solid ${LN}">${money(l.price)}</td><td style="padding:12px 10px;text-align:center;font-weight:700;border-bottom:1px solid ${LN}">${money(n(l.qty)*n(l.price))}</td></tr>`).join('')}</tbody>
+    <tbody>${(x.lines||[]).map((l,i)=>`<tr style="background:${i%2?BG:'#fff'}"><td style="padding:12px 10px;text-align:center;color:${MU};border-bottom:1px solid ${LN}">${i+1}</td><td style="padding:12px 10px;border-bottom:1px solid ${LN}"><b style="font-weight:700">${esc(l.name)}</b>${kitLabel(l)?`<div style="color:${MU};font-size:12.5px">${esc(kitLabel(l))}</div>`:''}${l.unitCode?`<div style="color:${MU};font-family:Arial;font-size:12.5px">${esc(l.unitCode)}</div>`:''}</td><td style="padding:12px 10px;text-align:center;border-bottom:1px solid ${LN}">${l.qty}</td><td style="padding:12px 10px;text-align:center;font-size:14px;color:${MU};border-bottom:1px solid ${LN}">${wLabel(l)||'—'}</td><td style="padding:12px 10px;text-align:center;border-bottom:1px solid ${LN}">${money(l.price)}</td><td style="padding:12px 10px;text-align:center;font-weight:700;border-bottom:1px solid ${LN}">${money(n(l.qty)*n(l.price))}</td></tr>`).join('')}</tbody>
    </table>
    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:24px;margin-top:18px">
     <div style="flex:1;font-size:13.5px;color:${MU}">${x.notes?`<div style="margin-bottom:8px"><b style="color:${TX}">ملاحظات:</b> ${esc(x.notes)}</div>`:''}<b style="color:${TX}">شروط الضمان:</b> الضمان لا يشمل الكسر أو سوء الاستخدام أو التركيب بمعرفة غير مختصين. الضمان بالنبضات يُحسب من عداد الجهاز وقت التركيب.</div>
@@ -6095,7 +6100,7 @@ let XR_PRE='';
 
 
 /* ---------- فحص التحديثات ---------- */
-const APP_VER='2026.10.26.8';
+const APP_VER='2026.10.26.9';
 async function checkUpdate(){try{if(location.protocol==='file:')return;const t=await (await fetch(location.pathname+'?_='+Date.now(),{cache:'no-store'})).text();const m=t.match(/const APP_VER='([^']+)'/);if(m&&m[1]!==APP_VER)showUpd(m[1])}catch(e){}}
 function showUpd(v){if(document.getElementById('updBar'))return;const b=document.createElement('div');b.id='updBar';b.style.cssText='position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:80;background:#1d2b45;color:#fff;padding:10px 16px;border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,.25);display:flex;gap:12px;align-items:center;font-weight:600;max-width:92vw';b.innerHTML='<span>🔄 فيه نسخة جديدة من السيستم</span><button type="button" style="background:#2b8fb8;color:#fff;border:0;border-radius:10px;padding:6px 14px;font:inherit;cursor:pointer">حدّث دلوقتي</button>';b.querySelector('button').onclick=()=>{location.replace(location.pathname+'?v='+encodeURIComponent(v)+location.hash)};document.body.appendChild(b)}
 setTimeout(checkUpdate,8000);setInterval(checkUpdate,5*60*1000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkUpdate()});
@@ -7051,6 +7056,53 @@ function condMerge(){const G=condGroups();if(!G.length){toast('مفيش أصنا
     save();toast(`اتربط ${k} صنف — اطبع ملصقات جديدة ليهم`);render()})}
 Object.assign(X9,{partVariant:(t,id)=>partVariant(id),condMerge:()=>condMerge()});
 Object.assign(NEED9,{partVariant:'stock_edit',condMerge:'stock_edit'});
+
+/* =====================================================================
+   v47 — القطع المجمّعة (موديول + عدسات + جوانات …)
+   ===================================================================== */
+const isKit=p=>!!(p&&Array.isArray(p.kit)&&p.kit.length);
+const kitQ=(c,varQ)=>Math.max(0,n(varQ&&varQ[c.partId]!=null?varQ[c.partId]:c.qty));
+function kitCost(p,varQ){return n((p.kit||[]).reduce((a,c)=>a+kitQ(c,varQ)*n(part(c.partId)?.buy),0))}
+function kitSell(p,varQ){return n((p.kit||[]).reduce((a,c)=>a+kitQ(c,varQ)*n(part(c.partId)?.sell),0))}
+function kitBuildable(p,varQ){if(!isKit(p))return 0;let m=Infinity;for(const c of p.kit){const q=kitQ(c,varQ);if(!q)continue;const cp=part(c.partId);m=Math.min(m,Math.floor(Math.max(0,n(cp?.qty))/q))}return m===Infinity?0:m}
+const partAvail=(p,varQ)=>p?Math.max(0,n(p.qty))+(isKit(p)?kitBuildable(p,varQ):0):0;
+/* بيخصم من المجمّعة الجاهزة الأول، والباقي بيتجمّع من المكونات */
+function partTake(p,q,varQ){if(!isKit(p)){p.qty=n(p.qty)-q;return}const fromS=Math.min(q,Math.max(0,n(p.qty)));p.qty=n(p.qty)-fromS;const rest=q-fromS;if(rest>0)p.kit.forEach(c=>{const cp=part(c.partId);if(cp)cp.qty=n(cp.qty)-rest*kitQ(c,varQ)})}
+function kitSync(){let ch=false;S.parts.forEach(p=>{if(!isKit(p))return;const b=kitCost(p),s=kitSell(p);if(n(p.buy)!==b){p.buy=b;ch=true}if(n(p.sell)!==s){p.sell=s;ch=true}});return ch}
+function kitLabel(l){return Array.isArray(l.kitParts)&&l.kitParts.length?l.kitParts.map(c=>`${c.name}${n(c.qty)>1?' ×'+n(c.qty):''}`).join(' + '):''}
+const kitPartsOf=(p,varQ)=>(p.kit||[]).map(c=>({partId:c.partId,name:part(c.partId)?.name||'',qty:kitQ(c,varQ)})).filter(c=>c.qty>0);
+/* محرر المكونات في شاشة الصنف */
+function kitEditorHTML(p){const L=S.parts.filter(x=>catOf(x)==='spare'&&!isKit(x)&&x.id!==p.id).sort((a,b)=>a.name.localeCompare(b.name,'ar'));
+  const row=c=>`<div class="row kt-r" style="flex-wrap:nowrap;gap:6px"><select class="kt-p" style="flex:2"><option value="">اختار المكون…</option>${L.map(x=>`<option value="${x.id}" ${x.id===c.partId?'selected':''}>${esc(x.name)}${esc(pBM(x))} (${esc(x.code||'')}) — متاح ${n(x.qty)}</option>`).join('')}</select><input class="kt-q" type="number" min="1" step="1" value="${c.qty||1}" style="width:70px" title="العدد"><label class="row small" style="gap:4px;white-space:nowrap"><input type="checkbox" class="kt-v" style="width:auto" ${c.var?'checked':''}> عدده بيتغير</label><button type="button" class="btn sm ghost kt-d">✕</button></div>`;
+  window._KTROW=row;
+  return `<div class="panel" style="padding:10px 12px;grid-column:1/-1"><label class="row" style="gap:6px"><input type="checkbox" id="p_kit" style="width:auto" ${isKit(p)?'checked':''}> <b>قطعة مجمّعة</b> <span class="muted small">— بتتقفل من كذا قطعة (مثلاً موديول + عدسات + جوانات)</span></label>
+   <div id="kt_box" ${isKit(p)?'':'hidden'}><div id="kt_rows" class="grid" style="gap:6px;margin-top:8px">${(p.kit||[{}]).map(row).join('')}</div><button type="button" class="btn sm" id="kt_add" style="margin-top:6px">+ مكون</button>
+   <div id="kt_sum" class="muted small" style="margin-top:6px"></div><div class="muted small">التكلفة وسعر البيع بيتحسبوا لوحدهم من المكونات (وتقدر تغيّر السعر في الفاتورة أو التقرير). الضمان اللي فوق هو ضمان القطعة المجمّعة كلها. "عدده بيتغير" = السيستم هيسألك عن العدد وقت التركيب لو بتتقفل ساعتها (مثلاً عدسة أو اتنين).</div></div></div>`}
+function kitEditorBind(){const chk=$('#p_kit');if(!chk)return;const sum=()=>{const k=kitRead();const fake={kit:k};$('#kt_sum').innerHTML=k.length?`التكلفة: <b>${money(kitCost(fake))}</b> · السعر المقترح: <b>${money(kitSell(fake))}</b>`:'';if(chk.checked&&k.length){$('#p_buy').value=kitCost(fake);$('#p_sell').value=kitSell(fake)}};
+  chk.onchange=()=>{$('#kt_box').hidden=!chk.checked;['p_buy','p_sell'].forEach(i=>$('#'+i).readOnly=chk.checked);sum()};
+  $('#kt_add').onclick=()=>{$('#kt_rows').insertAdjacentHTML('beforeend',window._KTROW({}));sum()};
+  $('#kt_rows').addEventListener('click',e=>{if(e.target.classList.contains('kt-d')){e.target.closest('.kt-r').remove();sum()}});$('#kt_rows').addEventListener('input',sum);$('#kt_rows').addEventListener('change',sum);
+  if(chk.checked){['p_buy','p_sell'].forEach(i=>$('#'+i).readOnly=true)}sum()}
+function kitRead(){if(!$('#p_kit')?.checked)return [];const m=new Map();$$('#kt_rows .kt-r').forEach(r=>{const id=r.querySelector('.kt-p').value;if(!id)return;const q=Math.max(1,parseInt(r.querySelector('.kt-q').value)||1);const v=r.querySelector('.kt-v').checked;if(m.has(id))m.get(id).qty+=q;else m.set(id,{partId:id,qty:q,var:v})});return [...m.values()]}
+/* تجميع / فك */
+function kitBuild(id,undo){const p=part(id);if(!isKit(p))return;const mx=undo?Math.max(0,n(p.qty)):kitBuildable(p);
+  if(!mx){toast(undo?'مفيش قطع مجمّعة جاهزة تتفك':'المكونات مش كفاية تتقفل ولا واحدة');return}
+  modal(`<h3>${undo?'فك':'🔧 تجميع'} "${esc(p.name)}"</h3><div class="muted small">${undo?'المكونات هترجع للمخزن كقطع لوحدها.':'المكونات هتتخصم من المخزن وتتضاف قطعة مجمّعة جاهزة.'}</div>
+   <div class="tbl-wrap"><table class="t"><thead><tr><th>المكون</th><th>لكل قطعة</th><th>المتاح</th></tr></thead><tbody>${p.kit.map(c=>`<tr><td>${esc(part(c.partId)?.name||'')}</td><td>${undo?n(c.qty):`<input type="number" min="0" step="1" class="kb-v" data-id="${c.partId}" value="${n(c.qty)}" style="width:70px" ${c.var?'':'readonly'}>`}</td><td class="num">${n(part(c.partId)?.qty)}</td></tr>`).join('')}</tbody></table></div>
+   <label class="f">العدد (أقصى ${mx})<input type="number" min="1" max="${mx}" step="1" id="kb_q" value="1"></label>`,()=>{
+    const q=Math.max(1,parseInt($('#kb_q').value)||1);
+    if(undo){if(q>n(p.qty)){toast(`الجاهز ${n(p.qty)} بس`);return false}p.qty=n(p.qty)-q;p.kit.forEach(c=>{const cp=part(c.partId);if(cp)cp.qty=n(cp.qty)+q*n(c.qty)})}
+    else{const vq={};$$('.kb-v').forEach(i=>vq[i.dataset.id]=Math.max(0,parseInt(i.value)||0));if(q>kitBuildable(p,vq)){toast(`المكونات تكفي ${kitBuildable(p,vq)} بس`);return false}p.kit.forEach(c=>{const cp=part(c.partId);if(cp)cp.qty=n(cp.qty)-q*kitQ(c,vq)});p.qty=n(p.qty)+q}
+    (p.asmLog=p.asmLog||[]).push({kind:undo?'undo':'build',qty:q,date:today(),by:ME.id,byName:pubName()});save();toast(undo?`اتفك ${q}`:`اتقفل ${q} — بقى الجاهز ${n(p.qty)}`);render()})}
+function kitCardLine(p){if(!isKit(p))return '';return `<div class="small" style="line-height:1.5"><span class="pill p-acc">مجمّعة</span> <span class="muted">${p.kit.map(c=>`${esc(part(c.partId)?.name||'')}${n(c.qty)>1?' ×'+n(c.qty):''}${c.var?'*':''}`).join(' + ')}</span><div class="muted">جاهزة ${n(p.qty)} · ممكن تتقفل ${kitBuildable(p)}</div>${can('stock_edit')?`<div class="row" style="gap:4px;margin-top:3px"><button class="btn sm" data-act="kitBuild" data-id="${p.id}">🔧 تجميع</button>${n(p.qty)>0?`<button class="btn sm ghost" data-act="kitUndo" data-id="${p.id}">فك</button>`:''}</div>`:''}</div>`}
+/* المكونات اللي عددها بيتغير — جوه سطر الفاتورة / التقرير */
+function kitVarHTML(p,cur){if(!isKit(p))return '';const V=p.kit.filter(c=>c.var);return `<div class="kit-v small" style="grid-column:1/-1;display:flex;gap:8px;flex-wrap:wrap;align-items:center"><span class="pill p-acc">مجمّعة</span><span class="muted">${esc(p.kit.map(c=>(part(c.partId)?.name||'')+(n(c.qty)>1&&!c.var?' ×'+n(c.qty):'')).join(' + '))}</span>${V.map(c=>`<label class="row" style="gap:4px">${esc(part(c.partId)?.name||'')}<input type="number" min="0" step="1" class="kv-q" data-id="${c.partId}" value="${cur&&cur[c.partId]!=null?cur[c.partId]:n(c.qty)}" style="width:60px"></label>`).join('')}${n(p.qty)>0?`<span class="muted">(جاهز منها ${n(p.qty)} — هتتاخد الأول)</span>`:''}</div>`}
+const kitVarRead=row=>{const o={};row.querySelectorAll('.kv-q').forEach(i=>o[i.dataset.id]=Math.max(0,parseInt(i.value)||0));return Object.keys(o).length?o:null};
+function kitRowUpdate(row,sel,cur){let box=row.querySelector('.kit-v');const p=part(sel.value);if(box)box.remove();if(isKit(p))row.insertAdjacentHTML('beforeend',kitVarHTML(p,cur))}
+document.addEventListener('change',e=>{const s=e.target.closest&&(e.target.closest('#partRows .pr-part')||e.target.closest('#ps_lines .ps-part'));if(!s)return;kitRowUpdate(s.closest('.part-row,.ps-row'),s)});
+document.addEventListener('input',e=>{if(!e.target.classList?.contains('kv-q'))return;const row=e.target.closest('.part-row,.ps-row');const sel=row&&row.querySelector('.pr-part,.ps-part');const p=sel&&part(sel.value);if(!isKit(p))return;const pr=row.querySelector('.pr-price,.ps-price');if(pr&&!pr.readOnly){pr.value=kitSell(p,kitVarRead(row));pr.dispatchEvent(new Event('input',{bubbles:true}))}});
+Object.assign(X9,{kitBuild:(t,id)=>kitBuild(id,false),kitUndo:(t,id)=>kitBuild(id,true)});
+Object.assign(NEED9,{kitBuild:'stock_edit',kitUndo:'stock_edit'});
 
 /* =====================================================================
    التشغيل

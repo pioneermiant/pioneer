@@ -6100,7 +6100,7 @@ let XR_PRE='';
 
 
 /* ---------- فحص التحديثات ---------- */
-const APP_VER='2026.10.26.9';
+const APP_VER='2026.10.26.10';
 async function checkUpdate(){try{if(location.protocol==='file:')return;const t=await (await fetch(location.pathname+'?_='+Date.now(),{cache:'no-store'})).text();const m=t.match(/const APP_VER='([^']+)'/);if(m&&m[1]!==APP_VER)showUpd(m[1])}catch(e){}}
 function showUpd(v){if(document.getElementById('updBar'))return;const b=document.createElement('div');b.id='updBar';b.style.cssText='position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:80;background:#1d2b45;color:#fff;padding:10px 16px;border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,.25);display:flex;gap:12px;align-items:center;font-weight:600;max-width:92vw';b.innerHTML='<span>🔄 فيه نسخة جديدة من السيستم</span><button type="button" style="background:#2b8fb8;color:#fff;border:0;border-radius:10px;padding:6px 14px;font:inherit;cursor:pointer">حدّث دلوقتي</button>';b.querySelector('button').onclick=()=>{location.replace(location.pathname+'?v='+encodeURIComponent(v)+location.hash)};document.body.appendChild(b)}
 setTimeout(checkUpdate,8000);setInterval(checkUpdate,5*60*1000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkUpdate()});
@@ -6881,10 +6881,13 @@ function loadJB(){if(window.JsBarcode)return Promise.resolve();return JB_P||(JB_
 function loadZX(){if(window.ZXing)return Promise.resolve();return ZX_P||(ZX_P=loadScript('https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js').catch(()=>loadScript('https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js')))}
 const LBL_SIZES=[[50,30],[40,30],[50,25],[40,20],[58,40],[30,20]];
 const lblCfg=()=>({w:50,h:30,...(S.settings.label||{}),name:!!(S.settings.label||{}).name2,price:!!(S.settings.label||{}).price2});
-function partByCode(code){code=String(code||'').trim().toUpperCase();if(!code)return null;
-  const p=S.parts.find(x=>(x.code||'').toUpperCase()===code||(x.ref||'').toUpperCase()===code)||S.parts.find(x=>(x.oldCodes||[]).some(c=>c.toUpperCase()===code));if(p)return {p};
-  const u=(S.units||[]).find(x=>(x.code||'').toUpperCase()===code);if(u)return {u};
-  const m=code.match(/[A-Z]{2,4}-\d+(?:-[A-Z])?/);if(m&&m[0]!==code)return partByCode(m[0]);return null}
+function partByCode(code){const raw=String(code||'');code=(typeof normD==='function'?normD(raw):raw).trim().toUpperCase();if(!code)return null;
+  const N=x=>String(x||'').toUpperCase().replace(/[^A-Z0-9]/g,'').replace(/O/g,'0');const k=N(code);if(!k)return null;
+  const hit=x=>N(x.code)===k||(x.ref&&N(x.ref)===k);
+  const p=S.parts.find(hit)||S.parts.find(x=>(x.oldCodes||[]).some(c=>N(c)===k));if(p)return {p};
+  const u=(S.units||[]).find(x=>N(x.code)===k);if(u)return {u};
+  const m=code.match(/[A-Z]{2,4}\s*-?\s*\d+(?:\s*-?\s*[A-Z](?![A-Z]))?/);if(m&&m[0]!==code)return partByCode(m[0]);
+  return null}
 function ensureCode(p){if(!p.code){p.code=nextCode(catOf(p));return true}return false}
 function lblCanvas(p,cfg){const D=8;const W=Math.round(cfg.w*D),H=Math.round(cfg.h*D);const cv=document.createElement('canvas');cv.width=W;cv.height=H;const g=cv.getContext('2d');
   g.fillStyle='#fff';g.fillRect(0,0,W,H);g.fillStyle='#000';const pad=Math.round(1.5*D);let top=pad;

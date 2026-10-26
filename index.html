@@ -6101,7 +6101,7 @@ let XR_PRE='';
 
 
 /* ---------- فحص التحديثات ---------- */
-const APP_VER='2026.10.26.13';
+const APP_VER='2026.10.26.14';
 async function checkUpdate(){try{if(location.protocol==='file:')return;const t=await (await fetch(location.pathname+'?_='+Date.now(),{cache:'no-store'})).text();const m=t.match(/const APP_VER='([^']+)'/);if(m&&m[1]!==APP_VER)showUpd(m[1])}catch(e){}}
 function showUpd(v){if(document.getElementById('updBar'))return;const b=document.createElement('div');b.id='updBar';b.style.cssText='position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:80;background:#1d2b45;color:#fff;padding:10px 16px;border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,.25);display:flex;gap:12px;align-items:center;font-weight:600;max-width:92vw';b.innerHTML='<span>🔄 فيه نسخة جديدة من السيستم</span><button type="button" style="background:#2b8fb8;color:#fff;border:0;border-radius:10px;padding:6px 14px;font:inherit;cursor:pointer">حدّث دلوقتي</button>';b.querySelector('button').onclick=()=>{location.replace(location.pathname+'?v='+encodeURIComponent(v)+location.hash)};document.body.appendChild(b)}
 setTimeout(checkUpdate,8000);setInterval(checkUpdate,5*60*1000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkUpdate()});
@@ -6881,7 +6881,7 @@ let JB_P=null,ZX_P=null;
 function loadJB(){if(window.JsBarcode)return Promise.resolve();return JB_P||(JB_P=loadScript('https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.6/JsBarcode.all.min.js').catch(()=>loadScript('https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js')))}
 function loadZX(){if(window.ZXing)return Promise.resolve();return ZX_P||(ZX_P=loadScript('https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js').catch(()=>loadScript('https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js')))}
 const LBL_SIZES=[[50,30],[35,25],[25,35],[40,30],[50,25],[40,20],[58,40],[30,20]];
-const lblCfg=()=>({w:50,h:30,...(S.settings.label||{}),name:!!(S.settings.label||{}).name2,price:!!(S.settings.label||{}).price2});
+const lblCfg=()=>({w:50,h:30,kind:'qr',...(S.settings.label||{}),name:!!(S.settings.label||{}).name2,price:!!(S.settings.label||{}).price2});
 function partByCode(code){const raw=String(code||'');code=(typeof normD==='function'?normD(raw):raw).trim().toUpperCase();if(!code)return null;
   const N=x=>String(x||'').toUpperCase().replace(/[^A-Z0-9]/g,'').replace(/O/g,'0');const k=N(code);if(!k)return null;
   const hit=x=>N(x.code)===k||(x.ref&&N(x.ref)===k);
@@ -6890,7 +6890,7 @@ function partByCode(code){const raw=String(code||'');code=(typeof normD==='funct
   const m=code.match(/[A-Z]{2,4}\s*-?\s*\d+(?:\s*-?\s*[A-Z](?![A-Z]))?/);if(m&&m[0]!==code)return partByCode(m[0]);
   return null}
 function ensureCode(p){if(!p.code){p.code=nextCode(catOf(p));return true}return false}
-function lblCanvas(p,cfg){const D=8;const W=Math.round(cfg.w*D),H=Math.round(cfg.h*D);const cv=document.createElement('canvas');cv.width=W;cv.height=H;const g=cv.getContext('2d');
+function lblCanvas(p,cfg){if((cfg.kind||'qr')==='qr'&&window.qrcode)return lblCanvasQR(p,cfg);const D=8;const W=Math.round(cfg.w*D),H=Math.round(cfg.h*D);const cv=document.createElement('canvas');cv.width=W;cv.height=H;const g=cv.getContext('2d');
   g.fillStyle='#fff';g.fillRect(0,0,W,H);g.fillStyle='#000';const pad=Math.round(1.5*D);let top=pad;
   const fit=(t,max,size,bold)=>{let s=size;g.font=`${bold?'700 ':''}${s}px Tahoma, Arial, sans-serif`;while(g.measureText(t).width>max&&s>10){s-=1;g.font=`${bold?'700 ':''}${s}px Tahoma, Arial, sans-serif`}return s};
   g.textAlign='center';g.textBaseline='top';g.direction='rtl';
@@ -6900,11 +6900,24 @@ function lblCanvas(p,cfg){const D=8;const W=Math.round(cfg.w*D),H=Math.round(cfg
   if(bc.width){const maxW=W-2*pad;let bw=bc.width;let scale=Math.min(1,maxW/bw);if(scale<1){try{JsBarcode(bc,p.code,{format:'CODE128',displayValue:false,margin:0,height:Math.max(20,barH),width:Math.max(1,Math.floor(3*scale)),background:'#ffffff'})}catch(e){}bw=bc.width;scale=Math.min(1,maxW/bw)}
     g.imageSmoothingEnabled=false;const dw=Math.round(bw*scale);g.drawImage(bc,Math.round((W-dw)/2),top,dw,Math.max(20,barH))}
   g.direction='ltr';fit(bottomText,W-2*pad,bs,true);g.fillText(bottomText,W/2,H-pad-bs);return cv}
-async function bcLabels(pre){await loadJB().catch(()=>{});if(!window.JsBarcode){toast('مقدرتش أحمّل مكتبة الباركود — اتأكد من النت');return}
+function lblCanvasQR(p,cfg){const D=8;const W=Math.round(cfg.w*D),H=Math.round(cfg.h*D);const cv=document.createElement('canvas');cv.width=W;cv.height=H;const g=cv.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,W,H);g.fillStyle='#000';
+  const q=qrcode(0,'M');q.addData(String(p.code));q.make();const nM=q.getModuleCount();const pad=Math.round(1.2*D);const land=W>=H*1.15;
+  const avail=land?H-2*pad:Math.min(W-2*pad,H-2*pad-Math.round(H*0.22));const ms=Math.max(2,Math.floor(avail/(nM+4)));const qs=ms*(nM+4);
+  const qx=land?pad:Math.round((W-qs)/2),qy=land?Math.round((H-qs)/2):pad;
+  for(let r=0;r<nM;r++)for(let c=0;c<nM;c++)if(q.isDark(r,c))g.fillRect(qx+ms*(c+2),qy+ms*(r+2),ms,ms);
+  g.textBaseline='middle';g.direction='ltr';const m=String(p.code).match(/^(.*?)(?:-([A-Z]))?$/);const main=m[1],L=m[2]||'';
+  const fit=(t,max,size)=>{let z=size;g.font=`700 ${z}px Arial, sans-serif`;while(g.measureText(t).width>max&&z>10){z--;g.font=`700 ${z}px Arial, sans-serif`}return z};
+  if(land){const tx=qx+qs+Math.round(0.8*D),tw=W-tx-pad;g.textAlign='center';const cx=tx+tw/2;
+    if(cfg.name&&p.name){fit(p.name,tw,Math.round(H*0.13));g.direction='rtl';g.fillText(p.name,cx,H*0.2);g.direction='ltr'}
+    fit(main,tw,Math.round(H*0.2));g.fillText(main,cx,cfg.name?H*0.47:H*0.36);
+    if(L){const z=fit(L,tw,Math.round(H*0.34));g.fillText(L,cx,cfg.name?H*0.76:H*0.7)}}
+  else{g.textAlign='center';fit(p.code,W-2*pad,Math.round(H*0.14));g.fillText(p.code,W/2,qy+qs+(H-qy-qs)/2)}
+  return cv}
+async function bcLabels(pre){await loadJB().catch(()=>{});await loadQR().catch(()=>{});if(!window.JsBarcode){toast('مقدرتش أحمّل مكتبة الباركود — اتأكد من النت');return}
   const cfg=lblCfg();const kind=window._BCK||'';const P=[...S.parts].filter(p=>!kind||catOf(p)===kind).sort((a,b)=>(a.code||'').localeCompare(b.code||''));const sel=new Set(pre||[]);
   modal(`<h3>🏷️ طباعة باركود للأصناف</h3><div class="grid g3">
    <label class="f">مقاس الملصق (عرض × طول بالمم)<select id="bl_sz">${(LBL_SIZES.some(([w,h])=>w===cfg.w&&h===cfg.h)?LBL_SIZES:[...LBL_SIZES,[cfg.w,cfg.h]]).map(([w,h])=>`<option value="${w}x${h}" ${cfg.w===w&&cfg.h===h?'selected':''}>${w} × ${h}</option>`).join('')}<option value="custom">مقاس تاني…</option></select></label>
-   <label class="row" style="gap:6px;align-self:end"><input type="checkbox" id="bl_nm" style="width:auto" ${cfg.name?'checked':''}> اسم الصنف</label><label class="row" style="gap:6px;align-self:end"><input type="checkbox" id="bl_pr" style="width:auto" ${cfg.price?'checked':''}> سعر البيع</label></div>
+   <label class="f">نوع الكود<select id="bl_kd"><option value="qr" ${(cfg.kind||'qr')==='qr'?'selected':''}>مربع QR (أسهل في القراءة بالموبايل)</option><option value="bar" ${cfg.kind==='bar'?'selected':''}>باركود خطوط</option></select></label><label class="row" style="gap:6px;align-self:end"><input type="checkbox" id="bl_nm" style="width:auto" ${cfg.name?'checked':''}> اسم الصنف</label><label class="row" style="gap:6px;align-self:end"><input type="checkbox" id="bl_pr" style="width:auto" ${cfg.price?'checked':''}> سعر البيع</label></div>
    <div class="row" style="gap:6px"><input id="bl_q" placeholder="بحث باسم أو كود" style="flex:1"><select id="bl_k" style="width:auto"><option value="">كل الأصناف</option><option value="spare" ${kind==='spare'?'selected':''}>قطع الغيار</option><option value="cons" ${kind==='cons'?'selected':''}>المستهلكات</option></select><button type="button" class="btn sm" id="bl_all">تحديد الكل</button><button type="button" class="btn sm ghost" id="bl_none">شيل التحديد</button></div>
    <div id="bl_list" style="max-height:260px;overflow:auto;border:1px solid var(--line);border-radius:12px;padding:4px 10px"></div>
    <div class="row between"><b id="bl_cnt"></b><div id="bl_prev" style="border:1px dashed var(--line);border-radius:8px;padding:6px;background:#fff"></div></div>
@@ -6915,16 +6928,16 @@ async function bcLabels(pre){await loadJB().catch(()=>{});if(!window.JsBarcode){
    <div class="row" style="flex-wrap:wrap"><button type="button" class="btn" id="bl_share">📤 مشاركة لأبلكيشن الطابعة</button><button type="button" class="btn" id="bl_print">🖨️ طباعة</button><button type="button" class="btn" id="bl_dl">⬇️ تحميل الصور</button></div>`,()=>true);
   const ok=$('#mOk');if(ok)ok.remove();
   const rows=()=>{const q=($('#bl_q').value||'').trim().toLowerCase(),k=$('#bl_k').value;return S.parts.filter(p=>(!k||catOf(p)===k)&&(!q||(p.name+' '+(p.code||'')).toLowerCase().includes(q))).sort((a,b)=>(a.code||'').localeCompare(b.code||''))};
-  const cur=()=>{const [w,h]=$('#bl_sz').value.split('x').map(Number);return {w,h,name:$('#bl_nm').checked,price:$('#bl_pr').checked}};
+  const cur=()=>{const [w,h]=$('#bl_sz').value.split('x').map(Number);return {w,h,kind:$('#bl_kd').value,name:$('#bl_nm').checked,price:$('#bl_pr').checked}};
   $('#bl_sz').addEventListener('change',()=>{if($('#bl_sz').value!=='custom')return;const v=prompt('اكتب المقاس بالمم (العرض × الطول) — مثلاً 35x25','35x25');const m=String(v||'').replace(/[×*X]/g,'x').match(/^\s*(\d+(?:\.\d+)?)\s*x\s*(\d+(?:\.\d+)?)\s*$/);if(!m){$('#bl_sz').value=`${cfg.w}x${cfg.h}`;prev();return}const w=+m[1],h=+m[2];if(w<15||h<10||w>110||h>110){toast('المقاس ده مش منطقي');$('#bl_sz').value=`${cfg.w}x${cfg.h}`;prev();return}const o=document.createElement('option');o.value=`${w}x${h}`;o.textContent=`${w} × ${h}`;$('#bl_sz').insertBefore(o,$('#bl_sz').lastElementChild);$('#bl_sz').value=o.value;prev()},true);
   const draw=()=>{const L=rows();$('#bl_list').innerHTML=L.map(p=>`<div class="row between" style="padding:5px 0;border-bottom:1px solid var(--line)"><label class="row" style="gap:6px;flex:1;min-width:0"><input type="checkbox" class="bl-c" value="${p.id}" style="width:auto" ${sel.has(p.id)?'checked':''}><span>${esc(p.name)} <span class="muted small num">${esc(p.code||'(هيتعمله كود)')}</span></span></label><span class="row" style="gap:4px"><span class="muted small">نسخ</span><input type="number" min="1" max="999" class="bl-n" data-id="${p.id}" value="${window._BLN?.[p.id]||Math.max(1,Math.min(50,n(p.qty)||1))}" style="width:64px"></span></div>`).join('')||'<div class="empty">مفيش</div>';count()};
   const count=()=>{const ids=[...sel];const tot=ids.reduce((a,id)=>a+copies(id),0);$('#bl_cnt').textContent=ids.length?`${ids.length} صنف — ${tot} ملصق`:'اختار الأصناف';prev()};
   window._BLN=window._BLN||{};const copies=id=>Math.max(1,parseInt(window._BLN[id]||Math.max(1,Math.min(50,n(part(id)?.qty)||1))));
   const prev=()=>{const id=[...sel][0]||rows()[0]?.id;const p=part(id);const box=$('#bl_prev');if(!p||!box){if(box)box.innerHTML='';return}const c=lblCanvas({...p,code:p.code||'SP-0000'},cur());c.style.width=(cur().w*3)+'px';c.style.height=(cur().h*3)+'px';box.innerHTML='';box.appendChild(c)};
   $('#bl_list').addEventListener('change',e=>{if(e.target.classList.contains('bl-c')){e.target.checked?sel.add(e.target.value):sel.delete(e.target.value);count()}if(e.target.classList.contains('bl-n')){window._BLN[e.target.dataset.id]=e.target.value;count()}});
-  $('#bl_q').oninput=draw;$('#bl_k').onchange=draw;['bl_sz','bl_nm','bl_pr'].forEach(i=>$('#'+i).onchange=prev);
+  $('#bl_q').oninput=draw;$('#bl_k').onchange=draw;['bl_sz','bl_nm','bl_pr','bl_kd'].forEach(i=>$('#'+i).onchange=prev);
   $('#bl_all').onclick=()=>{rows().forEach(p=>sel.add(p.id));draw()};$('#bl_none').onclick=()=>{sel.clear();draw()};
-  const build=()=>{const ids=[...sel];if(!ids.length){toast('اختار صنف واحد على الأقل');return null}let ch=false;ids.forEach(id=>{const p=part(id);if(p&&ensureCode(p))ch=true});if(ch)save();const c=cur();S.settings.label={...(S.settings.label||{}),w:c.w,h:c.h,name2:c.name,price2:c.price};if(can('settings'))save();
+  const build=()=>{const ids=[...sel];if(!ids.length){toast('اختار صنف واحد على الأقل');return null}let ch=false;ids.forEach(id=>{const p=part(id);if(p&&ensureCode(p))ch=true});if(ch)save();const c=cur();S.settings.label={...(S.settings.label||{}),w:c.w,h:c.h,kind:c.kind,name2:c.name,price2:c.price};if(can('settings'))save();
     return ids.map(id=>({p:part(id),n:copies(id),cv:lblCanvas(part(id),c)}))};
   const blobOf=cv=>new Promise(r=>cv.toBlob(r,'image/png'));
   $('#bl_share').onclick=async()=>{const L=build();if(!L)return;const files=[];for(const x of L){const b=await blobOf(x.cv);for(let i=0;i<Math.min(x.n,30);i++)files.push(new File([b],`${x.p.code}${x.n>1?'-'+(i+1):''}.png`,{type:'image/png'}))}
@@ -6952,11 +6965,11 @@ async function scanCodes(onCode,opt={}){try{BEEP_CTX=BEEP_CTX||new (window.Audio
   $('#scanDone').onclick=stop;$('#scanType').onclick=()=>{const v=prompt('اكتب كود الصنف (مثلاً SP-0001)');if(v)got(v)};
   const v=$('#scanV');
   try{
-    if('BarcodeDetector' in window){stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});v.srcObject=stream;await v.play().catch(()=>{});
+    if('BarcodeDetector' in window){stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment',width:{ideal:1920},height:{ideal:1080},advanced:[{focusMode:'continuous'}]}});v.srcObject=stream;try{const tr=stream.getVideoTracks()[0];const cap=tr.getCapabilities?.()||{};const adv=[];if(cap.focusMode&&cap.focusMode.includes('continuous'))adv.push({focusMode:'continuous'});if(cap.zoom&&cap.zoom.max>=1.6)adv.push({zoom:Math.min(2,cap.zoom.max)});if(adv.length)tr.applyConstraints({advanced:adv}).catch(()=>{})}catch(e){}await v.play().catch(()=>{});
       const det=new BarcodeDetector({formats:['code_128','qr_code','ean_13','code_39','ean_8','upc_a']});
       const loop=async()=>{if(!alive)return;try{const r=await det.detect(v);if(r&&r[0])got(r[0].rawValue)}catch(e){}if(alive)setTimeout(loop,120)};loop();return}
-    $('#scanMsg').textContent='بيحمّل الماسح…';await loadZX();if(!alive)return;zx=new ZXing.BrowserMultiFormatReader();$('#scanMsg').textContent='';
-    await zx.decodeFromConstraints({video:{facingMode:'environment'}},v,(res)=>{if(res&&alive)got(res.getText())});
+    $('#scanMsg').textContent='بيحمّل الماسح…';await loadZX();if(!alive)return;const hints=new Map();try{hints.set(ZXing.DecodeHintType.TRY_HARDER,true);hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS,[ZXing.BarcodeFormat.QR_CODE,ZXing.BarcodeFormat.CODE_128,ZXing.BarcodeFormat.EAN_13,ZXing.BarcodeFormat.CODE_39])}catch(e){}zx=new ZXing.BrowserMultiFormatReader(hints,200);$('#scanMsg').textContent='';
+    await zx.decodeFromConstraints({video:{facingMode:'environment',width:{ideal:1920},height:{ideal:1080}}},v,(res)=>{if(res&&alive)got(res.getText())});
   }catch(e){$('#scanMsg').textContent='مقدرتش أفتح الكاميرا — اسمح للمتصفح بالكاميرا أو اضغط "اكتب الكود"'}
 }
 /* إضافة صنف للفاتورة بالباركود */

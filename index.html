@@ -930,6 +930,7 @@ function backfill(){
   S.payments.forEach(p=>{if(!p.clientId&&p.refType!=='psale'){const r=refOf(p.refType,p.refId);if(r&&r.clientId){p.clientId=r.clientId;ch=true}}});
   if(can('users'))S.users.forEach(u=>{if(STAFF_ROLES.includes(u.role)&&u.role!=='admin'&&!u.perms){u.perms=permsOf(u);ch=true;if(ONLINE)saveUserDoc(u).catch(()=>{})}});
   if(can('stock_edit')&&autoCodes())ch=true;
+  if(can('stock_edit')&&condCodes())ch=true;
   if(isOwner()&&ME.role==='admin'&&!ME.owner&&!S.users.some(u=>u.owner)&&(!ONLINE||window.META_ADMIN===ME.id)){ME.owner=true;const mu=S.users.find(u=>u.id===ME.id);if(mu)mu.owner=true;saveUserDoc(mu||ME).catch(()=>{})}
   if(ch)save();
   if(can('stock_edit')&&(S.returns||[]).length&&!MIGRATING){MIGRATING=true;migrateReturns().finally(()=>{MIGRATING=false})}
@@ -1842,8 +1843,9 @@ function viewStock(){
   return head+`
   ${costs?`<div class="grid g3"><div class="panel kpi"><span>عدد الأصناف</span><b>${SPARES().length}</b></div><div class="panel kpi"><span>قيمة الأصناف (بسعر الشراء)</span><b>${money(val)}</b></div><div class="panel kpi"><span>تحت الحد الأدنى</span><b>${SPARES().filter(p=>n(p.qty)<=n(p.min)).length}</b></div></div>`:''}
   <div class="row between"><div class="row"><input id="sq" placeholder="بحث باسم القطعة أو الكود" value="${esc(SQ)}" style="max-width:260px"><select id="scf" style="width:auto"><option value="">كل الحالات</option>${Object.entries(CONDS).map(([k,[l]])=>`<option value="${k}" ${k===SCF?'selected':''}>${l}</option>`).join('')}</select>${(()=>{const T=[...new Set(SPARES().map(p=>p.ptype).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ar'));return T.length?`<select id="spt" style="width:auto"><option value="">كل الأنواع</option>${T.map(t=>`<option ${t===SPT?'selected':''}>${esc(t)}</option>`).join('')}</select>`:''})()}${(()=>{const B=[...new Set(SPARES().map(p=>p.brand).filter(Boolean))].sort();return B.length?`<select id="spb" style="width:auto"><option value="">كل الماركات</option>${B.map(t=>`<option ${t===SPB?'selected':''}>${esc(t)}</option>`).join('')}</select>`:''})()}</div><div class="row">${can('stock')?'<button class="btn" data-act="bcLabels" data-k="spare">🏷️ باركود</button>':''}${edit?'<button class="btn pri" data-act="addPart">+ صنف جديد</button>':''}</div></div>
-  <div class="muted small">كل صنف بياخد كود لوحده (SP-…). دوس على الصورة تكبّرها، و"اتركب فين" بيوريك العيادات اللي اتركب عندها.</div>
-  ${list.length?`<div class="pgrid">${list.sort((a,b)=>a.name.localeCompare(b.name,'ar')).map(p=>`<div class="pcard">${p.photo?`<img src="${p.photo}" data-act="showImg" data-src="pt:${p.id}" alt="" style="cursor:zoom-in">`:'<div class="noimg">⚙️</div>'}<div class="pbody">${p.ptype?`<span class="pill p-info" style="justify-self:start">${esc(p.ptype)}</span>`:''}<b>${esc(p.name)}</b>${p.brand||p.model?`<div class="small" style="font-weight:600;color:var(--accent)">${esc([p.brand,p.model].filter(Boolean).join(' · '))}</div>`:''}<div class="muted small num">${esc(p.code||'')}${p.ref?' · '+esc(p.ref):''}</div>
+  ${can('stock_edit')&&condGroups().length?`<div class="banner info row between"><span>فيه ${condGroups().length} قطعة متسجلة بكذا حالة بأكواد مختلفة — اربطهم علشان ياخدوا نفس الرقم وآخره حرف الحالة.</span><button class="btn sm pri" data-act="condMerge">اربطهم</button></div>`:''}
+  <div class="muted small">كل صنف بياخد كود لوحده، وآخره حرف الحالة: N جديدة · U مستعملة · F مجددة · R إصلاح · D تالفة. دوس على الصورة تكبّرها، و"اتركب فين" بيوريك العيادات اللي اتركب عندها.</div>
+  ${list.length?`<div class="pgrid">${list.sort((a,b)=>a.name.localeCompare(b.name,'ar')).map(p=>`<div class="pcard">${p.photo?`<img src="${p.photo}" data-act="showImg" data-src="pt:${p.id}" alt="" style="cursor:zoom-in">`:'<div class="noimg">⚙️</div>'}<div class="pbody">${p.ptype?`<span class="pill p-info" style="justify-self:start">${esc(p.ptype)}</span>`:''}<b>${esc(p.name)}</b>${p.brand||p.model?`<div class="small" style="font-weight:600;color:var(--accent)">${esc([p.brand,p.model].filter(Boolean).join(' · '))}</div>`:''}<div class="muted small num">${esc(p.code||'')}${p.ref?' · '+esc(p.ref):''}</div>${sibLine(p)}
     <div class="row between"><span class="num">${money(p.sell)}</span>${n(p.qty)<=n(p.min)?`<span class="pill p-bad">${n(p.qty)}</span>`:`<span class="pill p-ok">${n(p.qty)}</span>`}</div>
     ${costs?`<div class="muted small">الشراء: <span class="num">${money(p.buy)}</span></div>`:''}
     <div class="row" style="gap:4px">${condPill(p.condition)}${wLabel(p)?`<span class="pill p-info">ضمان ${wLabel(p)}</span>`:''}</div>
@@ -1949,9 +1951,10 @@ function openPartModal(id){
    <label class="f">ضمان للعميل (شهور)<input type="number" min="0" step="1" id="p_wm" value="${p.wMonths||''}"></label>
    <label class="f">ضمان للعميل (نبضات)<input type="number" min="0" step="1000" id="p_wp" value="${p.wPulses||''}"></label>${partPhotoField(p)}</div>
    ${ll&&(ll.supWMonths||ll.supWPulses)?`<div class="muted small">آخر ضمان من المورد (${esc(S.suppliers.find(x=>x.id===lastSup.supplierId)?.name||'')} — ${fd(lastSup.date)}): ${wLabel({wMonths:ll.supWMonths,wPulses:ll.supWPulses})}</div>`:''}
-   ${id?`<div><button type="button" class="btn sm danger" id="p_del">حذف الصنف</button></div>`:''}`,()=>{
+   ${id?`<div class="row"><button type="button" class="btn sm" data-act="partVariant" data-id="${id}">+ نفس القطعة بحالة تانية</button><button type="button" class="btn sm danger" id="p_del">حذف الصنف</button></div>${sibsOf(p).length?`<div class="muted small">الحالات التانية: ${sibsOf(p).map(x=>`${condTxt(x)} (${esc(x.code)}) — ${n(x.qty)}`).join(' · ')}</div>`:''}`:''}`,()=>{
     const name=$('#p_name').value.trim();if(!name){toast('اكتب اسم القطعة');return false}
     const d={name,ptype:$('#p_type').value.trim(),brand:$('#p_brand').value.trim(),model:$('#p_model').value.trim(),ref:$('#p_ref').value.trim(),condition:$('#p_cond').value,buy:n($('#p_buy').value),sell:n($('#p_sell').value),qty:n($('#p_qty').value),min:n($('#p_min').value),wMonths:n($('#p_wm').value),wPulses:n($('#p_wp').value),photo:pPhoto};
+    if(id&&d.condition!==(p.condition||'new')&&sibsOf(p).some(x=>(x.condition||'new')===d.condition)){toast(`فيه صنف تاني لنفس القطعة بحالة "${CONDS[d.condition][0]}" — زوّد الكمية عليه بدل ما تغيّر الحالة`);return false}
     if(id)Object.assign(p,d);else S.parts.push({id:uid(),code:nextCode('spare'),cat:'spare',...d});save();toast('اتحفظ الصنف');render();
   });
   $('#p_ph').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{pPhoto=await compress(f,700,.6);$('#p_box').innerHTML=`<figure><img src="${pPhoto}" alt=""></figure>`}catch(_){toast('معرفتش أقرا الصورة')}};if($('#p_phd'))$('#p_phd').onclick=()=>{pPhoto='';$('#p_box').innerHTML=''};
@@ -3247,7 +3250,7 @@ const CAT_PREFIX={spare:'SP',cons:'CN'};
 const catOf=p=>p?.cat==='cons'?'cons':'spare';
 const SPARES=()=>S.parts.filter(p=>catOf(p)==='spare');
 const CONS=()=>S.parts.filter(p=>catOf(p)==='cons');
-const CODE_RE=/^(SP|CN)-(\d+)$/;
+const CODE_RE=/^(SP|CN)-(\d+)(?:-[A-Z])?$/;
 function nextCode(cat){const pre=CAT_PREFIX[cat]||'SP';let mx=0;S.parts.forEach(p=>{const m=String(p.code||'').match(CODE_RE);if(m&&m[1]===pre)mx=Math.max(mx,+m[2])});return pre+'-'+pad(mx+1)}
 function autoCodes(){let ch=false;S.parts.forEach(p=>{const m=String(p.code||'').match(CODE_RE);if(m&&m[1]===CAT_PREFIX[catOf(p)])return;if(p.code&&!m&&!p.ref)p.ref=p.code;p.code=nextCode(catOf(p));ch=true});return ch}
 function syncCatalog(){
@@ -6092,7 +6095,7 @@ let XR_PRE='';
 
 
 /* ---------- فحص التحديثات ---------- */
-const APP_VER='2026.10.26.7';
+const APP_VER='2026.10.26.8';
 async function checkUpdate(){try{if(location.protocol==='file:')return;const t=await (await fetch(location.pathname+'?_='+Date.now(),{cache:'no-store'})).text();const m=t.match(/const APP_VER='([^']+)'/);if(m&&m[1]!==APP_VER)showUpd(m[1])}catch(e){}}
 function showUpd(v){if(document.getElementById('updBar'))return;const b=document.createElement('div');b.id='updBar';b.style.cssText='position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:80;background:#1d2b45;color:#fff;padding:10px 16px;border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,.25);display:flex;gap:12px;align-items:center;font-weight:600;max-width:92vw';b.innerHTML='<span>🔄 فيه نسخة جديدة من السيستم</span><button type="button" style="background:#2b8fb8;color:#fff;border:0;border-radius:10px;padding:6px 14px;font:inherit;cursor:pointer">حدّث دلوقتي</button>';b.querySelector('button').onclick=()=>{location.replace(location.pathname+'?v='+encodeURIComponent(v)+location.hash)};document.body.appendChild(b)}
 setTimeout(checkUpdate,8000);setInterval(checkUpdate,5*60*1000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkUpdate()});
@@ -6349,7 +6352,7 @@ document.addEventListener('click',e=>{const f=e.target.closest('[data-scf]');if(
 document.addEventListener('change',e=>{if(e.target.classList?.contains('sc-in')){scSet(e.target.dataset.id,e.target.value);const y=scrollY;render();scrollTo(0,y)}});
 document.addEventListener('input',e=>{if(e.target.id==='scq'){SCQQ=e.target.value;clearTimeout(window._scqT);window._scqT=setTimeout(()=>{const pos=e.target.selectionStart;render();const i=$('#scq');if(i){i.focus();try{i.setSelectionRange(pos,pos)}catch(_){}}},250)}});
 async function scScan(){scanCodes(c=>{scJump(c)},{title:'📷 امسح كود الصنف'})}
-function scJump(code){code=String(code||'').trim();const m=code.match(/(SP|CN)-\d+/i);const key=(m?m[0]:code).toUpperCase();const p=S.parts.find(x=>(x.code||'').toUpperCase()===key||(x.ref||'').toUpperCase()===key);
+function scJump(code){code=String(code||'').trim();const p=partByCode(code)?.p;if(p)toast(`${p.name} — ${condTxt(p)} (${p.code})`);
   if(!p){toast('الكود ده مش متسجل: '+code);return}SCQQ='';SCFL='all';render();setTimeout(()=>{const el=document.getElementById('scc_'+p.id);if(el){el.scrollIntoView({behavior:'smooth',block:'center'});el.classList.add('flash');const i=el.querySelector('.sc-in');if(i){i.focus();i.select&&i.select()}}else toast(`"${p.name}" مش ضمن الجرد ده`)},80)}
 function scLabels(){const P=[...S.parts].sort((a,b)=>(a.code||'').localeCompare(b.code||''));
   modal(`<h3>🏷️ ملصقات QR للأصناف</h3><div class="muted small">اطبعها والزقها على رفوف أو علب الأصناف — في الجرد بتمسحها بالكاميرا وتوصل للصنف على طول.</div><div class="row" style="flex-wrap:wrap;gap:6px;max-height:240px;overflow:auto;margin-top:8px">${P.map(p=>`<label class="row" style="gap:5px;border:1px solid var(--line);border-radius:99px;padding:3px 10px"><input type="checkbox" class="lb-c" value="${p.id}" style="width:auto" checked> ${esc(p.name)} <span class="muted small num">${esc(p.code||'')}</span></label>`).join('')}</div>`,()=>{
@@ -6874,9 +6877,9 @@ function loadZX(){if(window.ZXing)return Promise.resolve();return ZX_P||(ZX_P=lo
 const LBL_SIZES=[[50,30],[40,30],[50,25],[40,20],[58,40],[30,20]];
 const lblCfg=()=>({w:50,h:30,...(S.settings.label||{}),name:!!(S.settings.label||{}).name2,price:!!(S.settings.label||{}).price2});
 function partByCode(code){code=String(code||'').trim().toUpperCase();if(!code)return null;
-  const p=S.parts.find(x=>(x.code||'').toUpperCase()===code||(x.ref||'').toUpperCase()===code);if(p)return {p};
+  const p=S.parts.find(x=>(x.code||'').toUpperCase()===code||(x.ref||'').toUpperCase()===code)||S.parts.find(x=>(x.oldCodes||[]).some(c=>c.toUpperCase()===code));if(p)return {p};
   const u=(S.units||[]).find(x=>(x.code||'').toUpperCase()===code);if(u)return {u};
-  const m=code.match(/[A-Z]{2,4}-\d+/);if(m&&m[0]!==code)return partByCode(m[0]);return null}
+  const m=code.match(/[A-Z]{2,4}-\d+(?:-[A-Z])?/);if(m&&m[0]!==code)return partByCode(m[0]);return null}
 function ensureCode(p){if(!p.code){p.code=nextCode(catOf(p));return true}return false}
 function lblCanvas(p,cfg){const D=8;const W=Math.round(cfg.w*D),H=Math.round(cfg.h*D);const cv=document.createElement('canvas');cv.width=W;cv.height=H;const g=cv.getContext('2d');
   g.fillStyle='#fff';g.fillRect(0,0,W,H);g.fillStyle='#000';const pad=Math.round(1.5*D);let top=pad;
@@ -6945,11 +6948,11 @@ async function scanCodes(onCode,opt={}){try{BEEP_CTX=BEEP_CTX||new (window.Audio
 function psAddByCode(code){const f=partByCode(code);if(!f)return '❌ الكود ده مش متسجل: '+code;const box=$('#ps_lines');if(!box)return '';
   const val=f.u?'u:'+f.u.id:f.p.id;const nm=f.u?f.u.name:f.p.name;
   const rowsAll=$$('#ps_lines .ps-row');let row=rowsAll.find(r=>r.querySelector('.ps-part').value===val);
-  if(row&&!f.u){const q=row.querySelector('.ps-qty');const before=parseInt(q.value)||0;q.value=before+1;q.dispatchEvent(new Event('input',{bubbles:true}));return (parseInt(q.value)||0)>before?`✅ ${nm} — بقوا ${q.value}`:`⚠️ ${nm} — مفيش كمية تانية في المخزن`}
+  if(row&&!f.u){const q=row.querySelector('.ps-qty');const before=parseInt(q.value)||0;q.value=before+1;q.dispatchEvent(new Event('input',{bubbles:true}));return (parseInt(q.value)||0)>before?`✅ ${nm}${f.p?' — '+condTxt(f.p):''} — بقوا ${q.value}`:`⚠️ ${nm} — مفيش كمية تانية في المخزن`}
   if(row&&f.u)return `⚠️ ${nm} موجودة في الفاتورة`;
   row=rowsAll.find(r=>!r.querySelector('.ps-part').value);let added=false;if(!row){box.insertAdjacentHTML('beforeend',psLineHTML());row=$$('#ps_lines .ps-row').pop();added=true}
   const sel=row.querySelector('.ps-part');const opt=[...sel.options].find(o=>o.value===val);if(!opt||opt.disabled){if(added)row.remove()}if(!opt){return `⚠️ "${nm}" مش من نوع الفاتورة دي (${window._PSK==='cons'?'مستهلكات':'قطع غيار'})`}
-  if(opt.disabled)return `⚠️ ${nm} خلصان من المخزن`;sel.value=val;sel.dispatchEvent(new Event('change',{bubbles:true}));return `✅ اتضاف: ${nm}`}
+  if(opt.disabled)return `⚠️ ${nm} خلصان من المخزن`;sel.value=val;sel.dispatchEvent(new Event('change',{bubbles:true}));return `✅ اتضاف: ${nm}${f.p?' — '+condTxt(f.p):''}`}
 Object.assign(X9,{bcLabels:(t,id)=>{window._BCK=t.dataset.k||'';bcLabels(id?[id]:[])},psScan:()=>scanCodes(psAddByCode,{title:'📷 وجّه الكاميرا على باركود الصنف'})});
 Object.assign(NEED9,{bcLabels:'stock'});
 
@@ -7010,8 +7013,8 @@ function epClearDoc(uid){const u=S.users.find(x=>x.id===uid);const C=custOf(uid)
   printHTML(docShell('إخلاء طرف',esc(u?.name||''),`${esc(u?.jobTitle||ROLE[u?.role]||'')} · ${fd(today())}`,body),'إخلاء طرف')}
 Object.assign(X9,{epGive:(t,id)=>epGive(id),epTake:(t,id)=>epTake(id),epClear:(t,id)=>epClear(id),epClearDoc:(t,id)=>epClearDoc(id),
   epDel:(t,id)=>confirmBox('حذف الحركة دي؟ (الكميات هترجع زي ما كانت)',()=>{const x=S.custody.find(y=>y.id===id);if(!x)return;(x.lines||[]).forEach(l=>{const p=part(l.partId);if(!p)return;if(x.kind==='pissue')p.qty=n(p.qty)+n(l.qty);else if(l.cond!=='bad')p.qty=n(p.qty)-n(l.qty)});S.custody=S.custody.filter(y=>y.id!==id);save();render()}),
-  epScan:()=>scanCodes(code=>{const f=partByCode(code);if(!f||!f.p)return '❌ الكود ده مش متسجل: '+code;const rows=$$('#ep_rows .ep-r');let r=rows.find(x=>x.querySelector('.ep-p').value===f.p.id);if(r){const q=r.querySelector('.ep-q');q.value=(parseInt(q.value)||0)+1;return '✅ '+f.p.name+' — بقوا '+q.value}
-    r=rows.find(x=>!x.querySelector('.ep-p').value);if(!r){$('#ep_rows').insertAdjacentHTML('beforeend',window._EPROW());r=$$('#ep_rows .ep-r').pop()}const s=r.querySelector('.ep-p');if(![...s.options].some(o=>o.value===f.p.id)){return '⚠️ '+f.p.name+' مش متاح في المخزن'}s.value=f.p.id;return '✅ اتضاف: '+f.p.name},{title:'📷 امسح باركود القطعة'})});
+  epScan:()=>scanCodes(code=>{const f=partByCode(code);if(!f||!f.p)return '❌ الكود ده مش متسجل: '+code;const rows=$$('#ep_rows .ep-r');let r=rows.find(x=>x.querySelector('.ep-p').value===f.p.id);if(r){const q=r.querySelector('.ep-q');q.value=(parseInt(q.value)||0)+1;return '✅ '+f.p.name+' — '+condTxt(f.p)+' — بقوا '+q.value}
+    r=rows.find(x=>!x.querySelector('.ep-p').value);if(!r){$('#ep_rows').insertAdjacentHTML('beforeend',window._EPROW());r=$$('#ep_rows .ep-r').pop()}const s=r.querySelector('.ep-p');if(![...s.options].some(o=>o.value===f.p.id)){return '⚠️ '+f.p.name+' مش متاح في المخزن'}s.value=f.p.id;return '✅ اتضاف: '+f.p.name+' — '+condTxt(f.p)},{title:'📷 امسح باركود القطعة'})});
 Object.assign(NEED9,{epGive:'custody',epTake:'custody',epClear:'custody',epDel:'custody'});
 /* اختيار مصدر القطعة في تقرير الصيانة */
 function formEng(){return (FORM?.id&&S.reports.find(x=>x.id===FORM.id)?.by)||ME?.id}
@@ -7019,6 +7022,35 @@ function prSrcHTML(it){const eng=formEng();if(!engHasParts(eng)&&it.src!=='eng')
   return `<select class="pr-src" title="القطعة جاية منين"><option value="stock" ${it.src!=='eng'?'selected':''}>من مخزن الشركة</option><option value="eng" ${it.src==='eng'?'selected':''}>من عهدة المهندس${it.partId?` (معاه ${b})`:''}</option></select>`}
 document.addEventListener('change',e=>{const s=e.target.closest&&e.target.closest('#partRows .pr-part');if(!s)return;const row=s.closest('.part-row');const sel=row.querySelector('.pr-src');if(!sel)return;const v=s.value;const eng=formEng();
   if(!v||v.includes(':')){sel.value='stock';sel.disabled=true;return}sel.disabled=false;const b=engBal(eng,v);sel.options[1].textContent=`من عهدة المهندس (معاه ${b})`;sel.value=b>0?'eng':'stock'});
+
+/* =====================================================================
+   v46 — كود لكل حالة: SP-0004-N / -U / -F / -R / -D
+   ===================================================================== */
+const COND_L={new:'N',used:'U',refurb:'F',repaired:'R',damaged:'D',replaced:'X'};
+const L_COND=Object.fromEntries(Object.entries(COND_L).map(([k,v])=>[v,k]));
+const baseOf=p=>p.base||String(p.code||'').replace(/-[A-Z]$/,'');
+function condCodes(){let ch=false;S.parts.forEach(p=>{if(catOf(p)!=='spare'||!p.code)return;const m=String(p.code).match(CODE_RE);if(!m)return;const b=p.base||(m[1]+'-'+m[2]);const want=b+'-'+(COND_L[p.condition||'new']||'N');
+  if(p.base!==b){p.base=b;ch=true}if(p.code!==want){(p.oldCodes=p.oldCodes||[]);if(!p.oldCodes.includes(p.code))p.oldCodes.push(p.code);p.code=want;ch=true}});return ch}
+const sibsOf=p=>p&&catOf(p)==='spare'?S.parts.filter(x=>x.id!==p.id&&catOf(x)==='spare'&&baseOf(x)===baseOf(p)):[];
+const condTxt=p=>(CONDS[p?.condition||'new']||CONDS.new)[0];
+function sibLine(p){const S2=sibsOf(p);if(!S2.length)return '';return `<div class="small muted">منها كمان: ${S2.map(x=>`<a href="#" data-act="editPart" data-id="${x.id}">${condTxt(x)} ${n(x.qty)}</a>`).join(' · ')}</div>`}
+function partVariant(id){const p=part(id);if(!p)return;const have=new Set([p,...sibsOf(p)].map(x=>x.condition||'new'));const opts=Object.entries(CONDS).filter(([k])=>!have.has(k)&&k!=='replaced');if(!opts.length){toast('القطعة دي ليها كل الحالات');return}
+  modal(`<h3>+ "${esc(p.name)}" بحالة تانية</h3><div class="muted small">هيتعمل صنف جديد بنفس الاسم والماركة والموديل والنوع، وكوده ${esc(baseOf(p))} وبعده حرف الحالة.</div><div class="grid g2">
+   <label class="f">الحالة<select id="pv_c">${opts.map(([k,[l]])=>`<option value="${k}">${l} — ${esc(baseOf(p))}-${COND_L[k]}</option>`).join('')}</select></label>
+   <label class="f">الكمية<input type="number" min="0" step="1" id="pv_q" value="0"></label>
+   <label class="f">سعر الشراء<input type="number" min="0" step="any" id="pv_b" value="${n(p.buy)}"></label><label class="f">سعر البيع<input type="number" min="0" step="any" id="pv_s" value="${n(p.sell)}"></label></div>`,()=>{
+    const c=$('#pv_c').value;const np={id:uid(),cat:'spare',name:p.name,ptype:p.ptype||'',brand:p.brand||'',model:p.model||'',ref:p.ref||'',condition:c,base:baseOf(p),code:baseOf(p)+'-'+COND_L[c],buy:n($('#pv_b').value),sell:n($('#pv_s').value),qty:n($('#pv_q').value),min:0,wMonths:c==='new'?n(p.wMonths):0,wPulses:c==='new'?n(p.wPulses):0,photo:p.photo||''};
+    S.parts.push(np);save();toast(`اتعمل ${np.code} — ${condTxt(np)}`);render()})}
+/* ربط الأصناف القديمة اللي هي نفس القطعة بحالات مختلفة */
+function condGroups(){const m=new Map();S.parts.filter(p=>catOf(p)==='spare').forEach(p=>{const k=[p.name.trim(),(p.brand||'').trim(),(p.model||'').trim()].join('|').toLowerCase();if(!m.has(k))m.set(k,[]);m.get(k).push(p)});
+  return [...m.values()].filter(L=>L.length>1&&new Set(L.map(baseOf)).size>1&&new Set(L.map(p=>p.condition||'new')).size===L.length)}
+function condMerge(){const G=condGroups();if(!G.length){toast('مفيش أصناف محتاجة ربط');return}
+  modal(`<h3>ربط نفس القطعة بحالاتها</h3><div class="muted small">دي أصناف ليها نفس الاسم والماركة والموديل بس كل واحد بحالة. لو ربطتهم هياخدوا نفس الرقم وآخره حرف الحالة. الأكواد القديمة هتفضل شغالة في المسح، بس الأحسن تطبع ملصقات جديدة.</div>
+   ${G.map((L,i)=>{const b=baseOf(L[0]);return `<label class="row" style="gap:8px;padding:8px 0;border-bottom:1px solid var(--line);align-items:flex-start"><input type="checkbox" class="cm-g" value="${i}" style="width:auto;margin-top:4px" checked><span><b>${esc(L[0].name)}</b>${esc(pBM(L[0]))}<div class="small">${L.map(p=>`${condTxt(p)}: <span class="num">${esc(p.code)}</span> ← <b class="num">${esc(b)}-${COND_L[p.condition||'new']}</b>`).join('<br>')}</div></span></label>`}).join('')}`,()=>{
+    let k=0;$$('.cm-g:checked').forEach(c=>{const L=G[+c.value];const b=baseOf(L[0]);L.forEach(p=>{if(baseOf(p)!==b){(p.oldCodes=p.oldCodes||[]);if(!p.oldCodes.includes(p.code))p.oldCodes.push(p.code);p.base=b;p.code=b+'-'+COND_L[p.condition||'new'];k++}})});
+    save();toast(`اتربط ${k} صنف — اطبع ملصقات جديدة ليهم`);render()})}
+Object.assign(X9,{partVariant:(t,id)=>partVariant(id),condMerge:()=>condMerge()});
+Object.assign(NEED9,{partVariant:'stock_edit',condMerge:'stock_edit'});
 
 /* =====================================================================
    التشغيل

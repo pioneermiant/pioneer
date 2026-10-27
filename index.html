@@ -2804,7 +2804,7 @@ service cloud.firestore {
     match /stockcounts/{id} { allow read: if can('stock_count') || can('stock_count_approve') || can('accounts'); allow create, update: if can('stock_count') || can('stock_count_approve'); allow delete: if can('stock_count_approve'); }
     match /freon/{id} { allow read: if can('freon_collect') || can('freon_buy') || can('freon_fill') || can('freon_empties') || can('freon_sell') || can('freon_ret') || can('freon_send') || can('freon_edit') || can('capital_view') || can('freon') || can('freon_view') || can('accounts') || can('invoice_delete'); allow write: if can('freon') || can('freon_buy') || can('freon_fill') || can('freon_sell') || can('freon_edit') || can('invoice_delete'); }
     match /stockDevices/{id} { allow read: if can('capital_view') || can('devices') || can('accounts'); allow write: if can('devices'); }
-    match /partSales/{id} { allow read: if can('freon_sell') || can('capital_view') || can('part_sales') || can('cons_sales') || can('ar') || can('accounts') || can('orders_manage') || can('orders_work') || can('treasury') || can('treasury_view') || ownClient(); allow write: if can('freon_sell') || can('part_sales') || can('cons_sales') || can('orders_manage') || can('orders_work') || can('freon') || can('ext_repair') || can('invoice_delete'); }
+    match /partSales/{id} { allow read: if can('freon_sell') || can('freon') || can('ext_repair') || can('capital_view') || can('part_sales') || can('cons_sales') || can('ar') || can('accounts') || can('orders_manage') || can('orders_work') || can('treasury') || can('treasury_view') || ownClient(); allow write: if can('freon_sell') || can('part_sales') || can('cons_sales') || can('orders_manage') || can('orders_work') || can('freon') || can('ext_repair') || can('invoice_delete'); }
     match /offers/{id} { allow read: if active(); allow write: if can('offers'); }
     match /meetings/{id} { allow read: if isStaff(); allow create, delete: if can('meetings'); allow update: if can('meetings') || (isStaff() && request.auth.uid in resource.data.attendees); }
     match /catalog/{id} { allow read: if active(); allow write: if isStaff(); }
@@ -6101,7 +6101,7 @@ let XR_PRE='';
 
 
 /* ---------- فحص التحديثات ---------- */
-const APP_VER='2026.10.26.15';
+const APP_VER='2026.10.27.1';
 async function checkUpdate(){try{if(location.protocol==='file:')return;const t=await (await fetch(location.pathname+'?_='+Date.now(),{cache:'no-store'})).text();const m=t.match(/const APP_VER='([^']+)'/);if(m&&m[1]!==APP_VER)showUpd(m[1])}catch(e){}}
 function showUpd(v){if(document.getElementById('updBar'))return;const b=document.createElement('div');b.id='updBar';b.style.cssText='position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:80;background:#1d2b45;color:#fff;padding:10px 16px;border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,.25);display:flex;gap:12px;align-items:center;font-weight:600;max-width:92vw';b.innerHTML='<span>🔄 فيه نسخة جديدة من السيستم</span><button type="button" style="background:#2b8fb8;color:#fff;border:0;border-radius:10px;padding:6px 14px;font:inherit;cursor:pointer">حدّث دلوقتي</button>';b.querySelector('button').onclick=()=>{location.replace(location.pathname+'?v='+encodeURIComponent(v)+location.hash)};document.body.appendChild(b)}
 setTimeout(checkUpdate,8000);setInterval(checkUpdate,5*60*1000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkUpdate()});

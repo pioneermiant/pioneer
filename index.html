@@ -4002,7 +4002,10 @@ function openAttImport(){
         doc.days[u][d]={in:i,out:o,n:all.length};days++}}
       const ds=Object.values(byM[m]).flatMap(o=>Object.keys(o)).sort();if(ds.length){doc.from=!doc.from||ds[0]<doc.from?ds[0]:doc.from;doc.to=!doc.to||ds[ds.length-1]>doc.to?ds[ds.length-1]:doc.to}
       doc.importedAt=new Date().toISOString();doc.by=pubName()}
-    save();toast(`اتسجل ${days} يوم حضور${skipped?` — واتجاهل ${skipped} بصمة لأرقام مش متربطة بموظف`:''}`);ATTM=Object.keys(byM).sort().slice(-1)[0]||ATTM;HRF='att';render();
+    const PR=payAfterImport(Object.keys(byM));
+    save();toast(`اتسجل ${days} يوم حضور${skipped?` — واتجاهل ${skipped} بصمة لأرقام مش متربطة بموظف`:''}${PR.re.length?` — ومرتبات ${PR.re.map(m=>monthName(m+'-01')).join('، ')} اتحسبت تاني`:''}`);
+    if(PR.locked.length)setTimeout(()=>infoModal(`<h3>البصمة اتسجلت ✓</h3><div class="banner">مرتبات ${PR.locked.map(m=>monthName(m+'-01')).join('، ')} اتبعتت للموافقة أو اتعتمدت قبل كده، فمتحسبتش تاني. لو عايز البصمة الجديدة تنزل فيها، رجّعها للمراجعة الأول وبعدين دوس "إعادة الحساب".</div>`),350);
+    ATTM=Object.keys(byM).sort().slice(-1)[0]||ATTM;HRF='att';render();
   });
   $('#at_f').onchange=async e=>{const f=e.target.files[0];if(!f)return;$('#at_box').innerHTML='<div class="muted">بيقرا الملف…</div>';
     let rows;try{rows=(await readAttFile(f)).filter(r=>r&&r.some(c=>String(c??'').trim()))}catch(er){$('#at_box').innerHTML='<div class="banner">معرفتش أقرا الملف — جرّب تحفظه Excel أو CSV من برنامج البصمة.</div>';return}
@@ -4146,12 +4149,19 @@ function viewPayroll(){
   <div class="row between"><div class="row"><select id="paym" style="width:auto">${months.map(m=>`<option value="${m}" ${m===PAYM?'selected':''}>${monthName(m+'-01')}</option>`).join('')}</select>${st?`<span class="pill ${st[1]}">${st[0]}</span>`:''}</div>
    <div class="row">${prep&&(!P||P.status==='draft')?`<button class="btn" data-act="payCalc">${P?'إعادة الحساب':'احسب مرتبات الشهر'}</button>`:''}${editable?`<button class="btn pri" data-act="paySubmit" ${allOk?'':'disabled title="اعتمد مرتب كل موظف الأول"'}>ابعتها للمدير العام للموافقة</button>`:''}${appr&&P?.status==='submitted'?`<button class="btn pri" data-act="payApprove">موافقة ونزول المرتبات</button><button class="btn danger" data-act="payReturn">رجّعها للمراجعة</button>`:''}${P?`<button class="btn sm" data-act="payXls">تحميل Excel</button>`:''}</div></div>
   ${P?.returnNote&&P.status==='draft'?`<div class="banner">المدير العام رجّعها: ${esc(P.returnNote)}</div>`:''}
+  ${payWarn(P)}
   <div class="muted small">المكافآت المعتمدة للشهر بتنزل لوحدها. الخصم بيتحسب لوحده من البصمة (أيام الخصم × أجر اليوم = الأساسي ÷ 30) + الجزاءات المعتمدة في الشهر + أقساط السلف + الإجازات بدون مرتب + التأمينات. مدير الحسابات يقدر يضيف مكافأة أو خصم تاني لكل موظف ويعتمده، وبعدين تروح للمدير العام يوافق عليها كلها.</div>
   ${P?`<div class="grid g4"><div class="panel kpi"><span>إجمالي المرتبات</span><b>${tot('gross')}</b></div><div class="panel kpi"><span>إجمالي الخصومات</span><b>${tot('totalDed')}</b></div><div class="panel kpi"><span>المكافآت</span><b>${money(lines.reduce((a,l)=>a+n(l.bonus)+n(l.bonSum)+n(l.compSum),0))}</b></div><div class="panel kpi"><span>الصافي اللي هيتصرف</span><b>${tot('net')}</b></div></div>
-  <div class="panel"><div class="tbl-wrap"><table class="t"><thead><tr><th>الموظف</th><th>المرتب</th><th>خصم البصمة</th><th>جزاءات</th><th>سلف</th><th>بدون مرتب</th><th>تأمينات</th><th>مكافآت وبدلات</th><th>خصم تاني</th><th>الصافي</th><th>اعتماد الحسابات</th><th></th></tr></thead><tbody>${lines.map(l=>`<tr><td><b>${esc(l.name)}</b><div class="muted small">${esc(l.job)}</div></td><td class="num">${money(l.gross)}</td><td class="small">${l.attDays?`<b class="num">${money(l.attDed)}</b><div class="muted">${l.attDays} يوم${l.attOverride!=null?' (معدّل)':''}</div>`:'—'}</td><td class="num">${l.penDed?money(l.penDed):'—'}</td><td class="num">${l.loanDed?money(l.loanDed):'—'}</td><td class="num">${l.unpaidDed?money(l.unpaidDed):'—'}</td><td class="num">${l.insurance?money(l.insurance):'—'}</td><td class="num">${l.bonSum||l.bonus||l.compSum?money(n(l.bonSum)+n(l.bonus)+n(l.compSum)):'—'}</td><td class="num">${l.other?money(l.other):'—'}</td><td class="num"><b>${money(l.net)}</b></td><td>${l.ok?'<span class="pill p-ok">معتمد ✓</span>':'<span class="pill p-warn">لسه</span>'}</td><td><div class="row" style="flex-wrap:nowrap"><button class="btn sm" data-act="payLine" data-id="${l.uid}">${editable?'مراجعة':'التفاصيل'}</button>${editable?`<button class="btn sm ${l.ok?'ghost':'pri'}" data-act="payOk" data-id="${l.uid}">${l.ok?'إلغاء الاعتماد':'اعتماد'}</button>`:''}</div></td></tr>`).join('')}</tbody></table></div></div>
+  <div class="panel"><div class="tbl-wrap"><table class="t"><thead><tr><th>الموظف</th><th>المرتب</th><th>إضافي</th><th>خصم البصمة</th><th>جزاءات</th><th>سلف</th><th>بدون مرتب</th><th>تأمينات</th><th>مكافآت وبدلات</th><th>خصم تاني</th><th>الصافي</th><th>اعتماد الحسابات</th><th></th></tr></thead><tbody>${lines.map(l=>`<tr><td><b>${esc(l.name)}</b><div class="muted small">${esc(l.job)}</div></td><td class="num">${money(l.gross)}</td><td class="small">${n(l.otPay)?`<b class="num" style="color:var(--ok)">+ ${money(l.otPay)}</b><div class="muted">${min2hm(n(l.otMin))} ساعة</div>`:'—'}</td><td class="small">${l.attDays?`<b class="num">${money(l.attDed)}</b><div class="muted">${l.attDays} يوم${l.attOverride!=null?' (معدّل)':''}</div>`:'—'}</td><td class="num">${l.penDed?money(l.penDed):'—'}</td><td class="num">${l.loanDed?money(l.loanDed):'—'}</td><td class="num">${l.unpaidDed?money(l.unpaidDed):'—'}</td><td class="num">${l.insurance?money(l.insurance):'—'}</td><td class="num">${l.bonSum||l.bonus||l.compSum?money(n(l.bonSum)+n(l.bonus)+n(l.compSum)):'—'}</td><td class="num">${l.other?money(l.other):'—'}</td><td class="num"><b>${money(l.net)}</b></td><td>${l.ok?'<span class="pill p-ok">معتمد ✓</span>':'<span class="pill p-warn">لسه</span>'}</td><td><div class="row" style="flex-wrap:nowrap"><button class="btn sm" data-act="payLine" data-id="${l.uid}">${editable?'مراجعة':'التفاصيل'}</button>${editable?`<button class="btn sm ${l.ok?'ghost':'pri'}" data-act="payOk" data-id="${l.uid}">${l.ok?'إلغاء الاعتماد':'اعتماد'}</button>`:''}</div></td></tr>`).join('')}</tbody></table></div></div>
   ${P.status==='approved'?`<div class="muted small">اتعتمدت من ${esc(P.approvedByName||'')} ${fdt(P.approvedAt)} — كل موظف شايف تفاصيل مرتبه في حسابه.</div>`:P.submittedAt?`<div class="muted small">اتبعتت للموافقة من ${esc(P.preparedByName||'')} ${fdt(P.submittedAt)}</div>`:''}`
   :`<div class="panel"><div class="empty">${prep?'لسه مرتبات الشهر ده ما اتحسبتش — دوس "احسب مرتبات الشهر".':'لسه مرتبات الشهر ده ما اتجهزتش.'}</div></div>`}`;
 }
+function payWarn(P){const m=PAYM;const doc=attMonth(m);const out=[];
+  const ms=(S.attendance||[]).filter(x=>x.month).map(x=>x.month).sort();
+  if(!doc)out.push(ms.length?`مفيش بصمة متسجلة لشهر <b>${monthName(m+'-01')}</b> — آخر بصمة اتسحبت كانت لشهر <b>${monthName(ms[ms.length-1]+'-01')}</b>. لو ده الشهر اللي عايزه، غيّر الشهر من فوق.`:'لسه مفيش ملف بصمة اتسحب — الخصم والإضافي مش هيتحسبوا.');
+  else{if(P&&P.calcAt&&doc.importedAt&&doc.importedAt>P.calcAt)out.push(P.status==='draft'?`البصمة اتحدثت ${fdt(doc.importedAt)} بعد آخر حساب للمرتبات — دوس <b>"إعادة الحساب"</b> عشان تنزل.`:`البصمة اتحدثت بعد ما المرتبات اتبعتت/اتعتمدت — مش هتنزل فيها غير لو اترجّعت للمراجعة واتحسبت تاني.`);
+    const nl=EMPS().filter(u=>(salOf(u.id)||n(empFile(u.id)?.salary))&&!bioLinked(u)&&!(S.punches||[]).some(x=>x.uid===u.id));if(nl.length)out.push(`الموظفين دول مش متربطين برقم في جهاز البصمة، فالبصمة مش بتنزل في مرتبهم: <b>${nl.map(u=>esc(u.name)).join('، ')}</b> — اربطهم وإنت بتستورد الملف.`)}
+  return out.map(x=>`<div class="banner">${x}</div>`).join('')}
 function viewSalaries(){
   const setS=can('salary_set');const E=SEMPS();
   return `<div class="muted small">حط المرتب الأساسي والبدلات الثابتة والتأمينات لكل موظف — دي بتتاخد كل شهر وإنت بتحسب المرتبات.</div>
@@ -4181,13 +4191,15 @@ function openSalary(uidv){
   ['sc_t','sc_p','sc_s','sc_e'].forEach(i=>$('#'+i).addEventListener('change',scU));$('#sc_h').oninput=()=>$('#sc_h').dataset.ed=1;scU();
   $('#alRows').onclick=e=>{if(e.target.classList.contains('al-d'))e.target.closest('.al-row').remove()};
 }
-function payCalc(){
-  let P=payDoc(PAYM);const old=P?.lines||{};
-  const lines={};EMPS().forEach(u=>{if(!salOf(u.id)&&!n(empFile(u.id)?.salary))return;lines[u.id]=calcLine(u,PAYM,old[u.id])});
-  if(!Object.keys(lines).length){toast('حدد مرتب الموظفين الأول من "مرتب كل موظف"');return}
-  if(!P){P={id:PAYM,month:PAYM,status:'draft',lines:{},createdAt:new Date().toISOString()};S.payroll.push(P)}
-  P.lines=lines;P.calcAt=new Date().toISOString();P.preparedBy=ME.id;P.preparedByName=pubName();save();toast(`اتحسبت مرتبات ${Object.keys(lines).length} موظف`);render();
-}
+function payCalcM(m){let P=payDoc(m);const old=P?.lines||{};
+  const lines={};EMPS().forEach(u=>{if(!salOf(u.id)&&!n(empFile(u.id)?.salary))return;lines[u.id]=calcLine(u,m,old[u.id])});
+  if(!Object.keys(lines).length)return 0;
+  if(!P){P={id:m,month:m,status:'draft',lines:{},createdAt:new Date().toISOString()};S.payroll.push(P)}
+  P.lines=lines;P.calcAt=new Date().toISOString();P.preparedBy=ME.id;P.preparedByName=pubName();return Object.keys(lines).length}
+function payCalc(){const k=payCalcM(PAYM);if(!k){toast('حدد مرتب الموظفين الأول من "مرتب كل موظف"');return}save();toast(`اتحسبت مرتبات ${k} موظف`);render()}
+/* بعد استيراد البصمة: المرتبات اللي لسه تحت التجهيز بتتحسب تاني لوحدها */
+function payAfterImport(months){const re=[],locked=[];if(!can('payroll_prep'))return {re,locked};
+  months.forEach(m=>{const P=payDoc(m);if(!P)return;if(P.status==='draft'){if(payCalcM(m))re.push(m)}else locked.push(m)});return {re,locked}}
 function payLineHTML(l){
   const r=(a,b,c='')=>`<div class="row between" style="padding:4px 0;border-bottom:1px solid var(--line);${c}"><span>${a}</span><b class="num">${b}</b></div>`;
   return `${r('المرتب الأساسي',money(l.basic))}${(l.allow||[]).map(a=>r(esc(a.name),money(a.amount))).join('')}${r('إجمالي المستحق',money(l.gross),'font-size:1.05rem')}
@@ -6125,7 +6137,7 @@ let XR_PRE='';
 
 
 /* ---------- فحص التحديثات ---------- */
-const APP_VER='2026.10.29.1';
+const APP_VER='2026.10.29.2';
 async function checkUpdate(){try{if(location.protocol==='file:')return;const t=await (await fetch(location.pathname+'?_='+Date.now(),{cache:'no-store'})).text();const m=t.match(/const APP_VER='([^']+)'/);if(m&&m[1]!==APP_VER)showUpd(m[1])}catch(e){}}
 function showUpd(v){if(document.getElementById('updBar'))return;const b=document.createElement('div');b.id='updBar';b.style.cssText='position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:80;background:#1d2b45;color:#fff;padding:10px 16px;border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,.25);display:flex;gap:12px;align-items:center;font-weight:600;max-width:92vw';b.innerHTML='<span>🔄 فيه نسخة جديدة من السيستم</span><button type="button" style="background:#2b8fb8;color:#fff;border:0;border-radius:10px;padding:6px 14px;font:inherit;cursor:pointer">حدّث دلوقتي</button>';b.querySelector('button').onclick=()=>{location.replace(location.pathname+'?v='+encodeURIComponent(v)+location.hash)};document.body.appendChild(b)}
 setTimeout(checkUpdate,8000);setInterval(checkUpdate,5*60*1000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkUpdate()});

@@ -756,6 +756,7 @@ function stopListeners(){UNSUB.forEach(f=>{try{f()}catch(e){}});UNSUB=[];SYNCED=
 function startListeners(){
   const L=(q,fn)=>UNSUB.push(q.onSnapshot(fn,e=>toast('مشكلة مزامنة: '+fbErr(e))));
   L(FB.db.doc('meta/nav'),d=>{S.nav=d.exists?d.data():null;liveRender()});
+  if(!isClinic())L(FB.db.doc('meta/gs'),d=>{S.gsCfg=d.exists?d.data():null;GS_LOADED=true;try{if(!S.gsCfg&&S.settings?.gs?.url&&isOwnerU(ME))gsWriteCfg(S.settings.gs)}catch(e){}});
   L(FB.db.doc('meta/settings'),d=>{if(d.exists)S.settings={...DEFAULT_SETTINGS,...d.data()};SYNCED.settings=JSON.stringify(S.settings);liveRender()});
   if(isClinic()){
     S.users=[ME];
@@ -798,7 +799,9 @@ async function persistOnline(){
     for(const id of [...SYNCED[c].keys()])if(!cur.has(id)){let old=null;try{old=JSON.parse(SYNCED[c].get(id))}catch(e){}if(canDel(c,old)){if(c!=='audit')audLog(c,id,SYNCED[c].get(id),null);try{gsQ(c,id,null)}catch(e){}b.delete(FB.db.collection(c).doc(id));k++}SYNCED[c].delete(id)}
     if(k)b.commit().catch(e=>toast('مقدرتش أحفظ أونلاين: '+fbErr(e)));
   }
-  if(can('settings')&&SYNCED.settings!==undefined){const s=JSON.stringify(S.settings);if(s!==SYNCED.settings){FB.db.doc('meta/settings').set(JSON.parse(s)).catch(e=>toast(fbErr(e)));SYNCED.settings=s}}
+  if(can('settings')&&SYNCED.settings!==undefined){const s=JSON.stringify(S.settings);if(s!==SYNCED.settings){let old={};try{old=JSON.parse(SYNCED.settings)||{}}catch(e){}const cur=JSON.parse(s);const diff={};let k=0;
+    for(const key in cur){if(JSON.stringify(cur[key])!==JSON.stringify(old[key])){diff[key]=cur[key];k++}}for(const key in old){if(!(key in cur)){diff[key]=firebase.firestore.FieldValue.delete();k++}}
+    if(k)FB.db.doc('meta/settings').set(diff,{merge:true}).catch(e=>toast(fbErr(e)));SYNCED.settings=s}}
 }
 let lrTimer=null;
 function liveRender(){clearTimeout(lrTimer);lrTimer=setTimeout(()=>{
@@ -2763,6 +2766,7 @@ service cloud.firestore {
     match /meta/admin { allow read: if true; allow create: if signed() && !exists(/databases/$(database)/documents/meta/admin); }
     match /meta/settings { allow read: if signed(); allow write: if can('settings'); }
     match /meta/nav { allow read: if signed(); allow write: if can('nav_order'); }
+    match /meta/gs { allow read: if isStaff(); allow write: if isAdmin(); }
     match /meta/counter { allow read, write: if isStaff(); }
     match /days/{d} { allow read, write: if signed(); }
 
@@ -6101,7 +6105,7 @@ let XR_PRE='';
 
 
 /* ---------- فحص التحديثات ---------- */
-const APP_VER='2026.10.27.1';
+const APP_VER='2026.10.28.1';
 async function checkUpdate(){try{if(location.protocol==='file:')return;const t=await (await fetch(location.pathname+'?_='+Date.now(),{cache:'no-store'})).text();const m=t.match(/const APP_VER='([^']+)'/);if(m&&m[1]!==APP_VER)showUpd(m[1])}catch(e){}}
 function showUpd(v){if(document.getElementById('updBar'))return;const b=document.createElement('div');b.id='updBar';b.style.cssText='position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:80;background:#1d2b45;color:#fff;padding:10px 16px;border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,.25);display:flex;gap:12px;align-items:center;font-weight:600;max-width:92vw';b.innerHTML='<span>🔄 فيه نسخة جديدة من السيستم</span><button type="button" style="background:#2b8fb8;color:#fff;border:0;border-radius:10px;padding:6px 14px;font:inherit;cursor:pointer">حدّث دلوقتي</button>';b.querySelector('button').onclick=()=>{location.replace(location.pathname+'?v='+encodeURIComponent(v)+location.hash)};document.body.appendChild(b)}
 setTimeout(checkUpdate,8000);setInterval(checkUpdate,5*60*1000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkUpdate()});
@@ -6720,7 +6724,9 @@ const GS_COLS={clients:'العيادات',reports:'تقارير الصيانة',
 const GS_DEF=['clients','reports','contracts','partSales','payments','orders','parts','purchases','suppliers','treasury'];
 const GS_AR={no:'الرقم',date:'التاريخ',total:'الإجمالي',paid:'المدفوع',due:'ميعاد التحصيل',method:'طريقة الدفع',notes:'ملاحظات',status:'الحالة',name:'الاسم',clinic:'العيادة',phone:'التليفون',address:'العنوان',qty:'الكمية',buy:'سعر الشراء',sell:'سعر البيع',code:'الكود',amount:'المبلغ',kind:'النوع',type:'التصنيف',createdAt:'اتعمل',updatedAt:'آخر تعديل',branch:'الفرع',discount:'خصم',delivery:'توصيل',term:'السداد',buyer:'المشتري',from:'من',to:'إلى',reason:'السبب',month:'الشهر',title:'العنوان',start:'البداية',end:'النهاية',value:'القيمة',visitFee:'تكلفة الزيارة',cat:'القسم',group:'المجموعة',unit:'الوحدة',min:'الحد الأدنى',role:'الوظيفة',dept:'الإدارة',jobTitle:'المسمى',username:'اسم المستخدم',active:'شغال',invoiceNo:'رقم فاتورة المورد',price:'السعر',size:'الوزن',deal:'نوع التعامل',brand:'الماركة',model:'الموديل',ptype:'النوع',condition:'الحالة',place:'المكان',purpose:'الغرض',byName:'سجّلها',serial:'السيريال',rent:'الإيجار',deposit:'التأمين',wantDate:'مطلوب يوم',creditKg:'رصيد كيلو'};
 const GS_SKIP=['id','hash','perms','chain','hist','approvers','log','lines','parts','fills','devices','branches','sigEng','sigClient','photo','photos','receipt','payPhoto','logo','image','img','loc','adj','scopeDepts','sched','lines2'];
-function gsCfg(){return S.settings.gs||{}}
+let GS_LOADED=false;
+function gsCfg(){return (ONLINE?(S.gsCfg||S.settings.gs):S.settings.gs)||{}}
+function gsWriteCfg(cfg){cfg=JSON.parse(JSON.stringify(cfg||{}));if(ONLINE&&FB){S.gsCfg=cfg;return FB.db.doc('meta/gs').set(cfg).then(()=>{if(S.settings.gs){delete S.settings.gs;save()}}).catch(e=>toast('مقدرتش أحفظ إعدادات الشيت: '+fbErr(e)))}S.settings.gs=cfg;save();return Promise.resolve()}
 function gsRow(c,x){const o={};
   if(x.clientId!==undefined)o['العيادة']=cName(client(x.clientId))||x.buyer||'';
   if(x.uid)o['الموظف']=userName(x.uid)||x.name||'';
@@ -6735,11 +6741,12 @@ function gsRow(c,x){const o={};
   return o}
 const SHQ=new Map();let SHT=null;
 function gsOn(c){const g=gsCfg();return !!(g.url&&g.on!==false&&(g.cols||GS_DEF).includes(c)&&GS_COLS[c])}
-function gsQ(c,id,s){if(!gsOn(c))return;SHQ.set(c+'|'+id,{c,id,del:s==null});clearTimeout(SHT);SHT=setTimeout(gsFlush,2500)}
-async function gsPost(body){const g=gsCfg();if(!g.url)return false;try{await fetch(g.url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({token:g.token,...body})});try{localStorage.setItem('pm-gs-last',new Date().toISOString())}catch(e){}return true}catch(e){return false}}
+function gsQ(c,id,s){if(!gsOn(c))return;SHQ.set(c+'|'+id,{c,id,del:s==null});clearTimeout(SHT);SHT=setTimeout(gsFlush,1200)}
+async function gsPost(body){const g=gsCfg();if(!g.url)return false;try{const bodyS=JSON.stringify({token:g.token,...body});await fetch(g.url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:bodyS,keepalive:bodyS.length<60000});try{localStorage.setItem('pm-gs-last',new Date().toISOString())}catch(e){}return true}catch(e){return false}}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&SHQ.size){clearTimeout(SHT);gsFlush()}});
 async function gsFlush(){const items=[...SHQ.values()];SHQ.clear();if(!items.length)return;
   const ops=items.map(it=>{const x=(S[it.c]||[]).find(y=>y.id===it.id);return it.del||!x?{s:GS_COLS[it.c],id:it.id,del:true}:{s:GS_COLS[it.c],id:it.id,row:gsRow(it.c,x)}});
-  for(let i=0;i<ops.length;i+=150)await gsPost({ops:ops.slice(i,i+150)})}
+  for(let i=0;i<ops.length;i+=60)await gsPost({ops:ops.slice(i,i+60)})}
 async function gsFull(){const g=gsCfg();if(!g.url){toast('حط رابط الربط الأول');return}const cols=(g.cols||GS_DEF).filter(c=>GS_COLS[c]);toast('بيتبعت… استنى شوية');let k=0;
   for(const c of cols){const L=(S[c]||[]).filter(x=>!(c==='treasury'&&x.id==='cfg'));const rows=L.map(x=>({id:x.id,...gsRow(c,x)}));
     if(!rows.length){await gsPost({bulk:{s:GS_COLS[c],rows:[]}});continue}
@@ -6784,7 +6791,7 @@ function gsPanel(){if(!isOwnerU(ME))return '';const g=gsCfg();const cols=g.cols|
    <div class="f"><span>الحاجات اللي تتبعت للشيت</span><div class="row" style="gap:6px;flex-wrap:wrap">${Object.entries(GS_COLS).map(([k,l])=>`<label class="row" style="gap:4px;border:1px solid var(--line);border-radius:99px;padding:3px 10px"><input type="checkbox" class="gs-c" value="${k}" style="width:auto" ${cols.includes(k)?'checked':''}> ${l}</label>`).join('')}</div></div>
    <label class="row" style="gap:6px"><input type="checkbox" id="gs_on" style="width:auto" ${g.on!==false?'checked':''}> الربط شغال</label>
    <div class="row"><button type="button" class="btn pri" data-act="gsSave">حفظ</button><button type="button" class="btn" data-act="gsCode">📋 كود الشيت وخطوات الإعداد</button>${g.url?'<button type="button" class="btn" data-act="gsFull">📤 ابعت كل البيانات دلوقتي</button><button type="button" class="btn ghost" data-act="gsTest">اختبار</button>':''}${last?`<span class="muted small">آخر إرسال: ${fdt(last)}</span>`:''}</div></div>`}
-function gsShowCode(){const g=gsCfg();const token=g.token||(S.settings.gs={...g,token:uid()+uid()}).token;save();const code=gsCode(token);
+function gsShowCode(){const g=gsCfg();if(ONLINE&&!GS_LOADED){toast('استنى ثانية لحد ما إعدادات الشيت تحمّل');return}let token=g.token;if(!token){token=uid()+uid();gsWriteCfg({...g,token})}const code=gsCode(token);
   infoModal(`<h3>ربط Google Sheet — خطوات الإعداد (مرة واحدة)</h3><ol style="margin:0;padding-inline-start:20px;display:grid;gap:6px">
    <li>افتح <b>sheets.google.com</b> واعمل شيت جديد فاضي (سمّيه مثلاً Pioneer).</li>
    <li>من فوق: <b>Extensions ← Apps Script</b> (الإضافات ← برمجة التطبيقات).</li>
@@ -6799,7 +6806,7 @@ function gsShowCode(){const g=gsCfg();const token=g.token||(S.settings.gs={...g,
    <div class="row"><button type="button" class="btn pri" id="gs_cp">نسخ الكود</button></div>`);
   $('#gs_cp').onclick=()=>{const t=$('#gs_code');t.select();try{navigator.clipboard.writeText(t.value).then(()=>toast('اتنسخ'),()=>{document.execCommand('copy');toast('اتنسخ')})}catch(e){document.execCommand('copy');toast('اتنسخ')}}}
 Object.assign(X9,{
-  gsSave:()=>{const url=$('#gs_url').value.trim();if(url&&!/^https:\/\/script\.google(usercontent)?\.com\//.test(url)){toast('الرابط لازم يبدأ بـ https://script.google.com/');return}const g=gsCfg();S.settings.gs={...g,url,on:$('#gs_on').checked,cols:$$('.gs-c:checked').map(x=>x.value),token:g.token||uid()+uid()};save();toast('اتحفظ');render()},
+  gsSave:()=>{const url=$('#gs_url').value.trim();if(url&&!/^https:\/\/script\.google(usercontent)?\.com\//.test(url)){toast('الرابط لازم يبدأ بـ https://script.google.com/');return}const g=gsCfg();if(ONLINE&&!GS_LOADED){toast('استنى ثانية لحد ما إعدادات الشيت تحمّل');return}gsWriteCfg({...g,url,on:$('#gs_on').checked,cols:$$('.gs-c:checked').map(x=>x.value),token:g.token||uid()+uid()}).then(()=>{toast('اتحفظ');render()})},
   gsCode:()=>gsShowCode(),gsFull:()=>gsFull(),
   gsTest:async()=>{const ok=await gsPost({ops:[{s:'اختبار',id:'test',row:{'الوقت':new Date().toLocaleString('ar-EG'),'من':pubName()}}]});toast(ok?'اتبعت — افتح الشيت وشوف شيت "اختبار"':'مقدرتش أبعت — اتأكد من الرابط والنت')}
 });

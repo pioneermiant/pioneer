@@ -424,19 +424,20 @@ const WEEKDAYS=['الأحد','الاتنين','التلات','الأربع','ا�
    البيانات
    ===================================================================== */
 const BRAND=()=>((S&&S.settings&&S.settings.company)||(pmBrand()||{}).name||(PM_HOME()?'Pioneer':'نظام الإدارة'));
-const brandLogo=()=>{const s=S&&S.settings;if(s&&s.logo)return s.logo;if(ONLINE&&SYNCED.settings===undefined){const B=pmBrand();if(B)return B.logo||''}return PM_HOME()?PM_LOGO:''};
+const brandLogo=()=>{const s=S&&S.settings;if(s&&s.logo)return s.logo;return PM_HOME()?PM_LOGO:''};
+const appLogo=()=>{const s=S&&S.settings;if(s&&s.appLogo)return s.appLogo;if(PM_HOME())return PM_LOGO;return (s&&s.logo)||''};
 let BRAND_KEY='';
 function brandApply(){const live=!ONLINE||SYNCED.settings!==undefined;const B=pmBrand();
-  const name=live?BRAND():((B&&B.name)||BRAND()),logo=live?brandLogo():(B?B.logo||'':brandLogo());
+  const name=live?BRAND():((B&&B.name)||BRAND()),logo=live?appLogo():(B?B.logo||'':appLogo());
   const k=name+'|'+logo.length+'|'+logo.slice(-40);if(k===BRAND_KEY)return;BRAND_KEY=k;
   const n=document.getElementById('brandName');if(n)n.textContent=name;
   const im=document.getElementById('brandLogo'),br=im&&im.parentElement;if(im){if(logo){if(im.getAttribute('src')!==logo)im.src=logo;im.hidden=false;br.classList.add('has-logo')}else{im.hidden=true;br.classList.remove('has-logo')}}
   document.title=name+' — نظام الصيانة';const mt=document.querySelector('meta[name=apple-mobile-web-app-title]');if(mt)mt.content=name;const an=document.querySelector('meta[name=application-name]');if(an)an.content=name;
   if(!live)return;
   if(B&&B.name===name&&B.logoKey===k){return}
-  brandIcons(name,logo).then(ic=>{try{localStorage.setItem(PM_BKEY,JSON.stringify({name,logo:logo&&logo!==(PM_HOME()?PM_LOGO:'')?logo:(PM_HOME()?PM_LOGO:logo),logoKey:k,...ic}))}catch(e){try{localStorage.setItem(PM_BKEY,JSON.stringify({name,logo:'',logoKey:k}))}catch(e2){}}
+  brandIcons(name,logo).then(ic=>{try{localStorage.setItem(PM_BKEY,JSON.stringify({name,logo,logoKey:k,...ic}))}catch(e){try{localStorage.setItem(PM_BKEY,JSON.stringify({name,logo:'',logoKey:k}))}catch(e2){}}
     const fv=document.querySelector('link[rel=icon]');if(fv&&ic.fav)fv.href=ic.fav;const ap=document.querySelector('link[rel=apple-touch-icon]');if(ap&&ic.i192)ap.href=ic.i192})}
-function brandIcons(name,logo){if(!logo&&PM_HOME())return Promise.resolve({i192:PM_ASSETS.i192,i512:PM_ASSETS.i512,fav:PM_ASSETS.fav});
+function brandIcons(name,logo){if(PM_HOME()&&(!logo||logo===PM_LOGO))return Promise.resolve({i192:PM_ASSETS.i192,i512:PM_ASSETS.i512,fav:PM_ASSETS.fav});
   if(!logo)return Promise.resolve({i192:pmLetterIcon(192,name),i512:pmLetterIcon(512,name),fav:pmLetterIcon(64,name)});
   return new Promise(res=>{const im=new Image();im.onload=()=>{const mk=(sz,t)=>{const c=document.createElement('canvas');c.width=c.height=sz;const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,sz,sz);const pad=sz*.1,w=sz-2*pad,k=Math.min(w/im.width,w/im.height),dw=im.width*k,dh=im.height*k;x.drawImage(im,(sz-dw)/2,(sz-dh)/2,dw,dh);return c.toDataURL(t,.85)};res({i192:mk(192,'image/png'),i512:mk(512,'image/jpeg'),fav:mk(64,'image/png')})};im.onerror=()=>res({i192:pmLetterIcon(192,name),i512:pmLetterIcon(512,name),fav:pmLetterIcon(64,name)});im.src=logo})}
 const DEFAULT_SETTINGS={
@@ -2929,7 +2930,8 @@ function viewSettings(){
     <label class="f">اسم الشركة<input id="s_company" value="${esc(s.company)}"></label>
     <label class="f">السطر التاني<input id="s_sub" value="${esc(s.sub)}"></label>
     <label class="f">تليفون الشركة (بيظهر للعيادات وفي التقرير)<input id="s_phone" value="${esc(s.phone)}"></label>
-    <div class="grid" style="gap:6px"><span class="muted" style="font-size:.85rem">لوجو الشركة (اختياري)</span><div class="row">${s.logo?`<img src="${s.logo}" style="height:44px;border:1px solid var(--line);border-radius:6px;padding:2px;background:#fff" alt="اللوجو">`:''}<label class="btn">اختار صورة اللوجو<input type="file" id="s_logo" accept="image/*" hidden></label>${s.logo?'<button type="button" class="btn ghost" id="s_logo_del">إزالة</button>':''}</div></div>
+    <div class="grid" style="gap:6px"><span class="muted" style="font-size:.85rem">لوجو التقارير والفواتير (اختياري)</span><div class="row">${s.logo?`<img src="${s.logo}" style="height:44px;border:1px solid var(--line);border-radius:6px;padding:2px;background:#fff" alt="اللوجو">`:''}<label class="btn">اختار صورة اللوجو<input type="file" id="s_logo" accept="image/*" hidden></label>${s.logo?'<button type="button" class="btn ghost" id="s_logo_del">إزالة</button>':''}</div></div>
+    <div class="grid" style="gap:6px"><span class="muted" style="font-size:.85rem">لوجو السيستم — القايمة وأيقونة الأبلكيشن (اختياري${PM_HOME()?'، لو فاضي بيفضل لوجو Pioneer الأصلي':'، لو فاضي بياخد لوجو التقارير'})</span><div class="row">${s.appLogo?`<img src="${s.appLogo}" style="height:44px;border:1px solid var(--line);border-radius:6px;padding:2px;background:#fff" alt="لوجو السيستم">`:''}<label class="btn">اختار صورة<input type="file" id="s_alogo" accept="image/*" hidden></label>${s.appLogo?'<button type="button" class="btn ghost" id="s_alogo_del">إزالة</button>':''}</div></div>
   </div>
   <div class="panel grid g3"><h3 style="grid-column:1/-1;margin:0">مواعيد الزيارات وحجز العيادات</h3>
     <label class="f">بداية الشغل (ساعة 0–23)<input type="number" min="0" max="23" step="1" id="s_ws" value="${s.workStart}"></label>
@@ -3005,6 +3007,8 @@ function bindSettings(){
     if(!s.methods.length)s.methods=['نقدي'];save();toast('اتحفظت الإعدادات');render()};
   $('#s_logo').onchange=async e=>{const fl=e.target.files[0];if(!fl)return;S.settings.logo=await compress(fl,400,.8);save();render()};
   const d=$('#s_logo_del');if(d)d.onclick=()=>{S.settings.logo='';save();render()};
+  $('#s_alogo').onchange=async e=>{const fl=e.target.files[0];if(!fl)return;S.settings.appLogo=await compress(fl,600,.9);save();render()};
+  const d2=$('#s_alogo_del');if(d2)d2.onclick=()=>{S.settings.appLogo='';save();render()};
 }
 async function migrateLocal(){
   const L=await loadState();
@@ -6167,7 +6171,7 @@ let XR_PRE='';
 
 
 /* ---------- فحص التحديثات ---------- */
-const APP_VER='2026.10.31.2';
+const APP_VER='2026.10.31.3';
 async function checkUpdate(){try{if(location.protocol==='file:')return;const t=await (await fetch(location.pathname+'?_='+Date.now(),{cache:'no-store'})).text();const m=t.match(/const APP_VER='([^']+)'/);if(m&&m[1]!==APP_VER)showUpd(m[1])}catch(e){}}
 function showUpd(v){if(document.getElementById('updBar'))return;const b=document.createElement('div');b.id='updBar';b.style.cssText='position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:80;background:#1d2b45;color:#fff;padding:10px 16px;border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,.25);display:flex;gap:12px;align-items:center;font-weight:600;max-width:92vw';b.innerHTML='<span>🔄 فيه نسخة جديدة من السيستم</span><button type="button" style="background:#2b8fb8;color:#fff;border:0;border-radius:10px;padding:6px 14px;font:inherit;cursor:pointer">حدّث دلوقتي</button>';b.querySelector('button').onclick=()=>{location.replace(location.pathname+'?v='+encodeURIComponent(v)+location.hash)};document.body.appendChild(b)}
 setTimeout(checkUpdate,8000);setInterval(checkUpdate,5*60*1000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkUpdate()});

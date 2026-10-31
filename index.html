@@ -752,12 +752,12 @@ async function initOnline(cfg){
     }catch(e){toast(fbErr(e));render()}
   });
 }
-function stopListeners(){UNSUB.forEach(f=>{try{f()}catch(e){}});UNSUB=[];SYNCED={};S=Object.assign(emptyState(),{settings:S?.settings||emptyState().settings})}
+function stopListeners(){dsStop();UNSUB.forEach(f=>{try{f()}catch(e){}});UNSUB=[];SYNCED={};S=Object.assign(emptyState(),{settings:S?.settings||emptyState().settings})}
 function startListeners(){
   const L=(q,fn)=>UNSUB.push(q.onSnapshot(fn,e=>toast('مشكلة مزامنة: '+fbErr(e))));
   L(FB.db.doc('meta/nav'),d=>{S.nav=d.exists?d.data():null;liveRender()});
   if(!isClinic())L(FB.db.doc('meta/gs'),d=>{S.gsCfg=d.exists?d.data():null;GS_LOADED=true;try{if(!S.gsCfg&&S.settings?.gs?.url&&isOwnerU(ME))gsWriteCfg(S.settings.gs)}catch(e){}});
-  L(FB.db.doc('meta/settings'),d=>{if(d.exists)S.settings={...DEFAULT_SETTINGS,...d.data()};SYNCED.settings=JSON.stringify(S.settings);liveRender()});
+  L(FB.db.doc('meta/settings'),d=>{if(d.exists)S.settings={...DEFAULT_SETTINGS,...d.data()};SYNCED.settings=JSON.stringify(S.settings);dsEpochCheck();liveRender()});
   if(isClinic()){
     S.users=[ME];
     CL_LOADED=false;L(FB.db.doc('clients/'+ME.clientId),d=>{S.clients=d.exists?[{...d.data(),id:d.id}]:[];CL_LOADED=true;liveRender()});
@@ -768,7 +768,7 @@ function startListeners(){
     return;
   }
   SUBS=[];
-  const sub=(c,q)=>{SUBS.push(c);let first=true;L(q,snap=>{try{if(!first&&isOwnerU(ME)&&['orders','requests','ratings','contractReqs','users','clients'].includes(c))snap.docChanges().forEach(d=>{if(!d.doc.metadata.hasPendingWrites)gsQ(c,d.doc.id,d.type==='removed'?null:'x')})}catch(e){}first=false;
+  const sub=(c,q)=>{if(c!=='users'&&q instanceof firebase.firestore.CollectionReference){SUBS.push(c);dsSub(c,q,L);return}SUBS.push(c);let first=true;L(q,snap=>{try{if(!first&&isOwnerU(ME)&&['orders','requests','ratings','contractReqs','users','clients'].includes(c))snap.docChanges().forEach(d=>{if(!d.doc.metadata.hasPendingWrites)gsQ(c,d.doc.id,d.type==='removed'?null:'x')})}catch(e){}first=false;
     S[c]=snap.docs.map(d=>({...d.data(),id:d.id}));
     SYNCED[c]=new Map(S[c].map(x=>[x.id,JSON.stringify(x)]));
     if(c==='users'){const me=S.users.find(u=>u.id===ME.id);if(!me||me.active===false){FB.auth.signOut();return}ME=me}
@@ -786,6 +786,7 @@ function startListeners(){
   sub('ratings',can('evals')?FB.db.collection('ratings'):FB.db.collection('ratings').where('engineerId','==',ME.id));
   if(can('bonuses')||can('bonuses_approve')||can('payroll_prep')||can('payroll_approve'))sub('bonuses',FB.db.collection('bonuses'));else subMulti('bonuses',[FB.db.collection('bonuses').where('uid','==',ME.id).where('status','==','approved'),apQ('bonuses')]);
   if(can('penalties')||can('penalties_approve')||can('payroll_prep')||can('payroll_approve'))sub('penalties',FB.db.collection('penalties'));else subMulti('penalties',[FB.db.collection('penalties').where('uid','==',ME.id).where('status','==','approved'),apQ('penalties')]);
+  dsDelListen(L);
 }
 function canDel(c,x){if(c==='treasury'&&x&&x.cap&&can('capital_move'))return true;if(REQ_DEL_COLS.includes(c)&&can('req_delete'))return true;if(['partSales','purchases','freon','payments'].includes(c)&&can('invoice_delete'))return true;if(c==='notes'&&x&&x.uid===ME?.id)return true;if(c==='bonuses'&&x&&x.status==='pending'&&x.by===ME?.id&&can('bonuses'))return true;if(c==='penalties'&&x&&x.status==='pending'&&x.by===ME?.id&&can('penalties'))return true;if((c==='custody'||c==='hr'||c==='vouchers'||c==='handovers')&&x&&x.uid===ME?.id&&x.status==='pending')return true;return !!DEL_PERM[c]&&can(DEL_PERM[c])}
 async function persistOnline(){
@@ -795,8 +796,8 @@ async function persistOnline(){
     if(!SYNCED[c])SYNCED[c]=new Map();
     const b=FB.db.batch();let k=0;
     const cur=new Map((S[c]||[]).map(x=>[x.id,x]));
-    for(const [id,x] of cur){const s=JSON.stringify(x);if(SYNCED[c].get(id)!==s){if(s.length>950000){toast('السجل ده كبير قوي (صور كتير) — قلل الصور');continue}if(c!=='audit')audLog(c,id,SYNCED[c].get(id),s);try{gsQ(c,id,s)}catch(e){}b.set(FB.db.collection(c).doc(id),JSON.parse(s));SYNCED[c].set(id,s);k++}}
-    for(const id of [...SYNCED[c].keys()])if(!cur.has(id)){let old=null;try{old=JSON.parse(SYNCED[c].get(id))}catch(e){}if(canDel(c,old)){if(c!=='audit')audLog(c,id,SYNCED[c].get(id),null);try{gsQ(c,id,null)}catch(e){}b.delete(FB.db.collection(c).doc(id));k++}SYNCED[c].delete(id)}
+    for(const [id,x] of cur){const s=JSON.stringify(x);if(SYNCED[c].get(id)!==s){if(s.length>950000){toast('السجل ده كبير قوي (صور كتير) — قلل الصور');continue}if(c!=='audit')audLog(c,id,SYNCED[c].get(id),s);try{gsQ(c,id,s)}catch(e){}b.set(FB.db.collection(c).doc(id),{...JSON.parse(s),_u:dsTs()});SYNCED[c].set(id,s);k++}}
+    for(const id of [...SYNCED[c].keys()])if(!cur.has(id)){let old=null;try{old=JSON.parse(SYNCED[c].get(id))}catch(e){}if(canDel(c,old)){if(c!=='audit')audLog(c,id,SYNCED[c].get(id),null);try{gsQ(c,id,null)}catch(e){}b.delete(FB.db.collection(c).doc(id));dsTomb(b,c,id);k++}SYNCED[c].delete(id)}
     if(k)b.commit().catch(e=>toast('مقدرتش أحفظ أونلاين: '+fbErr(e)));
   }
   if(can('settings')&&SYNCED.settings!==undefined){const s=JSON.stringify(S.settings);if(s!==SYNCED.settings){let old={};try{old=JSON.parse(SYNCED.settings)||{}}catch(e){}const cur=JSON.parse(s);const diff={};let k=0;
@@ -1125,7 +1126,7 @@ function initClinic(){
     let at=null;try{at=await allocate()}catch(er){}
     if(!at){toast('مقدرتش أحجز ميعاد — اتأكد من النت وجرب تاني');btn.disabled=false;btn.textContent='ابعت الطلب';return}
     const req={id:uid(),uid:ME.id,clientId:ME.clientId,branch:$('#cf_br')?.value||device.branch||'',createdAt:new Date().toISOString(),kind:CF.kind,device,description:desc,urgent:CF.kind==='fault'&&$('#cf_urgent').checked,photos:CF.photos,date:at.date,slot:at.slot,engineerId:'',engineerName:'',status:'new',reportId:''};
-    if(ONLINE)FB.db.collection('requests').doc(req.id).set(req).catch(er=>toast('الطلب متبعتش: '+fbErr(er)));
+    if(ONLINE)FB.db.collection('requests').doc(req.id).set({...req,_u:dsTs()}).catch(er=>toast('الطلب متبعتش: '+fbErr(er)));
     else{S.requests.push(req)}
     notify(['perm:requests'],req.urgent?'طلب صيانة مستعجل':'طلب صيانة جديد',`${c.clinic||c.name||''}${req.branch?' – '+req.branch:''}: ${desc}`,'requests');
     if(!ONLINE)save();
@@ -2857,6 +2858,7 @@ service cloud.firestore {
     match /weekrep/{id} { allow read: if can('weekly_report') || can('weekly_view') || isAdmin() || (isStaff() && me().get('nonEmp', false) == true) || (isStaff() && resource.data.approverId == request.auth.uid); allow create: if can('weekly_report') && request.resource.data.uid == request.auth.uid; allow update: if (isStaff() && resource.data.approverId == request.auth.uid) || (can('weekly_report') && resource.data.uid == request.auth.uid); allow delete: if isAdmin() || (can('weekly_report') && resource.data.uid == request.auth.uid && resource.data.status != 'approved'); }
     match /audit/{id} { allow read: if isAdmin(); allow create: if isStaff() && request.resource.data.uid == request.auth.uid; allow update: if false; allow delete: if isAdmin(); }
     match /verify/{id} { allow get: if true; allow list: if false; allow create, update: if isStaff(); allow delete: if isAdmin(); }
+    match /deleted/{id} { allow read, create: if active() && me().role != 'clinic'; allow update: if false; allow delete: if isAdmin(); }
     match /archive/{id} { allow read: if can('reports_all') || can('accounts') || isAdmin(); allow write: if isAdmin(); }
     match /notes/{id} { allow read, update, delete: if isStaff() && resource.data.uid == request.auth.uid; allow create: if isStaff() && request.resource.data.uid == request.auth.uid; }
     match /handovers/{id} {
@@ -2885,7 +2887,7 @@ service cloud.firestore {
     match /hr/{id} {
       allow read: if can('capital_view') || can('hr') || can('payroll_prep') || can('payroll_approve') || can('loans') || can('custody') || can('home_att') || mineDoc() || approver();
       allow create: if (isStaff() && request.resource.data.uid == request.auth.uid && request.resource.data.status == 'pending') || can('assign') || can('assign_mission') || can('hr');
-      allow update: if can('hr') || can('loans') || can('custody') || approver() || (mineDoc() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['loc']));
+      allow update: if can('hr') || can('loans') || can('custody') || approver() || (mineDoc() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['loc','_u']));
       allow delete: if can('req_delete') || can('hr') || (mineDoc() && resource.data.status == 'pending');
     }
   }
@@ -2893,7 +2895,7 @@ service cloud.firestore {
 `;
 function viewSettings(){
   const s=S.settings;
-  return `<h2>الإعدادات</h2>
+  return `<h2>الإعدادات</h2>${dsPanel()}
   <form id="sf" class="grid">
   <div class="panel grid g2"><h3 style="grid-column:1/-1;margin:0">بيانات الشركة في التقرير</h3>
     <label class="f">اسم الشركة<input id="s_company" value="${esc(s.company)}"></label>
@@ -2983,7 +2985,7 @@ async function migrateLocal(){
   toast('بيتم النقل…');
   const ops=[];ALL_COLS.filter(c=>c!=='users').forEach(c=>(L[c]||[]).forEach(x=>{x=JSON.parse(JSON.stringify(x));if(c==='reports')(x.parts||[]).forEach(q=>delete q.cost);if(c==='payments'&&!x.clientId){const ref=(x.refType==='report'?L.reports:L.contracts||[]).find(y=>y.id===x.refId);x.clientId=ref?.clientId||''}ops.push([c,x])}));
   try{
-    for(let i=0;i<ops.length;i+=350){const b=FB.db.batch();ops.slice(i,i+350).forEach(([c,x])=>b.set(FB.db.collection(c).doc(x.id),JSON.parse(JSON.stringify(x))));await b.commit()}
+    for(let i=0;i<ops.length;i+=350){const b=FB.db.batch();ops.slice(i,i+350).forEach(([c,x])=>b.set(FB.db.collection(c).doc(x.id),{...JSON.parse(JSON.stringify(x)),_u:dsTs()}));await b.commit()}
     await FB.db.doc('meta/settings').set({...DEFAULT_SETTINGS,...L.settings});
     await FB.db.doc('meta/counter').set({next:L.settings?.nextNo||1},{merge:true});
     toast(`اتنقل ${ops.length} سجل للأونلاين`);
@@ -3036,7 +3038,7 @@ document.addEventListener('click',e=>{
   if(NEED[a]&&!can(NEED[a])){toast('مفيش عندك صلاحية للحاجة دي');return}
   if(a==='collect'&&t.dataset.type!=='report'&&!(can('ar')||(t.dataset.type==='psale'&&(can('part_sales')||can('cons_sales')))||(t.dataset.type==='contract'&&can('contracts')))){toast('مفيش عندك صلاحية للتحصيل');return}
   switch(a){
-    case 'logout':CTAB='req';if(ONLINE){FB.auth.signOut()}else{ME=null;setSession(null);VIEW='home';render()}break;
+    case 'logout':CTAB='req';if(ONLINE){const pf=dsPref();dsStop();dsClear(pf).finally(()=>FB.auth.signOut())}else{ME=null;setSession(null);VIEW='home';render()}break;
     case 'myPass':openMyPass();break;
     case 'showPass':{const i=$('#li_pass');i.type=i.type==='password'?'text':'password';t.textContent=i.type==='password'?'إظهار':'إخفاء';break}
     case 'resetLocal':confirmBox('مسح كل البيانات اللي على الجهاز ده والبدء من جديد؟',()=>{S=demoState();ME=null;setSession(null);save();render()});break;
@@ -3349,13 +3351,13 @@ async function sendOrder(){
   const d=$('#or_d').value;if(!d||d<today()){toast('اختار يوم التوصيل');return}
   const o={id:uid(),clientId:ME.clientId,uid:ME.id,branch:$('#or_b')?.value||'',createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),lines:L,total:n(L.reduce((a,l)=>a+l.qty*l.price,0)),wantDate:d,wantTime:$('#or_t').value,notes:$('#or_n').value.trim(),status:'new',assignedTo:'',assignedName:'',log:[{st:'new',at:new Date().toISOString(),by:pubName()}]};
   const c=client(ME.clientId)||{};
-  if(ONLINE){try{await FB.db.collection('orders').doc(o.id).set(o)}catch(e){toast('الطلب متبعتش: '+fbErr(e));return}}else{S.orders.push(o)}
+  if(ONLINE){try{await FB.db.collection('orders').doc(o.id).set({...o,_u:dsTs()})}catch(e){toast('الطلب متبعتش: '+fbErr(e));return}}else{S.orders.push(o)}
   notify(['perm:orders_manage'],'طلب مستهلكات جديد',`${c.clinic||c.name||''} — ${orderSum(o)}`,'orders');
   if(!ONLINE)save();
   CART={};toast('اتبعت طلبك ✓');render();window.scrollTo(0,document.body.scrollHeight);
 }
 async function cancelMyOrder(id){const o=(S.orders||[]).find(x=>x.id===id);if(!o||o.status!=='new')return;
-  if(ONLINE){try{await FB.db.doc('orders/'+id).update({status:'cancelled',updatedAt:new Date().toISOString()})}catch(e){toast(fbErr(e))}}else{o.status='cancelled';o.updatedAt=new Date().toISOString();save()}
+  if(ONLINE){try{await FB.db.doc('orders/'+id).update({status:'cancelled',updatedAt:new Date().toISOString(),_u:dsTs()})}catch(e){toast(fbErr(e))}}else{o.status='cancelled';o.updatedAt=new Date().toISOString();save()}
   notify(['perm:orders_manage'],'عيادة لغت طلب مستهلكات',`${client(o.clientId)?.name||''} — ${ordNo(o)}`,'orders');render()}
 let OF='open';
 function viewOrders(){
@@ -3429,7 +3431,7 @@ function openRating(rid){
    <label class="f">تعليق (اختياري)<textarea id="rt_c" style="min-height:70px"></textarea></label>`,async()=>{
     if(!V.eng||!V.service){toast('اختار عدد النجوم في الاتنين');return false}
     const x={id:uid(),reportId:r.id,reportNo:r.no,date:r.date,clientId:r.clientId,uid:ME.id,engineerId:r.by||'',engineerName:r.engineer||'',eng:V.eng,service:V.service,comment:$('#rt_c').value.trim(),createdAt:new Date().toISOString()};
-    if(ONLINE){try{await FB.db.collection('ratings').doc(x.id).set(x)}catch(e){toast(fbErr(e));return false}}else{S.ratings.push(x)}
+    if(ONLINE){try{await FB.db.collection('ratings').doc(x.id).set({...x,_u:dsTs()})}catch(e){toast(fbErr(e));return false}}else{S.ratings.push(x)}
     const c=client(r.clientId)||{};notify(['perm:evals',x.engineerId],'تقييم جديد من عميل',`${c.clinic||c.name||''} — المهندس ${'★'.repeat(x.eng)} · الصيانة ${'★'.repeat(x.service)}${x.comment?' — '+x.comment:''}`,'perf',x.engineerId);
     if(!ONLINE)save();toast('شكراً على تقييمك ✓');render();
   });
@@ -3789,7 +3791,7 @@ function openEmpDocModal(uidv){
     if(!data){toast('اختار الملف الأول');return false}
     const d={id:uid(),uid:uidv,type:$('#ed_t').value,name:$('#ed_n').value.trim(),mime,data,date:today(),by:ME.id};
     const f=empFile(uidv)||(()=>{const x={id:'ef_'+uidv,uid:uidv,docs:{}};S.empFiles.push(x);return x})();f.docs=f.docs||{};f.docs[d.type]=(f.docs[d.type]||0)+1;
-    if(ONLINE){try{await FB.db.collection('empDocs').doc(d.id).set(d)}catch(e){toast(fbErr(e));return false}}else S.empDocs.push(d);
+    if(ONLINE){try{await FB.db.collection('empDocs').doc(d.id).set({...d,_u:dsTs()})}catch(e){toast(fbErr(e));return false}}else S.empDocs.push(d);
     save();EMPDOCS.list=null;toast('اترفعت الورقة');render();
   });
   $('#ed_f').onchange=async e=>{const fl=e.target.files[0];if(!fl)return;
@@ -3800,7 +3802,7 @@ function openEmpDoc(id){const d=(EMPDOCS.list||[]).find(x=>x.id===id);if(!d)retu
   if(d.mime==='application/pdf'){fetch(d.data).then(r=>r.blob()).then(b=>{const url=URL.createObjectURL(b);window.open(url,'_blank')||download(b,(d.type||'doc')+'.pdf')});return}
   closeModal(true);const bg=document.createElement('div');bg.className='modal-bg';bg.id='modal';bg.innerHTML=`<div class="modal" style="max-width:900px"><div class="row between"><b>${esc(d.type)}</b><span class="row"><a class="btn sm" href="${d.data}" download="${esc(d.type)}.jpg">تحميل</a><button class="btn sm" id="edc">إغلاق</button></span></div><img src="${d.data}" style="width:100%;border-radius:8px" alt=""></div>`;document.body.appendChild(bg);$('#edc').onclick=()=>closeModal();bg.onclick=e=>{if(e.target===bg)closeModal()}}
 async function delEmpDoc(id){const d=(EMPDOCS.list||[]).find(x=>x.id===id);if(!d)return;
-  if(ONLINE){try{await FB.db.doc('empDocs/'+id).delete()}catch(e){toast(fbErr(e));return}}else S.empDocs=S.empDocs.filter(x=>x.id!==id);
+  if(ONLINE){try{const b=FB.db.batch();b.delete(FB.db.doc('empDocs/'+id));dsTomb(b,'empDocs',id);await b.commit()}catch(e){toast(fbErr(e));return}}else S.empDocs=S.empDocs.filter(x=>x.id!==id);
   const f=empFile(d.uid);if(f&&f.docs&&f.docs[d.type]){f.docs[d.type]--;if(f.docs[d.type]<=0)delete f.docs[d.type]}save();EMPDOCS.list=null;render()}
 Object.assign(X9,{
   editEmp:(t,id)=>openEmpModal(id),addEmpDoc:(t,id)=>openEmpDocModal(id),openEmpDoc:(t,id)=>openEmpDoc(id),
@@ -4598,7 +4600,7 @@ function openClinicCtReq(kind){
   modal(`<h3>${kind==='renew'?'طلب تجديد عقد الصيانة':'طلب عمل عقد صيانة'}</h3><div class="grid g2">${br.length?`<label class="f">الفرع<select id="ct_b"><option value="">كل الفروع</option>${br.map(b=>`<option>${esc(b.name)}</option>`).join('')}</select></label>`:''}<label class="f">تحب يبدأ من<input type="date" id="ct_s" value="${today()}"></label>
    <label class="f span2">عدد الأجهزة أو أي تفاصيل<textarea id="ct_n" style="min-height:70px" placeholder="مثلاً: عايزين العقد يشمل جهازين، وعدد زيارات أكتر…"></textarea></label></div>`,async()=>{
     const x={id:uid(),uid:ME.id,clientId:ME.clientId,clientName:cName(c)||c.name||'',kind,branch:$('#ct_b')?.value||'',start:$('#ct_s').value,notes:$('#ct_n').value.trim(),status:'new',createdAt:new Date().toISOString()};
-    if(ONLINE){try{await FB.db.collection('contractReqs').doc(x.id).set(x)}catch(e){toast('الطلب متبعتش: '+fbErr(e));return}}else{S.contractReqs.push(x);save()}
+    if(ONLINE){try{await FB.db.collection('contractReqs').doc(x.id).set({...x,_u:dsTs()})}catch(e){toast('الطلب متبعتش: '+fbErr(e));return}}else{S.contractReqs.push(x);save()}
     notify(['perm:contracts'],kind==='renew'?'طلب تجديد عقد صيانة':'طلب عقد صيانة جديد',`${x.clientName}${x.branch?' – '+x.branch:''}${x.notes?': '+x.notes:''}`,'contracts');toast('اتبعت الطلب — هنكلمك قريب');render();
   });
 }
@@ -4620,7 +4622,7 @@ function ctReqNo(id){
 Object.assign(X9,{
   hrLoan:()=>openLoanReq(),hrCust:()=>openCustReq(),hrLate:()=>openLatePerm(),crDeliver:(t,id)=>deliverCustReq(id),
   clCtReq:(t)=>openClinicCtReq(t.dataset.k),
-  clCtCancel:(t,id)=>{const x=(S.contractReqs||[]).find(y=>y.id===id);if(!x)return;confirmBox('تلغي الطلب؟',async()=>{if(ONLINE){try{await FB.db.collection('contractReqs').doc(id).update({status:'cancelled'})}catch(e){toast(fbErr(e))}}else{x.status='cancelled';save()}render()})},
+  clCtCancel:(t,id)=>{const x=(S.contractReqs||[]).find(y=>y.id===id);if(!x)return;confirmBox('تلغي الطلب؟',async()=>{if(ONLINE){try{await FB.db.collection('contractReqs').doc(id).update({status:'cancelled',_u:dsTs()})}catch(e){toast(fbErr(e))}}else{x.status='cancelled';save()}render()})},
   ctReqDo:(t,id)=>ctReqDo(id),ctReqNo:(t,id)=>ctReqNo(id)
 });
 Object.assign(NEED9,{crDeliver:'custody',ctReqDo:'contracts',ctReqNo:'contracts'});
@@ -4986,7 +4988,7 @@ function partPhotoField(p){return `<div class="row span2" style="align-items:cen
 /* ---------- كلمات السر (للمطوّر بس) ---------- */
 function keepSecret(id,username,pw){
   const x={id,username,pw,at:new Date().toISOString(),by:ME?.id||id};
-  if(ONLINE){FB.db.doc('secrets/'+id).set(x).catch(()=>{});const i=(S.secrets||[]).findIndex(y=>y.id===id);if(isOwnerU(ME)){if(i>=0)S.secrets[i]=x;else S.secrets.push(x);SYNCED.secrets?.set(id,JSON.stringify(x))}}
+  if(ONLINE){FB.db.doc('secrets/'+id).set({...x,_u:dsTs()}).catch(()=>{});const i=(S.secrets||[]).findIndex(y=>y.id===id);if(isOwnerU(ME)){if(i>=0)S.secrets[i]=x;else S.secrets.push(x);SYNCED.secrets?.set(id,JSON.stringify(x))}}
   else{S.secrets=S.secrets||[];const i=S.secrets.findIndex(y=>y.id===id);if(i>=0)S.secrets[i]=x;else S.secrets.push(x)}
 }
 function pwCell(u){
@@ -5756,7 +5758,7 @@ async function arcRun(){
         for(let i=0;i<ops.length;i+=200){const b=FB.db.batch();ops.slice(i,i+200).forEach(([c,x])=>{const clean={...x};AUD_SKIP.forEach(k=>delete clean[k]);b.set(FB.db.collection('archive').doc(c+'__'+x.id),{col:c,id:x.id,date:x.date||x.from||(x.createdAt||'').slice(0,10)||'',clientId:x.clientId||'',serial:x.device?.serial||'',at:new Date().toISOString(),data:JSON.stringify(clean)});b.delete(FB.db.collection(c).doc(x.id))});await b.commit();done+=Math.min(200,ops.length-i)}}
       else{S.archive=S.archive||[];Object.entries(C).forEach(([c,L])=>L.forEach(x=>{S.archive.push({id:c+'__'+x.id,col:c,date:x.date||'',clientId:x.clientId||'',serial:x.device?.serial||'',data:JSON.stringify(x)});done++}))}
       Object.entries(C).forEach(([c,L])=>{const ids=new Set(L.map(x=>x.id));S[c]=(S[c]||[]).filter(x=>!ids.has(x.id));if(SYNCED[c])ids.forEach(id=>SYNCED[c].delete(id))});
-      if(!ONLINE)save();audLog('reports','archive',null,null);toast(`اتأرشف ${done} سجل ✓`);render();
+      if(ONLINE)dsBump();save();audLog('reports','archive',null,null);toast(`اتأرشف ${done} سجل ✓`);render();
     }catch(e){toast('حصلت مشكلة في الأرشفة بعد '+done+' سجل — اللي اتأرشف محفوظ، جرب تاني')}
   });
 }
@@ -6137,7 +6139,7 @@ let XR_PRE='';
 
 
 /* ---------- فحص التحديثات ---------- */
-const APP_VER='2026.10.29.2';
+const APP_VER='2026.10.31.1';
 async function checkUpdate(){try{if(location.protocol==='file:')return;const t=await (await fetch(location.pathname+'?_='+Date.now(),{cache:'no-store'})).text();const m=t.match(/const APP_VER='([^']+)'/);if(m&&m[1]!==APP_VER)showUpd(m[1])}catch(e){}}
 function showUpd(v){if(document.getElementById('updBar'))return;const b=document.createElement('div');b.id='updBar';b.style.cssText='position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:80;background:#1d2b45;color:#fff;padding:10px 16px;border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,.25);display:flex;gap:12px;align-items:center;font-weight:600;max-width:92vw';b.innerHTML='<span>🔄 فيه نسخة جديدة من السيستم</span><button type="button" style="background:#2b8fb8;color:#fff;border:0;border-radius:10px;padding:6px 14px;font:inherit;cursor:pointer">حدّث دلوقتي</button>';b.querySelector('button').onclick=()=>{location.replace(location.pathname+'?v='+encodeURIComponent(v)+location.hash)};document.body.appendChild(b)}
 setTimeout(checkUpdate,8000);setInterval(checkUpdate,5*60*1000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkUpdate()});
@@ -6344,6 +6346,7 @@ async function wipeRun(){if(!isDev(ME))return;const C=$$('.wp-c:checked').map(x=
         if(Array.isArray(S[c])){S[c]=S[c].filter(x=>WIPE_KEEP[c]&&WIPE_KEEP[c](x.id));if(SYNCED[c])SYNCED[c]=new Map(S[c].map(x=>[x.id,JSON.stringify(x)]))}}
       catch(e){fail.push([c,fbErr?fbErr(e):String(e)])}}
     if(zq){S.parts.forEach(p=>p.qty=0)}
+    if(ONLINE)dsBump();
     if(cnt){if(ONLINE){try{await FB.db.doc('meta/counter').set({next:1})}catch(e){fail.push(['meta/counter',String(e)])}}Object.keys(S.settings).filter(k=>k==='nextNo'||k.startsWith('next_')).forEach(k=>S.settings[k]=1)}
     S.demo=false;save();
     say(`<div class="banner info">اتمسح: ${done.map(([c,k])=>`${c} (${k})`).join('، ')||'—'}${fail.length?`<br><b style="color:var(--bad)">ما اتمسحش:</b> ${fail.map(([c,e])=>`${c}: ${esc(e)}`).join('، ')}`:''}</div>`);
@@ -7239,6 +7242,84 @@ function plVarHint(row){const v=row.querySelector('.pl-part').value;const h=row.
   const b=row.querySelector('.pl-brand').value.trim(),c=row.querySelector('.pl-cond').value;const ex=famOf(p).find(x=>(x.brand||'').trim().toLowerCase()===b.toLowerCase()&&(x.condition||'new')===c);
   h.innerHTML=ex?`← هتتضاف على <b class="num">${esc(ex.code)}</b> (عندك ${n(ex.qty)})`:'← <b>سطر جديد</b> هيتعمل بكوده'}
 
+/* =====================================================================
+   v51 — مزامنة ذكية: البيانات بتتخزن على الجهاز، ومن السيرفر بيتجاب الجديد بس
+   ===================================================================== */
+const DS_V=1,DS_MAXAGE=7*864e5;
+const DS={gen:0,cols:{},srv:0,cache:0,epoch:null,ok:true,delStarted:false,loads:[],delUnsub:null};
+let DSDBP=null,DSTOP=null;
+const dsTs=()=>firebase.firestore.FieldValue.serverTimestamp();
+const tsMs=t=>t&&typeof t.toMillis==='function'?t.toMillis():0;
+function dsDB(){return DSDBP||(DSDBP=new Promise((res,rej)=>{try{if(!window.indexedDB)return rej('noidb');const r=indexedDB.open('pm-ds',1);r.onupgradeneeded=()=>r.result.createObjectStore('c');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)}catch(e){rej(e)}}))}
+async function dsGet(k){const db=await dsDB();return new Promise((res,rej)=>{const t=db.transaction('c').objectStore('c').get(k);t.onsuccess=()=>res(t.result||null);t.onerror=()=>rej(t.error)})}
+async function dsPut(k,v){const db=await dsDB();return new Promise((res,rej)=>{const tx=db.transaction('c','readwrite');tx.objectStore('c').put(v,k);tx.oncomplete=()=>res();tx.onerror=()=>rej(tx.error)})}
+async function dsClear(pref){try{const db=await dsDB();await new Promise(res=>{const tx=db.transaction('c','readwrite');const r=tx.objectStore('c').openCursor();r.onsuccess=()=>{const cu=r.result;if(cu){if(String(cu.key).startsWith(pref))cu.delete();cu.continue()}};tx.oncomplete=res;tx.onerror=res})}catch(e){}}
+const dsPref=()=>(CFG?.projectId||'p')+'|'+(ME?.id||'')+'|';
+const dsKey=c=>dsPref()+c;
+const dsEpochNow=()=>n(S.settings?.dsEpoch);
+async function dsSettingsReady(){for(let i=0;i<40&&SYNCED.settings===undefined;i++)await new Promise(r=>setTimeout(r,100))}
+function dsTopDel(){return DSTOP||(DSTOP=FB.db.collection('deleted').orderBy('_u','desc').limit(1).get().then(s=>s.empty?0:tsMs(s.docs[0].get('_u'))).catch(()=>0))}
+function dsRead(d){const x=d.data({serverTimestamps:'estimate'});const u=d.metadata.hasPendingWrites?0:tsMs(x._u);delete x._u;return {x:{...x,id:d.id},u}}
+const DSSAVE={};
+function dsSaveSoon(c){clearTimeout(DSSAVE[c]);const g=DS.gen;DSSAVE[c]=setTimeout(()=>{if(g===DS.gen)dsSave(c)},1500)}
+function dsSave(c){const st=DS.cols[c];if(!st||!SYNCED[c])return;const docs=[];for(const s of SYNCED[c].values()){try{docs.push(JSON.parse(s))}catch(e){}}
+  dsPut(dsKey(c),{v:DS_V,epoch:DS.epoch,at:st.at,last:st.last,del:st.del,U:[...st.U],docs}).catch(()=>{DS.ok=false})}
+function dsSet(c,docs){S[c]=docs;SYNCED[c]=new Map(docs.map(x=>[x.id,JSON.stringify(x)]))}
+function dsDrop(c,id){if(!S[c])return false;const i=S[c].findIndex(x=>x.id===id);SYNCED[c]?.delete(id);if(i<0)return false;S[c]=S[c].slice();S[c].splice(i,1);return true}
+async function dsSub(c,col,L){
+  const g=DS.gen;const st=DS.cols[c]={c,last:0,del:0,U:new Map(),at:0,mode:'',first:true};
+  let ready;DS.loads.push(new Promise(r=>ready=r));
+  try{
+    await dsSettingsReady();if(g!==DS.gen)return;
+    if(DS.epoch==null)DS.epoch=dsEpochNow();
+    let cache=null;try{cache=await dsGet(dsKey(c))}catch(e){DS.ok=false}
+    if(g!==DS.gen)return;
+    const fresh=cache&&cache.v===DS_V&&cache.epoch===DS.epoch&&Date.now()-n(cache.at)<DS_MAXAGE&&Array.isArray(cache.docs);
+    if(fresh){st.last=n(cache.last);st.del=n(cache.del);st.U=new Map(cache.U||[]);st.at=n(cache.at);st.mode='cache';DS.cache+=cache.docs.length;dsSet(c,cache.docs)}
+    else{const top=dsTopDel();const snap=await col.get();if(g!==DS.gen)return;const docs=[];
+      snap.docs.forEach(d=>{const {x,u}=dsRead(d);docs.push(x);if(u){st.U.set(x.id,u);if(u>st.last)st.last=u}});
+      st.del=await top;st.at=Date.now();st.mode='full';DS.srv+=docs.length;dsSet(c,docs);dsSave(c)}
+    liveRender();
+  }catch(e){toast('مشكلة مزامنة: '+fbErr(e));ready();return}
+  ready();if(g!==DS.gen)return;
+  L(col.where('_u','>',firebase.firestore.Timestamp.fromMillis(st.last)),snap=>{
+    const ch=snap.docChanges();if(!ch.length){st.first=false;return}
+    if(!snap.metadata.fromCache)DS.srv+=ch.length;
+    let changed=false;
+    ch.forEach(d=>{const id=d.doc.id;
+      try{if(!st.first&&isOwnerU(ME)&&['orders','requests','ratings','contractReqs','clients'].includes(c)&&!d.doc.metadata.hasPendingWrites)gsQ(c,id,d.type==='removed'?null:'x')}catch(e){}
+      if(d.type==='removed'){st.U.delete(id);if(dsDrop(c,id))changed=true;return}
+      const {x,u}=dsRead(d.doc);if(u){st.U.set(id,u);if(u>st.last)st.last=u}
+      const s=JSON.stringify(x);if(SYNCED[c]?.get(id)===s&&(S[c]||[]).some(y=>y.id===id))return;
+      const arr=(S[c]||[]).slice();const i=arr.findIndex(y=>y.id===id);if(i>=0)arr[i]=x;else arr.push(x);S[c]=arr;(SYNCED[c]=SYNCED[c]||new Map()).set(id,s);changed=true});
+    st.first=false;dsSaveSoon(c);if(changed)liveRender()});
+}
+/* المسح: كل مسح بيسيب علامة صغيرة في "deleted" علشان الأجهزة التانية تشيله من عندها */
+async function dsDelListen(L){if(DS.delStarted)return;DS.delStarted=true;const g=DS.gen;
+  await Promise.all(DS.loads);if(g!==DS.gen)return;
+  const cols=Object.values(DS.cols);if(!cols.length)return;
+  const from=Math.min(...cols.map(st=>n(st.del)));
+  L(FB.db.collection('deleted').where('_u','>',firebase.firestore.Timestamp.fromMillis(from)),snap=>{
+    const touched=new Set();let changed=false;
+    snap.docChanges().forEach(d=>{if(d.type==='removed')return;const t=d.doc.data({serverTimestamps:'estimate'});const u=tsMs(t._u);const st=DS.cols[t.col];
+      if(st&&(st.U.get(t.id)||0)<=u){st.U.delete(t.id);if(dsDrop(t.col,t.id))changed=true;touched.add(t.col)}
+      if(u&&!d.doc.metadata.hasPendingWrites)Object.values(DS.cols).forEach(s=>{if(u>s.del){s.del=u;touched.add(s.c)}})});
+    touched.forEach(dsSaveSoon);if(changed)liveRender()})}
+function dsTomb(b,c,id){if(!isClinic())b.set(FB.db.collection('deleted').doc(),{col:c,id,by:ME.id,_u:dsTs()})}
+function dsStop(){DS.gen++;Object.keys(DSSAVE).forEach(k=>clearTimeout(DSSAVE[k]));DS.cols={};DS.loads=[];DS.delStarted=false;DS.epoch=null;DSTOP=null}
+/* لو حد عمل أرشفة أو مسح كبير — كل الأجهزة بتعمل تحديث كامل مرة واحدة */
+function dsEpochCheck(){if(DS.epoch==null||!ME)return;if(dsEpochNow()!==DS.epoch){DS.epoch=dsEpochNow();dsClear(dsPref()).then(()=>{if(!ME)return;stopListeners();startListeners();render()})}}
+function dsBump(){S.settings.dsEpoch=dsEpochNow()+1}
+async function dsFullRefresh(){await dsClear(dsPref());DS.srv=0;DS.cache=0;stopListeners();startListeners();toast('بيحمّل كل البيانات من جديد…');render()}
+function dsPanel(){if(!ONLINE||isClinic())return '';const L=Object.values(DS.cols);const full=L.filter(s=>s.mode==='full').length,ch=L.filter(s=>s.mode==='cache').length;
+  const oldest=L.filter(s=>s.at).map(s=>s.at).sort((a,b)=>a-b)[0];
+  return `<div class="panel grid"><h3 style="margin:0">مزامنة البيانات</h3>
+   <div class="muted small">البيانات بتتحفظ على الجهاز ده، وكل مرة السيستم يتفتح بيجيب من السيرفر <b>الجديد بس</b> — ده بيوفّر استهلاك Firebase ويخلّي الفتح أسرع. مرة كل أسبوع بيعمل تحديث كامل لوحده للأمان.</div>
+   <div class="grid g3"><div class="panel kpi"><span>اتقرا من الجهاز</span><b class="num">${DS.cache}</b></div><div class="panel kpi"><span>اتقرا من السيرفر</span><b class="num">${DS.srv}</b></div><div class="panel kpi"><span>آخر تحديث كامل</span><b class="small">${oldest?fdt(new Date(oldest).toISOString()):'—'}</b></div></div>
+   ${DS.ok?'':'<div class="banner">المتصفح ده مش بيسمح بالتخزين على الجهاز — السيستم شغال عادي بس بيجيب كل حاجة من السيرفر.</div>'}
+   <div class="muted small">${ch} نوع بيانات من الجهاز · ${full} نوع اتحمّل كامل في الفتحة دي.</div>
+   <div><button type="button" class="btn sm" data-act="dsRefresh">🔄 تحديث كامل دلوقتي</button></div></div>`}
+Object.assign(X9,{dsRefresh:()=>dsFullRefresh()});
 /* =====================================================================
    التشغيل
    ===================================================================== */

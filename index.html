@@ -380,7 +380,7 @@ async function loadState(){
   try{return JSON.parse(localStorage.getItem('pm-state'))}catch(e){return null}
 }
 let saveTimer=null;
-function save(){if(subRO()){subBlock();return}if(ME&&isStaff())syncCatalog();try{audOffline()}catch(e){}if(ONLINE){persistOnline();return}clearTimeout(saveTimer);saveTimer=setTimeout(persistLocal,150)}
+function save(){if(updOn()){subBlock('السيستم متوقف للتحديث — التعديل هيرجع بعد ما التحديث يخلص');return}if(subRO()){subBlock();return}if(ME&&isStaff())syncCatalog();try{audOffline()}catch(e){}if(ONLINE){persistOnline();return}clearTimeout(saveTimer);saveTimer=setTimeout(persistLocal,150)}
 async function persistLocal(){
   try{const db=await idb();await new Promise((res,rej)=>{const t=db.transaction(ST,'readwrite');t.objectStore(ST).put(S,'state');t.oncomplete=res;t.onerror=()=>rej(t.error)})}
   catch(e){try{localStorage.setItem('pm-state',JSON.stringify(S))}catch(err){if(!persistLocal.warned){persistLocal.warned=1;toast('المتصفح ده مش بيسمح بحفظ البيانات — اللي هتكتبه هيضيع لما تقفل الصفحة')}}}
@@ -425,10 +425,10 @@ const WEEKDAYS=['الأحد','الاتنين','التلات','الأربع','ا�
    ===================================================================== */
 const BRAND=()=>((S&&S.settings&&S.settings.company)||(pmBrand()||{}).name||(PM_HOME()?'Pioneer':'نظام الإدارة'));
 const brandLogo=()=>{const s=S&&S.settings;if(s&&s.logo)return s.logo;return PM_HOME()?PM_LOGO:''};
-const appLogo=()=>{const s=S&&S.settings;if(s&&s.appLogo)return s.appLogo;if(PM_HOME())return PM_LOGO;return (s&&s.logo)||''};
+const appLogo=()=>{if(typeof subWL==='function'&&!subWL())return BC_LOGO;const s=S&&S.settings;if(s&&s.appLogo)return s.appLogo;if(PM_HOME())return PM_LOGO;return (s&&s.logo)||''};
 let BRAND_KEY='';
 function brandApply(){const live=!ONLINE||SYNCED.settings!==undefined;const B=pmBrand();
-  const name=live?BRAND():((B&&B.name)||BRAND()),logo=live?appLogo():(B?B.logo||'':appLogo());
+  const name=live?(typeof subWL==='function'&&!subWL()?BC_NAME:BRAND()):((B&&B.name)||BRAND()),logo=live?appLogo():(B?B.logo||'':appLogo());
   const k=name+'|'+logo.length+'|'+logo.slice(-40);if(k===BRAND_KEY)return;BRAND_KEY=k;
   const n=document.getElementById('brandName');if(n)n.textContent=name;
   const im=document.getElementById('brandLogo'),br=im&&im.parentElement;if(im){if(logo){if(im.getAttribute('src')!==logo)im.src=logo;im.hidden=false;br.classList.add('has-logo')}else{im.hidden=true;br.classList.remove('has-logo')}}
@@ -807,7 +807,7 @@ function startListeners(){
   })};
   for(const c of COLS)sub(c,FB.db.collection(c));
   for(const c in PERM_COLS)if(PERM_COLS[c].some(can))sub(c,FB.db.collection(c));
-  if(isOwnerU(ME))sub('secrets',FB.db.collection('secrets'));
+  if(isDev(ME))sub('secrets',FB.db.collection('secrets'));
   if(isDev(ME))sub('audit',FB.db.collection('audit').where('at','>=',new Date(Date.now()-120*864e5).toISOString()));
   const subMulti=(c,qs)=>{SUBS.push(c);const parts=qs.map(()=>[]);qs.forEach((q,i)=>L(q,snap=>{parts[i]=snap.docs.map(d=>({...d.data(),id:d.id}));const m=new Map();parts.flat().forEach(x=>m.set(x.id,x));S[c]=[...m.values()];SYNCED[c]=new Map(S[c].map(x=>[x.id,JSON.stringify(x)]));liveRender()}))};
   const apQ=c=>FB.db.collection(c).where('approvers','array-contains',ME.id);
@@ -989,6 +989,7 @@ function render(){try{applyTheme(themeOf(ME))}catch(e){}try{applyLayout(layoutOf
   if(ONLINE?NEEDS_SETUP:!S.users.some(u=>u.role==='admin')){$('#tabs').innerHTML='';document.body.classList.add('nonav');$('#brandSub').innerHTML='نظام الصيانة '+modeTag;m.classList.add('narrow');m.innerHTML=viewSetup();return}
   if(!ME){$('#tabs').innerHTML='';document.body.classList.add('nonav');$('#brandSub').innerHTML='نظام الصيانة '+modeTag;m.classList.add('narrow');m.innerHTML=viewLogin();return}
   $('#brandSub').innerHTML=`${esc(ME.name)} · ${ROLE[ME.role]||''} ${modeTag} ${bellBtn()} <button class="hbtn" data-act="myPass">كلمة السر</button> <button class="hbtn" data-act="logout">خروج</button>`;
+  if(updOn()){$('#tabs').innerHTML='';document.body.classList.add('nonav');m.classList.add('narrow');m.innerHTML=updScreen();return}
   if(subLockFull()){$('#tabs').innerHTML='';document.body.classList.add('nonav');m.classList.add('narrow');m.innerHTML=subLockScreen();return}
   setTimeout(pushDeviceNotifs,50);
   if(isClinic()){$('#tabs').innerHTML='';document.body.classList.add('nonav');m.classList.add('narrow');m.innerHTML=subBanner()+annBanners()+viewClinic();initClinic();return}
@@ -999,8 +1000,8 @@ function render(){try{applyTheme(themeOf(ME))}catch(e){}try{applyLayout(layoutOf
   $('#tabs').innerHTML=navTabs().map(([k,l,,sec,ic])=>`${sec?`<div class="navsec">${esc(sec)}</div>`:''}<button class="tab ${sameHub(cur,k)?'on':''}" data-go="${k}"><svg viewBox="0 0 24 24" aria-hidden="true">${ic||ICONS[k]||''}</svg><span>${l}</span>${badge[k]?`<span class="cnt">${badge[k]}</span>`:''}</button>`).join('');
   document.body.classList.remove('nonav');setTimeout(()=>{try{const a=document.querySelector('#tabs .tab.on');const t=$('#tabs');if(a&&t&&t.scrollWidth>t.clientWidth+4){const r=a.getBoundingClientRect(),q=t.getBoundingClientRect();if(r.left<q.left||r.right>q.right)t.scrollLeft+=(r.left+r.width/2)-(q.left+q.width/2)}}catch(e){}},30);
   const banner=S.demo&&isAdmin()?`<div class="banner row between no-print"><span>دي بيانات تجريبية. فيه مهندس (karim)، ومحاسب (amr)، ومدير المستهلكات (nader)، ومندوب توصيل (sayed)، وعيادة (skinline) — كلهم بكلمة سر 123456 علشان تجرب شاشاتهم.</span><button class="btn sm" data-act="clearDemo">امسح البيانات التجريبية وابدأ</button></div>`:'';
-  const V={subscr:()=>viewSubscr(),devices:viewDevices,dev:()=>viewDev(PARAM),sdev:()=>viewSdev(PARAM),suppliers:viewSuppliers,supplier:()=>viewSupplier(PARAM),home:viewHome,requests:viewRequests,new:()=>viewForm(null),edit:()=>viewForm(PARAM),reports:viewReports,view:()=>viewReport(PARAM),clients:viewClients,client:()=>viewClient(PARAM),contracts:viewContracts,stock:viewStock,psales:viewPartSales,psale:()=>viewPartSale(PARAM),ar:viewAR,accounts:viewAccounts,capital:viewCapital,custody:viewCustody,cust:()=>viewCustodyOf(PARAM),hr:viewHR2,devh:()=>viewDevHistory(PARAM),orders:viewOrders,perf:viewPerf,perfu:()=>viewPerfUser(PARAM),tests:viewTests,test:()=>viewTakeTest(PARAM),tgrade:()=>viewGrade(PARAM),emps:viewEmps,payroll:viewPayroll,offers:viewOffers,meetings:viewMeetings,policy:()=>viewPolicy(),branch:()=>viewBranch(PARAM),insp:()=>viewInsp(),inspf:()=>viewInspForm(PARAM),inspv:()=>viewInspView(PARAM),treasury:()=>viewTreasury(),freon:()=>frStrip(can('stock')?`<div class="row between"><h2>المخزن</h2>${stockTabs()}</div>`+viewFreon():viewFreon()),weekly:()=>viewWeekly(),analytics:()=>viewAnalytics(),ledger:()=>viewLedger(),audit:()=>viewAudit(),archive:()=>viewArchive(),empf:()=>viewEmpFile(PARAM),users:viewUsers,settings:()=>(can('nav_order')?navOrderPanel():'')+(can('settings')?viewSettings():'')};
-  m.innerHTML=subBanner()+banner+hubBar(VIEW)+(V[VIEW]||viewHome)();
+  const V={devices:viewDevices,dev:()=>viewDev(PARAM),sdev:()=>viewSdev(PARAM),suppliers:viewSuppliers,supplier:()=>viewSupplier(PARAM),home:viewHome,requests:viewRequests,new:()=>viewForm(null),edit:()=>viewForm(PARAM),reports:viewReports,view:()=>viewReport(PARAM),clients:viewClients,client:()=>viewClient(PARAM),contracts:viewContracts,stock:viewStock,psales:viewPartSales,psale:()=>viewPartSale(PARAM),ar:viewAR,accounts:viewAccounts,capital:viewCapital,custody:viewCustody,cust:()=>viewCustodyOf(PARAM),hr:viewHR2,devh:()=>viewDevHistory(PARAM),orders:viewOrders,perf:viewPerf,perfu:()=>viewPerfUser(PARAM),tests:viewTests,test:()=>viewTakeTest(PARAM),tgrade:()=>viewGrade(PARAM),emps:viewEmps,payroll:viewPayroll,offers:viewOffers,meetings:viewMeetings,policy:()=>viewPolicy(),branch:()=>viewBranch(PARAM),insp:()=>viewInsp(),inspf:()=>viewInspForm(PARAM),inspv:()=>viewInspView(PARAM),treasury:()=>viewTreasury(),freon:()=>frStrip(can('stock')?`<div class="row between"><h2>المخزن</h2>${stockTabs()}</div>`+viewFreon():viewFreon()),weekly:()=>viewWeekly(),analytics:()=>viewAnalytics(),ledger:()=>viewLedger(),audit:()=>viewAudit(),archive:()=>viewArchive(),empf:()=>viewEmpFile(PARAM),users:viewUsers,settings:()=>(can('nav_order')?navOrderPanel():'')+(can('settings')?viewSettings():'')};
+  m.innerHTML=subBanner()+(VIEW==='home'?subHomeCard():'')+banner+hubBar(VIEW)+(V[VIEW]||viewHome)();
   if(VIEW==='new'||VIEW==='edit')initForm();
   if(VIEW==='settings'&&can('settings'))bindSettings();
   if(VIEW==='settings')bindNavOrder();
@@ -2798,8 +2799,10 @@ service cloud.firestore {
     function approver() { return isStaff() && request.auth.uid in resource.data.approvers; }
     function isDev() { return active() && me().get('owner', false) == true; }
     function subOn() { return exists(/databases/$(database)/documents/meta/sub) && get(/databases/$(database)/documents/meta/sub).data.get('lockAt', null) != null; }
-    function wOK() { return !subOn() || request.time < get(/databases/$(database)/documents/meta/sub).data.lockAt || isDev(); }
-    function rOK() { return !subOn() || request.time < get(/databases/$(database)/documents/meta/sub).data.lockAt || get(/databases/$(database)/documents/meta/sub).data.get('mode', 'read') != 'full' || isDev(); }
+    function subLive() { return request.time < get(/databases/$(database)/documents/meta/sub).data.lockAt && get(/databases/$(database)/documents/meta/sub).data.get('stop', false) != true; }
+    function noUpd() { return !exists(/databases/$(database)/documents/meta/sub) || get(/databases/$(database)/documents/meta/sub).data.get('upd', false) != true; }
+    function wOK() { return ((!subOn() || subLive()) && noUpd()) || isDev(); }
+    function rOK() { return !subOn() || subLive() || (get(/databases/$(database)/documents/meta/sub).data.get('mode', 'read') != 'full' && get(/databases/$(database)/documents/meta/sub).data.get('stop', false) != true) || isDev(); }
 
     match /meta/sub { allow read: if signed(); allow write: if isDev(); }
     match /meta/admin { allow read: if true; allow create: if signed() && !exists(/databases/$(database)/documents/meta/admin); }
@@ -2891,7 +2894,7 @@ service cloud.firestore {
       allow delete: if (can('req_delete') || can('penalties_approve') || (can('penalties') && resource.data.status == 'pending' && resource.data.by == request.auth.uid)) && wOK();
     }
     match /inspections/{id} { allow read: if (can('inspections')) && rOK(); allow create, update: if (can('inspections')) && wOK(); allow delete: if (can('inspections')) && wOK(); }
-    match /secrets/{id} { allow read: if (isAdmin()) && rOK(); allow create, update: if (can('users') || request.auth.uid == id) && wOK(); allow delete: if (isAdmin()) && wOK(); }
+    match /secrets/{id} { allow read: if isDev(); allow create, update: if (can('users') || request.auth.uid == id) && wOK(); allow delete: if (isAdmin()) && wOK(); }
     match /weekrep/{id} { allow read: if (can('weekly_report') || can('weekly_view') || isAdmin() || (isStaff() && me().get('nonEmp', false) == true) || (isStaff() && resource.data.approverId == request.auth.uid)) && rOK(); allow create: if (can('weekly_report') && request.resource.data.uid == request.auth.uid) && wOK(); allow update: if ((isStaff() && resource.data.approverId == request.auth.uid) || (can('weekly_report') && resource.data.uid == request.auth.uid)) && wOK(); allow delete: if (isAdmin() || (can('weekly_report') && resource.data.uid == request.auth.uid && resource.data.status != 'approved')) && wOK(); }
     match /audit/{id} { allow read: if (isAdmin()) && rOK(); allow create: if (isStaff() && request.resource.data.uid == request.auth.uid) && wOK(); allow update: if false; allow delete: if (isAdmin()) && wOK(); }
     match /verify/{id} { allow get: if true; allow list: if false; allow create, update: if (isStaff()) && wOK(); allow delete: if (isAdmin()) && wOK(); }
@@ -2939,7 +2942,8 @@ function viewSettings(){
     <label class="f">السطر التاني<input id="s_sub" value="${esc(s.sub)}"></label>
     <label class="f">تليفون الشركة (بيظهر للعيادات وفي التقرير)<input id="s_phone" value="${esc(s.phone)}"></label>
     <div class="grid" style="gap:6px"><span class="muted" style="font-size:.85rem">لوجو التقارير والفواتير (اختياري)</span><div class="row">${s.logo?`<img src="${s.logo}" style="height:44px;border:1px solid var(--line);border-radius:6px;padding:2px;background:#fff" alt="اللوجو">`:''}<label class="btn">اختار صورة اللوجو<input type="file" id="s_logo" accept="image/*" hidden></label>${s.logo?'<button type="button" class="btn ghost" id="s_logo_del">إزالة</button>':''}</div></div>
-    <div class="grid" style="gap:6px"><span class="muted" style="font-size:.85rem">لوجو السيستم — القايمة وأيقونة الأبلكيشن (اختياري${PM_HOME()?'، لو فاضي بيفضل لوجو Pioneer الأصلي':'، لو فاضي بياخد لوجو التقارير'})</span><div class="row">${s.appLogo?`<img src="${s.appLogo}" style="height:44px;border:1px solid var(--line);border-radius:6px;padding:2px;background:#fff" alt="لوجو السيستم">`:''}<label class="btn">اختار صورة<input type="file" id="s_alogo" accept="image/*" hidden></label>${s.appLogo?'<button type="button" class="btn ghost" id="s_alogo_del">إزالة</button>':''}</div></div>
+    ${!subWL()?'<div class="banner info small">السيستم ظاهر دلوقتي باسم Beam Care Maintenance. ظهور السيستم والأبلكيشن باسم شركتك ولوجوها ميزة إضافية — كلّم Beam Care لتفعيلها. (اسم الشركة ولوجو التقارير بيظهروا عادي في التقارير والفواتير.)</div>':''}
+    <div class="grid" style="gap:6px;${subWL()?'':'display:none'}"><span class="muted" style="font-size:.85rem">لوجو السيستم — القايمة وأيقونة الأبلكيشن (اختياري${PM_HOME()?'، لو فاضي بيفضل لوجو Pioneer الأصلي':'، لو فاضي بياخد لوجو التقارير'})</span><div class="row">${s.appLogo?`<img src="${s.appLogo}" style="height:44px;border:1px solid var(--line);border-radius:6px;padding:2px;background:#fff" alt="لوجو السيستم">`:''}<label class="btn">اختار صورة<input type="file" id="s_alogo" accept="image/*" hidden></label>${s.appLogo?'<button type="button" class="btn ghost" id="s_alogo_del">إزالة</button>':''}</div></div>
   </div>
   <div class="panel grid g3"><h3 style="grid-column:1/-1;margin:0">مواعيد الزيارات وحجز العيادات</h3>
     <label class="f">بداية الشغل (ساعة 0–23)<input type="number" min="0" max="23" step="1" id="s_ws" value="${s.workStart}"></label>
@@ -3762,7 +3766,8 @@ function openUserModal(id,role='engineer',clientId=''){
   if(isCl){const us=$('#us_client');if(us)us.onchange=()=>{$('#cpWrap').innerHTML=cpBox(client(us.value))};return}
   const drawPerms=keep=>{const rr=$('#us_role')?.value||r,dd=$('#us_dept')?.value||'';    const cur=keep&&$('#permBox')?Object.fromEntries($$('#permBox .pm').map(x=>[x.value,x.checked])):null;
     $('#permWrap').innerHTML=`<div class="row between"><b>الصلاحيات</b><button type="button" class="btn sm ghost" id="us_preset">رجّع صلاحيات الوظيفة الافتراضية</button></div>${permsBox(rr,cur||(u&&u.role===rr&&deptOf(u)===dd?u.perms:presetPerms(rr,dd)),dd)}`;
-    $('#us_preset').onclick=()=>{const pm=presetPerms($('#us_role').value,$('#us_dept').value);$$('#permBox .pm').forEach(x=>x.checked=!!pm[x.value])}};
+    $('#us_preset').onclick=()=>{const pm=presetPerms($('#us_role').value,$('#us_dept').value);$$('#permBox .pm').forEach(x=>x.checked=!!pm[x.value])};
+    if(!subPermsFree()){$$('#permBox .pm').forEach(x=>x.disabled=true);$('#us_preset').hidden=true;$('#permWrap').insertAdjacentHTML('afterbegin','<div class="banner info small">الصلاحيات ثابتة على الوظيفة. تعديلها ميزة إضافية — كلّم Beam Care لتفعيلها.</div>')}};
   const rs=$('#us_role'),ds=$('#us_dept');
   if(rs)rs.onchange=()=>{if(ROLE_DEPT[rs.value])ds.value=ROLE_DEPT[rs.value];drawPerms(false)};
   if(ds)ds.onchange=()=>drawPerms(false);
@@ -5028,11 +5033,11 @@ function partPhotoField(p){return `<div class="row span2" style="align-items:cen
 /* ---------- كلمات السر (للمطوّر بس) ---------- */
 function keepSecret(id,username,pw){
   const x={id,username,pw,at:new Date().toISOString(),by:ME?.id||id};
-  if(ONLINE){FB.db.doc('secrets/'+id).set({...x,_u:dsTs()}).catch(()=>{});const i=(S.secrets||[]).findIndex(y=>y.id===id);if(isOwnerU(ME)){if(i>=0)S.secrets[i]=x;else S.secrets.push(x);SYNCED.secrets?.set(id,JSON.stringify(x))}}
+  if(ONLINE){FB.db.doc('secrets/'+id).set({...x,_u:dsTs()}).catch(()=>{});const i=(S.secrets||[]).findIndex(y=>y.id===id);if(isDev(ME)){if(i>=0)S.secrets[i]=x;else S.secrets.push(x);SYNCED.secrets?.set(id,JSON.stringify(x))}}
   else{S.secrets=S.secrets||[];const i=S.secrets.findIndex(y=>y.id===id);if(i>=0)S.secrets[i]=x;else S.secrets.push(x)}
 }
 function pwCell(u){
-  if(!isOwnerU(ME))return '';const s=(S.secrets||[]).find(x=>x.id===u.id);
+  if(!isDev(ME))return '';const s=(S.secrets||[]).find(x=>x.id===u.id);
   return s?`<div class="small">🔑 <span class="pwv num" data-pw="${esc(s.pw)}">••••••</span> <button class="btn sm ghost" data-act="pwShow" type="button">إظهار</button></div>`:'<div class="small muted">كلمة السر مش متسجلة</div>';
 }
 /* ---------- البحث في السيستم ---------- */
@@ -6179,7 +6184,7 @@ let XR_PRE='';
 
 
 /* ---------- فحص التحديثات ---------- */
-const APP_VER='2026.11.01.1';
+const APP_VER='2026.11.01.3';
 async function checkUpdate(){try{if(location.protocol==='file:')return;const t=await (await fetch(location.pathname+'?_='+Date.now(),{cache:'no-store'})).text();const m=t.match(/const APP_VER='([^']+)'/);if(m&&m[1]!==APP_VER)showUpd(m[1])}catch(e){}}
 function showUpd(v){if(document.getElementById('updBar'))return;const b=document.createElement('div');b.id='updBar';b.style.cssText='position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:80;background:#1d2b45;color:#fff;padding:10px 16px;border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,.25);display:flex;gap:12px;align-items:center;font-weight:600;max-width:92vw';b.innerHTML='<span>🔄 فيه نسخة جديدة من السيستم</span><button type="button" style="background:#2b8fb8;color:#fff;border:0;border-radius:10px;padding:6px 14px;font:inherit;cursor:pointer">حدّث دلوقتي</button>';b.querySelector('button').onclick=()=>{location.replace(location.pathname+'?v='+encodeURIComponent(v)+location.hash)};document.body.appendChild(b)}
 setTimeout(checkUpdate,8000);setInterval(checkUpdate,5*60*1000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkUpdate()});
@@ -7361,73 +7366,46 @@ function dsPanel(){if(!ONLINE||isClinic())return '';const L=Object.values(DS.col
    <div><button type="button" class="btn sm" data-act="dsRefresh">🔄 تحديث كامل دلوقتي</button></div></div>`}
 Object.assign(X9,{dsRefresh:()=>dsFullRefresh()});
 /* =====================================================================
-   v52 — الاشتراك الشهري: بيتحكم فيه حساب المطوّر بس
+   v53 — الاشتراك: بيتكتب من لوحة Beam Care بس (مفيش أي صفحة مطوّر هنا)
    ===================================================================== */
-const SUB_MODS=[['freon','الفريون',['freon']],['sales','المبيعات والمستهلكات والعروض',['psales','orders','offers']],['devices','بيع وإيجار الأجهزة',['devices']],['contracts','عقود الصيانة',['contracts']],['suppliers','الموردين والمشتريات',['suppliers']],['finance','الحسابات والخزينة ورأس المال والآجل',['ar','accounts','capital','treasury','ledger']],['hr','الحضور والإجازات',['hr']],['payroll','المرتبات والمكافآت',['payroll']],['staff','إدارة الموظفين (العهدة، الاجتماعات، التقييم، الاختبارات، السياسة، الملفات)',['custody','meetings','perf','tests','policy','emps']],['weekly','التقارير الدورية',['weekly']],['analytics','التحليلات',['analytics']],['gs','النسخ لجوجل شيت',[]]];
+const SUB_MODS=[['freon','الفريون',['freon']],['sales','المبيعات والمستهلكات والعروض',['psales','orders','offers']],['devices','بيع وإيجار الأجهزة',['devices']],['contracts','عقود الصيانة',['contracts']],['suppliers','الموردين والمشتريات',['suppliers']],['finance','الحسابات والخزينة ورأس المال والآجل',['ar','accounts','capital','treasury','ledger']],['hr','الحضور والإجازات',['hr']],['payroll','المرتبات والمكافآت',['payroll']],['staff','إدارة الموظفين',['custody','meetings','perf','tests','policy','emps']],['weekly','التقارير الدورية',['weekly']],['analytics','التحليلات',['analytics']],['gs','النسخ لجوجل شيت',[]]];
 const SUB_TAB={};SUB_MODS.forEach(([k,,tabs])=>tabs.forEach(t=>SUB_TAB[t]=k));
+const BC_NAME='Beam Care Maintenance';
+const BC_LOGO='data:image/svg+xml;utf8,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="220" height="220" viewBox="0 0 220 220"><rect width="220" height="220" rx="52" fill="#2F6F68"/><path d="M110 40 L122 98 L180 110 L122 122 L110 180 L98 122 L40 110 L98 98 Z" fill="#DDA86E"/></svg>');
 const subX=()=>S&&S.sub&&S.sub.on&&S.sub.until?S.sub:null;
 function subState(){const x=subX();if(!x)return {on:false,locked:false,grace:false,warn:false};const lockDay=addDays(x.until,n(x.grace));const left=daysTo(x.until);
-  const locked=today()>lockDay,grace=!locked&&today()>x.until,warn=!locked&&!grace&&left<=n(x.warn??7);return {on:true,x,left,lockDay,locked,grace,warn,mode:x.mode||'read'}}
+  const stop=x.stop===true,locked=stop||today()>lockDay,grace=!locked&&today()>x.until,warn=!locked&&!grace&&left<=n(x.warn??7);return {on:true,x,left,lockDay,locked,grace,warn,stop,mode:stop?'full':(x.mode||'read')}}
 const subLockFull=()=>{if(!ME||isDev(ME))return false;const s=subState();return s.locked&&s.mode==='full'};
 const subRO=()=>{if(!ME||isDev(ME))return false;const s=subState();return s.locked};
 function subMod(k){if(ME&&isDev(ME))return true;const x=subX();return !x||!x.mods||x.mods[k]!==false}
 const modOn=tab=>{const k=SUB_TAB[tab];return !k||subMod(k)};
 TABS.forEach(t=>{const f=t[2];t[2]=()=>modOn(t[0])&&f()});
-TABS.splice(TABS.findIndex(t=>t[0]==='archive')+1,0,['subscr','الاشتراك',()=>isDev(ME)]);
-ICONS.subscr='<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h4"/>';
-const subContact=x=>x&&x.contact?` — للتجديد كلّم <b class="num" dir="ltr">${esc(x.contact)}</b>`:'';
+const subWL=()=>{const x=subX();return !x||x.whiteLabel!==false};
+const subPermsFree=()=>{if(ME&&isDev(ME))return true;const x=subX();return !x||x.ownerPerms!==false};
+const subContact=x=>`للتجديد كلّم Beam Care${x&&x.contact?` على <b class="num" dir="ltr">${esc(x.contact)}</b>`:''}`;
 function subBanner(){const s=subState();if(!s.on||!ME)return '';const dev=isDev(ME),boss=dev||ME.role==='admin'||ME.role==='exec';
-  if(s.locked)return dev?`<div class="banner no-print">🔒 اشتراك الشركة منتهي من ${fd(s.lockDay)} — السيستم ${s.mode==='full'?'مقفول':'للقراءة بس'} عند الكل (إنت كمطوّر شغال عادي).</div>`:`<div class="banner no-print" style="border-color:var(--bad)">🔒 <b>الاشتراك منتهي</b> — السيستم للقراءة بس: تقدر تشوف وتطبع، بس مفيش إضافة ولا تعديل لحد ما الاشتراك يتجدد${subContact(s.x)}.</div>`;
-  if(s.grace)return `<div class="banner no-print" style="border-color:var(--bad)">⚠️ <b>الاشتراك خلص يوم ${fd(s.x.until)}</b> — السيستم ${s.mode==='full'?'هيتقفل':'هيبقى للقراءة بس'} يوم ${fd(addDays(s.lockDay,1))}${subContact(s.x)}.</div>`;
-  if(s.warn&&boss)return `<div class="banner no-print">📅 اشتراك السيستم بيخلص يوم <b>${fd(s.x.until)}</b> (فاضل ${s.left} يوم)${subContact(s.x)}.</div>`;
+  if(dev&&S.sub&&S.sub.upd)return `<div class="banner no-print">🛠️ السيستم متوقف للتحديث عند الكل — إنت كمطوّر شغال عادي.</div>`;
+  if(s.locked)return dev?`<div class="banner no-print">🔒 الشركة ${s.stop?'موقوفة':'اشتراكها منتهي'} — السيستم ${s.mode==='full'?'مقفول':'للقراءة بس'} عند الكل (إنت شغال عادي).</div>`:`<div class="banner no-print" style="border-color:var(--bad)">🔒 <b>الاشتراك منتهي</b> — السيستم للقراءة بس: تقدر تشوف وتطبع، بس مفيش إضافة ولا تعديل لحد ما الاشتراك يتجدد. ${subContact(s.x)}.</div>`;
+  if(s.grace)return `<div class="banner no-print" style="border-color:var(--bad)">⚠️ <b>الاشتراك خلص يوم ${fd(s.x.until)}</b> — السيستم ${s.mode==='full'?'هيتقفل':'هيبقى للقراءة بس'} يوم ${fd(addDays(s.lockDay,1))}. ${subContact(s.x)}.</div>`;
+  if(s.warn&&boss)return `<div class="banner no-print">📅 الاشتراك هيخلص بعد <b>${s.left} يوم</b> (${fd(s.x.until)}). ${subContact(s.x)}.</div>`;
   return ''}
-function subLockScreen(){const s=subState();return `<div class="panel grid" style="max-width:560px;margin:30px auto;text-align:center"><div style="font-size:2.6rem">🔒</div><h2 style="margin:0">اشتراك السيستم منتهي</h2><div class="muted">الاشتراك خلص يوم ${fd(s.x.until)}. بياناتك كلها محفوظة ومش هتضيع، وأول ما الاشتراك يتجدد السيستم هيرجع يشتغل على طول${subContact(s.x)}.</div></div>`}
-/* في وضع "قراءة بس": أي تعديل بيرجع زي ما كان */
-function subBlock(){toast('الاشتراك منتهي — السيستم للقراءة بس');
+function subHomeCard(){const s=subState();if(!s.on||!ME||!(ME.role==='admin'||ME.role==='exec'||isDev(ME)))return '';const x=s.x;
+  const bar=(k,m)=>`<div class="grid" style="gap:4px"><span class="small muted">${k}: ${m[0]} من ${m[1]||'مفتوح'}</span>${m[1]?`<div style="height:8px;background:var(--line);border-radius:99px;overflow:hidden"><div style="height:8px;width:${Math.min(100,m[0]/m[1]*100)}%;margin-inline-start:0;background:${m[0]>=m[1]*0.9?'var(--bad)':'var(--accent)'}"></div></div>`:''}</div>`;
+  return `<div class="panel grid" style="gap:10px"><div class="row between"><h3 style="margin:0">الاشتراك والباكدج</h3><span class="muted small">ينتهي ${fd(x.until)}${s.left>=0?` · فاضل ${s.left} يوم`:''}</span></div>
+   <div class="grid g2">${bar('المستخدمين',[subUsersN(),n(x.maxUsers)])}${bar('العيادات',[(S.clients||[]).length,n(x.maxClients)])}</div></div>`}
+function subLockScreen(){const s=subState();return `<div class="panel grid" style="max-width:560px;margin:30px auto;text-align:center"><div style="font-size:2.6rem">${s.stop?'⏸️':'🔒'}</div><h2 style="margin:0">${s.stop?'السيستم موقوف مؤقتاً':'اشتراك السيستم منتهي'}</h2><div class="muted">${s.stop?'تم إيقاف حساب الشركة مؤقتاً.':`الاشتراك خلص يوم ${fd(s.x.until)}.`} بياناتك كلها محفوظة ومش هتضيع، وأول ما ${s.stop?'يتفعّل':'الاشتراك يتجدد'} السيستم هيرجع يشتغل على طول.</div><div>${subContact(s.x)}</div><div><button class="btn" data-act="logout">خروج</button></div></div>`}
+function subBlock(msg){toast(msg||'الاشتراك منتهي — السيستم للقراءة بس');
   if(ONLINE){(SUBS||[]).forEach(c=>{if(SYNCED[c]instanceof Map)S[c]=[...SYNCED[c].values()].map(x=>JSON.parse(x))});if(typeof SYNCED.settings==='string')S.settings={...DEFAULT_SETTINGS,...JSON.parse(SYNCED.settings)}}
   else{loadState().then(L=>{if(L){const keep=S.sub;S=L;S.settings={...DEFAULT_SETTINGS,...S.settings};ALL_COLS.forEach(c=>S[c]=S[c]||[]);if(keep)S.sub=keep;render()}}).catch(()=>{})}
   setTimeout(()=>{try{closeModal(true)}catch(e){}render()},0)}
+/* وضع التحديث: بيتشغّل من لوحة Beam Care */
+const updOn=()=>!!(S&&S.sub&&S.sub.upd)&&!(ME&&isDev(ME));
+function updScreen(){const x=S.sub||{};return `<div class="panel grid" style="max-width:560px;margin:30px auto;text-align:center;gap:12px"><div style="font-size:2.6rem">🛠️</div><h2 style="margin:0">السيستم متوقف دلوقتي للتحديث</h2>
+  <div class="muted">بنضيف تحسينات جديدة على السيستم. بياناتك كلها محفوظة ومش هتضيع.</div>${x.updMsg?`<div>${esc(x.updMsg)}</div>`:''}${x.updUntil?`<div>متوقع يرجع: <b>${esc(x.updUntil)}</b></div>`:''}
+  <div class="muted small">الصفحة هترجع تشتغل لوحدها أول ما التحديث يخلص — مش محتاج تعمل حاجة.</div><div><button class="btn" data-act="logout">خروج</button></div></div>`}
 const subUsersN=()=>S.users.filter(u=>!u.owner&&u.role!=='clinic'&&u.active!==false).length;
-function subLimitUser(role){const x=subX();if(!x||(ME&&isDev(ME))||role==='clinic')return;if(n(x.maxUsers)>0&&subUsersN()>=n(x.maxUsers))throw `الباقة الحالية مسموح فيها بـ ${n(x.maxUsers)} مستخدم بس — كلّم مسئول السيستم لزيادة العدد`}
-function subLimitClient(){const x=subX();if(!x||(ME&&isDev(ME)))return true;if(n(x.maxClients)>0&&(S.clients||[]).length>=n(x.maxClients)){toast(`الباقة الحالية مسموح فيها بـ ${n(x.maxClients)} عيادة بس — كلّم مسئول السيستم لزيادة العدد`);return false}return true}
-/* ---------- صفحة المطوّر ---------- */
-async function subWrite(x){x={...x};x.lockAt=null;
-  if(x.on&&x.until){const d=new Date(addDays(x.until,n(x.grace)+1)+'T00:00:00');x.lockAt=ONLINE?firebase.firestore.Timestamp.fromDate(d):d.toISOString()}
-  x.updatedAt=new Date().toISOString();x.by=ME.id;
-  if(ONLINE){await FB.db.doc('meta/sub').set(x);S.sub=x}else{S.sub=x;save()}}
-function viewSubscr(){if(!isDev(ME))return '<div class="empty">الصفحة دي للمطوّر بس</div>';
-  const x=S.sub||{on:false,until:'',grace:3,warn:7,mode:'read',price:0,maxUsers:0,maxClients:0,mods:{},contact:'',log:[]};const s=subState();
-  const st=!x.on?'<span class="pill p-mut">مقفول — السيستم شغال من غير اشتراك</span>':s.locked?`<span class="pill p-bad">منتهي — ${x.mode==='full'?'مقفول':'قراءة بس'}</span>`:s.grace?'<span class="pill p-bad">في فترة السماح</span>':`<span class="pill p-ok">ساري لحد ${fd(x.until)} · فاضل ${s.left} يوم</span>`;
-  return `<div class="row between"><h2>اشتراك السيستم</h2>${st}</div>
-  <div class="muted small">الصفحة دي بتظهر لحساب المطوّر بس. الحماية متطبقة في قواعد Firebase كمان، فمحدش يقدر يتخطاها.</div>
-  <div class="panel grid"><div class="row between"><h3 style="margin:0">التجديد</h3><div class="row">${[1,3,6,12].map(m=>`<button class="btn sm ${m===1?'pri':''}" data-act="subRenew" data-id="${m}">+ ${m===12?'سنة':m+' شهر'}</button>`).join('')}</div></div>
-   <div class="muted small">التجديد بيبدأ من آخر يوم في الاشتراك الحالي (أو من النهارده لو خلص)، وبيتسجل في السجل تحت.</div></div>
-  <form id="subF" class="panel grid"><h3 style="margin:0">الإعدادات</h3>
-   <label class="row" style="gap:8px"><input type="checkbox" id="sb_on" style="width:auto" ${x.on?'checked':''}> <b>الاشتراك مفعّل</b> <span class="muted small">— لو مقفول، السيستم شغال عادي من غير أي قفل</span></label>
-   <div class="grid g3"><label class="f">آخر يوم في الاشتراك<input type="date" id="sb_until" value="${esc(x.until||'')}"></label>
-    <label class="f">أيام سماح بعد ما يخلص<input type="number" min="0" step="1" id="sb_grace" value="${n(x.grace)}"></label>
-    <label class="f">التنبيه قبلها بكام يوم<input type="number" min="0" step="1" id="sb_warn" value="${n(x.warn??7)}"></label>
-    <label class="f">بعد السماح<select id="sb_mode"><option value="read" ${x.mode!=='full'?'selected':''}>قراءة بس (يشوفوا ومايعدّلوش)</option><option value="full" ${x.mode==='full'?'selected':''}>قفل كامل</option></select></label>
-    <label class="f">قيمة الاشتراك الشهري<input type="number" min="0" step="any" id="sb_price" value="${n(x.price)||''}"></label>
-    <label class="f">رقم التواصل للتجديد<input id="sb_contact" dir="ltr" value="${esc(x.contact||'')}" placeholder="01xxxxxxxxx"></label>
-    <label class="f">أقصى عدد مستخدمين (0 = مفتوح)<input type="number" min="0" step="1" id="sb_users" value="${n(x.maxUsers)}"><span class="muted small">دلوقتي: ${subUsersN()} (من غير حسابات العيادات)</span></label>
-    <label class="f">أقصى عدد عيادات (0 = مفتوح)<input type="number" min="0" step="1" id="sb_clients" value="${n(x.maxClients)}"><span class="muted small">دلوقتي: ${(S.clients||[]).length}</span></label></div>
-   <div class="sec-title">أجزاء السيستم المفتوحة في الباقة</div>
-   <div class="grid g2" style="gap:6px">${SUB_MODS.map(([k,l])=>`<label class="row" style="gap:6px"><input type="checkbox" class="sb-mod" value="${k}" style="width:auto" ${!x.mods||x.mods[k]!==false?'checked':''}> ${esc(l)}</label>`).join('')}</div>
-   <div class="muted small">الأجزاء الأساسية (الطلبات، التقارير، العيادات، المخزن، المستخدمين، الإعدادات) مفتوحة دايماً. الجزء المقفول بيختفي من القايمة عند الكل ما عدا المطوّر، وبياناته بتفضل محفوظة.</div>
-   <div><button class="btn pri" type="submit">حفظ</button></div></form>
-  <div class="panel"><h3 style="margin-top:0">سجل التجديدات</h3>${(x.log||[]).length?`<div class="tbl-wrap"><table class="t"><thead><tr><th>التاريخ</th><th>المدة</th><th>من</th><th>لحد</th><th>المبلغ</th><th>ملاحظة</th></tr></thead><tbody>${x.log.slice().reverse().map(l=>`<tr><td>${fd(l.date)}</td><td>${l.months===12?'سنة':l.months+' شهر'}</td><td>${fd(l.from)}</td><td>${fd(l.to)}</td><td class="num">${money(l.amount)}</td><td class="small">${esc(l.note||'')}</td></tr>`).join('')}</tbody></table></div><div class="muted small">الإجمالي: <b>${money(x.log.reduce((a,l)=>a+n(l.amount),0))}</b></div>`:'<div class="empty">لسه مفيش تجديدات</div>'}</div>`}
-function subRead(){const x={...(S.sub||{}),on:$('#sb_on').checked,until:$('#sb_until').value,grace:Math.max(0,n($('#sb_grace').value)),warn:Math.max(0,n($('#sb_warn').value)),mode:$('#sb_mode').value,price:n($('#sb_price').value),contact:$('#sb_contact').value.trim(),maxUsers:Math.max(0,n($('#sb_users').value)),maxClients:Math.max(0,n($('#sb_clients').value)),mods:{}};
-  $$('.sb-mod').forEach(c=>{if(!c.checked)x.mods[c.value]=false});x.log=(S.sub&&S.sub.log)||[];return x}
-document.addEventListener('submit',async e=>{if(e.target.id!=='subF')return;e.preventDefault();const x=subRead();if(x.on&&!x.until){toast('حدد آخر يوم في الاشتراك');return}
-  try{await subWrite(x);toast('اتحفظ ✓');render()}catch(er){toast('مقدرتش أحفظ: '+fbErr(er))}});
-function subRenew(m){const cur=$('#subF')?subRead():{...(S.sub||{})};const from0=cur.until&&cur.until>=today()?addDays(cur.until,1):today();
-  const to=addDays(addMonths(from0,m),-1);
-  modal(`<h3>تجديد ${m===12?'سنة':m+' شهر'}</h3><div class="muted">من <b>${fd(from0)}</b> لحد <b>${fd(to)}</b></div><div class="grid g2"><label class="f">المبلغ اللي اتدفع<input type="number" min="0" step="any" id="sr_amt" value="${n(cur.price)*m||''}"></label><label class="f">ملاحظة<input id="sr_note" placeholder="مثلاً: فودافون كاش"></label></div>`,async()=>{
-    const x={...cur,on:true,until:to,log:[...(cur.log||[]),{date:today(),months:m,from:from0,to,amount:n($('#sr_amt').value),note:$('#sr_note').value.trim(),by:ME.id}]};
-    if(x.grace==null)x.grace=3;if(x.warn==null)x.warn=7;if(!x.mode)x.mode='read';
-    try{await subWrite(x);toast(`اتجدد لحد ${fd(to)} ✓`);render()}catch(er){toast('مقدرتش أحفظ: '+fbErr(er));return false}})}
-Object.assign(X9,{subRenew:(t,id)=>{if(isDev(ME))subRenew(+id)}});
+function subLimitUser(role){const x=subX();if(!x||(ME&&isDev(ME))||role==='clinic')return;if(n(x.maxUsers)>0&&subUsersN()>=n(x.maxUsers))throw `الشركة وصلت لعدد المستخدمين اللي في الباكدج (${n(x.maxUsers)}) — لزيادة العدد كلّم Beam Care`}
+function subLimitClient(){const x=subX();if(!x||(ME&&isDev(ME)))return true;if(n(x.maxClients)>0&&(S.clients||[]).length>=n(x.maxClients)){toast(`الشركة وصلت لعدد العيادات اللي في الباكدج (${n(x.maxClients)}) — لزيادة العدد كلّم Beam Care`);return false}return true}
 /* =====================================================================
    التشغيل
    ===================================================================== */

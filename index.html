@@ -380,7 +380,7 @@ async function loadState(){
   try{return JSON.parse(localStorage.getItem('pm-state'))}catch(e){return null}
 }
 let saveTimer=null;
-function save(){if(ME&&isStaff())syncCatalog();try{audOffline()}catch(e){}if(ONLINE){persistOnline();return}clearTimeout(saveTimer);saveTimer=setTimeout(persistLocal,150)}
+function save(){if(subRO()){subBlock();return}if(ME&&isStaff())syncCatalog();try{audOffline()}catch(e){}if(ONLINE){persistOnline();return}clearTimeout(saveTimer);saveTimer=setTimeout(persistLocal,150)}
 async function persistLocal(){
   try{const db=await idb();await new Promise((res,rej)=>{const t=db.transaction(ST,'readwrite');t.objectStore(ST).put(S,'state');t.oncomplete=res;t.onerror=()=>rej(t.error)})}
   catch(e){try{localStorage.setItem('pm-state',JSON.stringify(S))}catch(err){if(!persistLocal.warned){persistLocal.warned=1;toast('المتصفح ده مش بيسمح بحفظ البيانات — اللي هتكتبه هيضيع لما تقفل الصفحة')}}}
@@ -732,6 +732,7 @@ const USER_RE=/^[a-z0-9._-]{3,30}$/;
 async function createUser({name,username,pw,role,clientId,perms}){
   username=normD(username).trim().toLowerCase();pw=normD(pw);
   if(!name)throw 'اكتب الاسم';
+  if(subRO())throw 'الاشتراك منتهي — السيستم للقراءة بس';subLimitUser(role);
   if(!USER_RE.test(username))throw 'اسم المستخدم لازم يكون حروف إنجليزي صغيرة أو أرقام (3 حروف على الأقل) من غير مسافات';
   if(S.users.some(u=>u.username===username))throw 'اسم المستخدم ده موجود قبل كده';
   if((pw||'').length<6)throw 'كلمة السر لازم 6 حروف أو أرقام على الأقل';
@@ -785,6 +786,7 @@ function stopListeners(){dsStop();UNSUB.forEach(f=>{try{f()}catch(e){}});UNSUB=[
 function startListeners(){
   const L=(q,fn)=>UNSUB.push(q.onSnapshot(fn,e=>toast('مشكلة مزامنة: '+fbErr(e))));
   L(FB.db.doc('meta/nav'),d=>{S.nav=d.exists?d.data():null;liveRender()});
+  L(FB.db.doc('meta/sub'),d=>{S.sub=d.exists?d.data():null;liveRender()});
   if(!isClinic())L(FB.db.doc('meta/gs'),d=>{S.gsCfg=d.exists?d.data():null;GS_LOADED=true;try{if(!S.gsCfg&&S.settings?.gs?.url&&isOwnerU(ME))gsWriteCfg(S.settings.gs)}catch(e){}});
   L(FB.db.doc('meta/settings'),d=>{if(d.exists)S.settings={...DEFAULT_SETTINGS,...d.data()};SYNCED.settings=JSON.stringify(S.settings);dsEpochCheck();liveRender()});
   if(isClinic()){
@@ -987,8 +989,9 @@ function render(){try{applyTheme(themeOf(ME))}catch(e){}try{applyLayout(layoutOf
   if(ONLINE?NEEDS_SETUP:!S.users.some(u=>u.role==='admin')){$('#tabs').innerHTML='';document.body.classList.add('nonav');$('#brandSub').innerHTML='نظام الصيانة '+modeTag;m.classList.add('narrow');m.innerHTML=viewSetup();return}
   if(!ME){$('#tabs').innerHTML='';document.body.classList.add('nonav');$('#brandSub').innerHTML='نظام الصيانة '+modeTag;m.classList.add('narrow');m.innerHTML=viewLogin();return}
   $('#brandSub').innerHTML=`${esc(ME.name)} · ${ROLE[ME.role]||''} ${modeTag} ${bellBtn()} <button class="hbtn" data-act="myPass">كلمة السر</button> <button class="hbtn" data-act="logout">خروج</button>`;
+  if(subLockFull()){$('#tabs').innerHTML='';document.body.classList.add('nonav');m.classList.add('narrow');m.innerHTML=subLockScreen();return}
   setTimeout(pushDeviceNotifs,50);
-  if(isClinic()){$('#tabs').innerHTML='';document.body.classList.add('nonav');m.classList.add('narrow');m.innerHTML=annBanners()+viewClinic();initClinic();return}
+  if(isClinic()){$('#tabs').innerHTML='';document.body.classList.add('nonav');m.classList.add('narrow');m.innerHTML=subBanner()+annBanners()+viewClinic();initClinic();return}
   if(!allowed(VIEW,PARAM))VIEW='home';
   const badge={requests:can('requests')?S.requests.filter(r=>r.status==='new').length:0,hr:can('hr')?(S.hr||[]).filter(x=>x.status==='pending'&&x.uid!==ME.id).length:0,custody:can('custody')?(S.custody||[]).filter(x=>x.kind==='expense'&&x.status==='pending'&&x.uid!==ME.id).length:0,orders:(S.orders||[]).filter(o=>can('orders_manage')?o.status==='new':o.assignedTo===ME.id&&['assigned','preparing','out'].includes(o.status)).length};
   badge.hr=approvalItems().filter(a=>a.t!=='voucher'&&a.t!=='suppay').length;badge.treasury=can('treasury')?(S.vouchers||[]).filter(x=>x.status==='approved').length+approvalItems().filter(a=>a.t==='voucher'||a.t==='suppay').length:0;badge.custody=(can('custody')?(S.custody||[]).filter(x=>x.kind==='expense'&&x.status==='pending').length:0)+HOS().filter(h=>h.status==='pending'&&h.to===ME.id).length;
@@ -996,8 +999,8 @@ function render(){try{applyTheme(themeOf(ME))}catch(e){}try{applyLayout(layoutOf
   $('#tabs').innerHTML=navTabs().map(([k,l,,sec,ic])=>`${sec?`<div class="navsec">${esc(sec)}</div>`:''}<button class="tab ${sameHub(cur,k)?'on':''}" data-go="${k}"><svg viewBox="0 0 24 24" aria-hidden="true">${ic||ICONS[k]||''}</svg><span>${l}</span>${badge[k]?`<span class="cnt">${badge[k]}</span>`:''}</button>`).join('');
   document.body.classList.remove('nonav');setTimeout(()=>{try{const a=document.querySelector('#tabs .tab.on');const t=$('#tabs');if(a&&t&&t.scrollWidth>t.clientWidth+4){const r=a.getBoundingClientRect(),q=t.getBoundingClientRect();if(r.left<q.left||r.right>q.right)t.scrollLeft+=(r.left+r.width/2)-(q.left+q.width/2)}}catch(e){}},30);
   const banner=S.demo&&isAdmin()?`<div class="banner row between no-print"><span>دي بيانات تجريبية. فيه مهندس (karim)، ومحاسب (amr)، ومدير المستهلكات (nader)، ومندوب توصيل (sayed)، وعيادة (skinline) — كلهم بكلمة سر 123456 علشان تجرب شاشاتهم.</span><button class="btn sm" data-act="clearDemo">امسح البيانات التجريبية وابدأ</button></div>`:'';
-  const V={devices:viewDevices,dev:()=>viewDev(PARAM),sdev:()=>viewSdev(PARAM),suppliers:viewSuppliers,supplier:()=>viewSupplier(PARAM),home:viewHome,requests:viewRequests,new:()=>viewForm(null),edit:()=>viewForm(PARAM),reports:viewReports,view:()=>viewReport(PARAM),clients:viewClients,client:()=>viewClient(PARAM),contracts:viewContracts,stock:viewStock,psales:viewPartSales,psale:()=>viewPartSale(PARAM),ar:viewAR,accounts:viewAccounts,capital:viewCapital,custody:viewCustody,cust:()=>viewCustodyOf(PARAM),hr:viewHR2,devh:()=>viewDevHistory(PARAM),orders:viewOrders,perf:viewPerf,perfu:()=>viewPerfUser(PARAM),tests:viewTests,test:()=>viewTakeTest(PARAM),tgrade:()=>viewGrade(PARAM),emps:viewEmps,payroll:viewPayroll,offers:viewOffers,meetings:viewMeetings,policy:()=>viewPolicy(),branch:()=>viewBranch(PARAM),insp:()=>viewInsp(),inspf:()=>viewInspForm(PARAM),inspv:()=>viewInspView(PARAM),treasury:()=>viewTreasury(),freon:()=>frStrip(can('stock')?`<div class="row between"><h2>المخزن</h2>${stockTabs()}</div>`+viewFreon():viewFreon()),weekly:()=>viewWeekly(),analytics:()=>viewAnalytics(),ledger:()=>viewLedger(),audit:()=>viewAudit(),archive:()=>viewArchive(),empf:()=>viewEmpFile(PARAM),users:viewUsers,settings:()=>(can('nav_order')?navOrderPanel():'')+(can('settings')?viewSettings():'')};
-  m.innerHTML=banner+hubBar(VIEW)+(V[VIEW]||viewHome)();
+  const V={subscr:()=>viewSubscr(),devices:viewDevices,dev:()=>viewDev(PARAM),sdev:()=>viewSdev(PARAM),suppliers:viewSuppliers,supplier:()=>viewSupplier(PARAM),home:viewHome,requests:viewRequests,new:()=>viewForm(null),edit:()=>viewForm(PARAM),reports:viewReports,view:()=>viewReport(PARAM),clients:viewClients,client:()=>viewClient(PARAM),contracts:viewContracts,stock:viewStock,psales:viewPartSales,psale:()=>viewPartSale(PARAM),ar:viewAR,accounts:viewAccounts,capital:viewCapital,custody:viewCustody,cust:()=>viewCustodyOf(PARAM),hr:viewHR2,devh:()=>viewDevHistory(PARAM),orders:viewOrders,perf:viewPerf,perfu:()=>viewPerfUser(PARAM),tests:viewTests,test:()=>viewTakeTest(PARAM),tgrade:()=>viewGrade(PARAM),emps:viewEmps,payroll:viewPayroll,offers:viewOffers,meetings:viewMeetings,policy:()=>viewPolicy(),branch:()=>viewBranch(PARAM),insp:()=>viewInsp(),inspf:()=>viewInspForm(PARAM),inspv:()=>viewInspView(PARAM),treasury:()=>viewTreasury(),freon:()=>frStrip(can('stock')?`<div class="row between"><h2>المخزن</h2>${stockTabs()}</div>`+viewFreon():viewFreon()),weekly:()=>viewWeekly(),analytics:()=>viewAnalytics(),ledger:()=>viewLedger(),audit:()=>viewAudit(),archive:()=>viewArchive(),empf:()=>viewEmpFile(PARAM),users:viewUsers,settings:()=>(can('nav_order')?navOrderPanel():'')+(can('settings')?viewSettings():'')};
+  m.innerHTML=subBanner()+banner+hubBar(VIEW)+(V[VIEW]||viewHome)();
   if(VIEW==='new'||VIEW==='edit')initForm();
   if(VIEW==='settings'&&can('settings'))bindSettings();
   if(VIEW==='settings')bindNavOrder();
@@ -1808,7 +1811,7 @@ function clientForm(c){
 function openClientModal(id){
   const c=id?client(id):null;CUR_CID=c?.id||'';
   modal(clientForm(c),async()=>{
-    const name=$('#c_name').value.trim()||$('#c_clinic').value.trim();if(!name){toast('اكتب اسم العيادة');return false}
+    const name=$('#c_name').value.trim()||$('#c_clinic').value.trim();if(!name){toast('اكتب اسم العيادة');return false}if(!c&&!subLimitClient())return false;
     const mkAcc=!c&&$('#c_acc')?.checked;const un=mkAcc?normD($('#c_un').value).trim().toLowerCase():'',pw=mkAcc?normD($('#c_pw').value):'';
     if(mkAcc){if(!USER_RE.test(un)){toast('اسم المستخدم لازم حروف إنجليزي صغيرة أو أرقام (3 على الأقل) من غير مسافات');return false}if(S.users.some(u=>u.username===un)){toast('اسم المستخدم ده موجود قبل كده');return false}if(pw.length<6){toast('كلمة السر 6 حروف أو أرقام على الأقل');return false}}
     const blks=$$('#brRows .br-block');if(!blks.length){toast('لازم فرع واحد على الأقل');return false}const bnames=blks.map(bl=>bl.querySelector('.b-name').value.trim());if(bnames.some(x=>!x)){toast('اكتب اسم كل فرع');return false}if(new Set(bnames).size!==bnames.length){toast('فيه فرعين بنفس الاسم');return false}
@@ -2793,131 +2796,136 @@ service cloud.firestore {
     function ownClient() { return active() && me().role == 'clinic' && resource.data.clientId == me().clientId; }
     function mineDoc() { return isStaff() && resource.data.uid == request.auth.uid; }
     function approver() { return isStaff() && request.auth.uid in resource.data.approvers; }
+    function isDev() { return active() && me().get('owner', false) == true; }
+    function subOn() { return exists(/databases/$(database)/documents/meta/sub) && get(/databases/$(database)/documents/meta/sub).data.get('lockAt', null) != null; }
+    function wOK() { return !subOn() || request.time < get(/databases/$(database)/documents/meta/sub).data.lockAt || isDev(); }
+    function rOK() { return !subOn() || request.time < get(/databases/$(database)/documents/meta/sub).data.lockAt || get(/databases/$(database)/documents/meta/sub).data.get('mode', 'read') != 'full' || isDev(); }
 
+    match /meta/sub { allow read: if signed(); allow write: if isDev(); }
     match /meta/admin { allow read: if true; allow create: if signed() && !exists(/databases/$(database)/documents/meta/admin); }
-    match /meta/settings { allow read: if signed(); allow write: if can('settings'); }
-    match /meta/nav { allow read: if signed(); allow write: if can('nav_order'); }
-    match /meta/gs { allow read: if isStaff(); allow write: if isAdmin(); }
-    match /meta/counter { allow read, write: if isStaff(); }
-    match /days/{d} { allow read, write: if signed(); }
+    match /meta/settings { allow read: if signed(); allow write: if (can('settings')) && wOK(); }
+    match /meta/nav { allow read: if signed(); allow write: if (can('nav_order')) && wOK(); }
+    match /meta/gs { allow read: if isStaff(); allow write: if (isAdmin()) && wOK(); }
+    match /meta/counter { allow read: if isStaff(); allow write: if (isStaff()) && wOK(); }
+    match /days/{d} { allow read: if (signed()) && rOK(); allow write: if (signed()) && wOK(); }
 
     match /users/{uid} {
       allow read: if signed() && (request.auth.uid == uid || isStaff());
-      allow create: if (can('users') && request.resource.data.get('owner', false) != true) || (request.auth.uid == uid && request.resource.data.role == 'admin' && !exists(/databases/$(database)/documents/meta/admin));
-      allow update: if (can('users') && notOwnerDoc()) || (request.auth.uid == uid && isAdmin()) || (can('leave_bal') && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['leaveBal']));
-      allow delete: if can('users') && resource.data.get('owner', false) != true && request.auth.uid != uid;
+      allow create: if ((can('users') && request.resource.data.get('owner', false) != true) || (request.auth.uid == uid && request.resource.data.role == 'admin' && !exists(/databases/$(database)/documents/meta/admin))) && wOK();
+      allow update: if ((can('users') && notOwnerDoc()) || (request.auth.uid == uid && isAdmin()) || (can('leave_bal') && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['leaveBal']))) && wOK();
+      allow delete: if (can('users') && resource.data.get('owner', false) != true && request.auth.uid != uid) && wOK();
     }
     match /clients/{id} {
-      allow read: if isStaff() || (hasUser() && me().clientId == id);
-      allow create, update: if isStaff();
-      allow delete: if can('clients_delete');
+      allow read: if (isStaff() || (hasUser() && me().clientId == id)) && rOK();
+      allow create, update: if (isStaff()) && wOK();
+      allow delete: if (can('clients_delete')) && wOK();
     }
-    match /parts/{id} { allow read, create, update: if isStaff(); allow delete: if can('stock_edit'); }
-    match /units/{id} { allow read, create, update: if isStaff(); allow delete: if can('stock_edit'); }
-    match /returns/{id} { allow read, write: if isStaff(); }
-    match /reports/{id} { allow read: if isStaff() || ownClient(); allow create, update: if isStaff(); allow delete: if can('delete'); }
+    match /parts/{id} { allow read: if (isStaff()) && rOK(); allow create, update: if (isStaff()) && wOK(); allow delete: if (can('stock_edit')) && wOK(); }
+    match /units/{id} { allow read: if (isStaff()) && rOK(); allow create, update: if (isStaff()) && wOK(); allow delete: if (can('stock_edit')) && wOK(); }
+    match /returns/{id} { allow read: if (isStaff()) && rOK(); allow write: if (isStaff()) && wOK(); }
+    match /reports/{id} { allow read: if (isStaff() || ownClient()) && rOK(); allow create, update: if (isStaff()) && wOK(); allow delete: if (can('delete')) && wOK(); }
     match /contractReqs/{id} {
-      allow read: if can('contracts') || can('clients') || ownClient();
-      allow create: if active() && me().role == 'clinic' && request.resource.data.clientId == me().clientId && request.resource.data.status == 'new';
-      allow update: if can('contracts') || (ownClient() && resource.data.status == 'new' && request.resource.data.status == 'cancelled');
-      allow delete: if can('req_delete') || can('contracts');
+      allow read: if (can('contracts') || can('clients') || ownClient()) && rOK();
+      allow create: if (active() && me().role == 'clinic' && request.resource.data.clientId == me().clientId && request.resource.data.status == 'new') && wOK();
+      allow update: if (can('contracts') || (ownClient() && resource.data.status == 'new' && request.resource.data.status == 'cancelled')) && wOK();
+      allow delete: if (can('req_delete') || can('contracts')) && wOK();
     }
-    match /contracts/{id} { allow read: if isStaff() || ownClient(); allow create, update: if isStaff(); allow delete: if can('delete'); }
-    match /payments/{id} { allow read: if isStaff() || ownClient(); allow create, update: if isStaff(); allow delete: if can('delete') || can('invoice_delete'); }
-    match /partReturns/{id} { allow read: if isStaff() || ownClient(); allow write: if can('returns'); }
+    match /contracts/{id} { allow read: if (isStaff() || ownClient()) && rOK(); allow create, update: if (isStaff()) && wOK(); allow delete: if (can('delete')) && wOK(); }
+    match /payments/{id} { allow read: if (isStaff() || ownClient()) && rOK(); allow create, update: if (isStaff()) && wOK(); allow delete: if (can('delete') || can('invoice_delete')) && wOK(); }
+    match /partReturns/{id} { allow read: if (isStaff() || ownClient()) && rOK(); allow write: if (can('returns')) && wOK(); }
     match /requests/{id} {
-      allow read: if isStaff() || (signed() && resource.data.uid == request.auth.uid);
-      allow create: if isStaff() || (hasUser() && request.resource.data.uid == request.auth.uid && request.resource.data.clientId == me().clientId);
-      allow update: if isStaff();
-      allow delete: if can('req_delete') || can('requests');
+      allow read: if (isStaff() || (signed() && resource.data.uid == request.auth.uid)) && rOK();
+      allow create: if (isStaff() || (hasUser() && request.resource.data.uid == request.auth.uid && request.resource.data.clientId == me().clientId)) && wOK();
+      allow update: if (isStaff()) && wOK();
+      allow delete: if (can('req_delete') || can('requests')) && wOK();
     }
-    match /suppliers/{id} { allow read: if can('freon_buy') || can('capital_view') || can('suppliers') || can('accounts') || can('devices') || can('treasury') || can('treasury_view') || can('suppay_req') || can('suppay_approve') || can('ext_repair') || can('freon') || can('place_loc'); allow create, update: if can('freon_buy') || can('suppliers') || can('ext_repair') || can('freon') || can('place_loc'); allow delete: if can('suppliers_delete'); }
-    match /purchases/{id} { allow read: if can('freon_buy') || can('capital_view') || can('suppliers') || can('accounts') || can('devices') || can('treasury') || can('treasury_view') || can('suppay_req') || can('suppay_approve') || can('ext_repair') || can('freon'); allow write: if can('freon_buy') || can('suppliers') || can('devices') || can('ext_repair') || can('freon') || can('invoice_delete'); }
-    match /supplierPayments/{id} { allow read: if can('capital_view') || can('suppliers') || can('accounts') || can('treasury') || can('treasury_view') || can('suppay_req') || can('suppay_approve'); allow write: if can('suppliers') || can('treasury'); }
-    match /sales/{id} { allow read: if can('capital_view') || can('devices') || can('ar') || can('accounts') || can('treasury') || can('treasury_view') || ownClient(); allow write: if can('devices'); }
-    match /rentals/{id} { allow read: if can('capital_view') || can('devices') || can('ar') || can('accounts') || can('part_rent') || ownClient(); allow write: if can('devices') || can('part_rent'); }
-    match /stockcounts/{id} { allow read: if can('stock_count') || can('stock_count_approve') || can('accounts'); allow create, update: if can('stock_count') || can('stock_count_approve'); allow delete: if can('stock_count_approve'); }
-    match /freon/{id} { allow read: if can('freon_collect') || can('freon_buy') || can('freon_fill') || can('freon_empties') || can('freon_sell') || can('freon_ret') || can('freon_send') || can('freon_edit') || can('capital_view') || can('freon') || can('freon_view') || can('accounts') || can('invoice_delete'); allow write: if can('freon') || can('freon_buy') || can('freon_fill') || can('freon_sell') || can('freon_edit') || can('invoice_delete'); }
-    match /stockDevices/{id} { allow read: if can('capital_view') || can('devices') || can('accounts'); allow write: if can('devices'); }
-    match /partSales/{id} { allow read: if can('freon_sell') || can('freon') || can('ext_repair') || can('capital_view') || can('part_sales') || can('cons_sales') || can('ar') || can('accounts') || can('orders_manage') || can('orders_work') || can('treasury') || can('treasury_view') || ownClient(); allow write: if can('freon_sell') || can('part_sales') || can('cons_sales') || can('orders_manage') || can('orders_work') || can('freon') || can('ext_repair') || can('invoice_delete'); }
-    match /offers/{id} { allow read: if active(); allow write: if can('offers'); }
-    match /meetings/{id} { allow read: if isStaff(); allow create, delete: if can('meetings'); allow update: if can('meetings') || (isStaff() && request.auth.uid in resource.data.attendees); }
-    match /catalog/{id} { allow read: if active(); allow write: if isStaff(); }
+    match /suppliers/{id} { allow read: if (can('freon_buy') || can('capital_view') || can('suppliers') || can('accounts') || can('devices') || can('treasury') || can('treasury_view') || can('suppay_req') || can('suppay_approve') || can('ext_repair') || can('freon') || can('place_loc')) && rOK(); allow create, update: if (can('freon_buy') || can('suppliers') || can('ext_repair') || can('freon') || can('place_loc')) && wOK(); allow delete: if (can('suppliers_delete')) && wOK(); }
+    match /purchases/{id} { allow read: if (can('freon_buy') || can('capital_view') || can('suppliers') || can('accounts') || can('devices') || can('treasury') || can('treasury_view') || can('suppay_req') || can('suppay_approve') || can('ext_repair') || can('freon')) && rOK(); allow write: if (can('freon_buy') || can('suppliers') || can('devices') || can('ext_repair') || can('freon') || can('invoice_delete')) && wOK(); }
+    match /supplierPayments/{id} { allow read: if (can('capital_view') || can('suppliers') || can('accounts') || can('treasury') || can('treasury_view') || can('suppay_req') || can('suppay_approve')) && rOK(); allow write: if (can('suppliers') || can('treasury')) && wOK(); }
+    match /sales/{id} { allow read: if (can('capital_view') || can('devices') || can('ar') || can('accounts') || can('treasury') || can('treasury_view') || ownClient()) && rOK(); allow write: if (can('devices')) && wOK(); }
+    match /rentals/{id} { allow read: if (can('capital_view') || can('devices') || can('ar') || can('accounts') || can('part_rent') || ownClient()) && rOK(); allow write: if (can('devices') || can('part_rent')) && wOK(); }
+    match /stockcounts/{id} { allow read: if (can('stock_count') || can('stock_count_approve') || can('accounts')) && rOK(); allow create, update: if (can('stock_count') || can('stock_count_approve')) && wOK(); allow delete: if (can('stock_count_approve')) && wOK(); }
+    match /freon/{id} { allow read: if (can('freon_collect') || can('freon_buy') || can('freon_fill') || can('freon_empties') || can('freon_sell') || can('freon_ret') || can('freon_send') || can('freon_edit') || can('capital_view') || can('freon') || can('freon_view') || can('accounts') || can('invoice_delete')) && rOK(); allow write: if (can('freon') || can('freon_buy') || can('freon_fill') || can('freon_sell') || can('freon_edit') || can('invoice_delete')) && wOK(); }
+    match /stockDevices/{id} { allow read: if (can('capital_view') || can('devices') || can('accounts')) && rOK(); allow write: if (can('devices')) && wOK(); }
+    match /partSales/{id} { allow read: if (can('freon_sell') || can('freon') || can('ext_repair') || can('capital_view') || can('part_sales') || can('cons_sales') || can('ar') || can('accounts') || can('orders_manage') || can('orders_work') || can('treasury') || can('treasury_view') || ownClient()) && rOK(); allow write: if (can('freon_sell') || can('part_sales') || can('cons_sales') || can('orders_manage') || can('orders_work') || can('freon') || can('ext_repair') || can('invoice_delete')) && wOK(); }
+    match /offers/{id} { allow read: if (active()) && rOK(); allow write: if (can('offers')) && wOK(); }
+    match /meetings/{id} { allow read: if (isStaff()) && rOK(); allow create, delete: if (can('meetings')) && wOK(); allow update: if (can('meetings') || (isStaff() && request.auth.uid in resource.data.attendees)) && wOK(); }
+    match /catalog/{id} { allow read: if (active()) && rOK(); allow write: if (isStaff()) && wOK(); }
     match /orders/{id} {
-      allow read: if can('orders_manage') || can('orders_work') || can('ar') || can('accounts') || ownClient();
-      allow create: if can('orders_manage') || (active() && me().role == 'clinic' && request.resource.data.clientId == me().clientId && request.resource.data.status == 'new' && get(/databases/$(database)/documents/clients/$(me().clientId)).data.get('shop', false) == true);
-      allow update: if can('orders_manage') || can('orders_work') || (ownClient() && resource.data.status == 'new' && request.resource.data.status == 'cancelled');
-      allow delete: if can('req_delete') || can('orders_manage');
+      allow read: if (can('orders_manage') || can('orders_work') || can('ar') || can('accounts') || ownClient()) && rOK();
+      allow create: if (can('orders_manage') || (active() && me().role == 'clinic' && request.resource.data.clientId == me().clientId && request.resource.data.status == 'new' && get(/databases/$(database)/documents/clients/$(me().clientId)).data.get('shop', false) == true)) && wOK();
+      allow update: if (can('orders_manage') || can('orders_work') || (ownClient() && resource.data.status == 'new' && request.resource.data.status == 'cancelled')) && wOK();
+      allow delete: if (can('req_delete') || can('orders_manage')) && wOK();
     }
-    match /notifs/{id} { allow read: if isStaff(); allow create: if active(); allow update, delete: if can('users'); }
+    match /notifs/{id} { allow read: if (isStaff()) && rOK(); allow create: if (active()) && wOK(); allow update, delete: if (can('users')) && wOK(); }
     match /ratings/{id} {
-      allow read: if can('evals') || (isStaff() && resource.data.engineerId == request.auth.uid) || ownClient();
-      allow create: if active() && me().role == 'clinic' && request.resource.data.clientId == me().clientId;
-      allow update, delete: if can('evals');
+      allow read: if (can('evals') || (isStaff() && resource.data.engineerId == request.auth.uid) || ownClient()) && rOK();
+      allow create: if (active() && me().role == 'clinic' && request.resource.data.clientId == me().clientId) && wOK();
+      allow update, delete: if (can('evals')) && wOK();
     }
-    match /punches/{id} { allow read: if can('hr') || can('payroll_prep') || can('payroll_approve') || can('home_att') || mineDoc(); allow create: if isStaff() && request.resource.data.uid == request.auth.uid; allow update, delete: if can('hr'); }
-    match /tests/{id} { allow read: if isStaff(); allow write: if can('tests'); }
-    match /testKeys/{id} { allow read, write: if can('tests'); }
+    match /punches/{id} { allow read: if (can('hr') || can('payroll_prep') || can('payroll_approve') || can('home_att') || mineDoc()) && rOK(); allow create: if (isStaff() && request.resource.data.uid == request.auth.uid) && wOK(); allow update, delete: if (can('hr')) && wOK(); }
+    match /tests/{id} { allow read: if (isStaff()) && rOK(); allow write: if (can('tests')) && wOK(); }
+    match /testKeys/{id} { allow read: if (can('tests')) && rOK(); allow write: if (can('tests')) && wOK(); }
     match /testAnswers/{id} {
-      allow read: if can('tests') || mineDoc();
-      allow create: if isStaff() && request.resource.data.uid == request.auth.uid && request.resource.data.status == 'submitted';
-      allow update, delete: if can('tests');
+      allow read: if (can('tests') || mineDoc()) && rOK();
+      allow create: if (isStaff() && request.resource.data.uid == request.auth.uid && request.resource.data.status == 'submitted') && wOK();
+      allow update, delete: if (can('tests')) && wOK();
     }
-    match /empFiles/{id} { allow read: if can('emp_files') || mineDoc(); allow write: if can('emp_files'); }
-    match /empDocs/{id} { allow read: if can('emp_files') || mineDoc(); allow write: if can('emp_files'); }
-    match /attendance/{id} { allow read: if can('attendance') || can('payroll_prep') || can('payroll_approve') || can('home_att'); allow write: if can('attendance'); }
-    match /salaries/{id} { allow read: if can('salary_set') || can('payroll_prep') || can('payroll_approve'); allow write: if can('salary_set'); }
-    match /payroll/{id} { allow read: if can('capital_view') || can('payroll_prep') || can('payroll_approve') || can('treasury') || can('treasury_view'); allow create, update: if can('payroll_prep') || can('payroll_approve'); allow delete: if can('payroll_approve'); }
-    match /payslips/{id} { allow read: if can('payroll_approve') || mineDoc(); allow write: if can('payroll_approve'); }
+    match /empFiles/{id} { allow read: if (can('emp_files') || mineDoc()) && rOK(); allow write: if (can('emp_files')) && wOK(); }
+    match /empDocs/{id} { allow read: if (can('emp_files') || mineDoc()) && rOK(); allow write: if (can('emp_files')) && wOK(); }
+    match /attendance/{id} { allow read: if (can('attendance') || can('payroll_prep') || can('payroll_approve') || can('home_att')) && rOK(); allow write: if (can('attendance')) && wOK(); }
+    match /salaries/{id} { allow read: if (can('salary_set') || can('payroll_prep') || can('payroll_approve')) && rOK(); allow write: if (can('salary_set')) && wOK(); }
+    match /payroll/{id} { allow read: if (can('capital_view') || can('payroll_prep') || can('payroll_approve') || can('treasury') || can('treasury_view')) && rOK(); allow create, update: if (can('payroll_prep') || can('payroll_approve')) && wOK(); allow delete: if (can('payroll_approve')) && wOK(); }
+    match /payslips/{id} { allow read: if (can('payroll_approve') || mineDoc()) && rOK(); allow write: if (can('payroll_approve')) && wOK(); }
     match /bonuses/{id} {
-      allow read: if can('bonuses') || can('bonuses_approve') || can('payroll_prep') || can('payroll_approve') || approver() || (isStaff() && resource.data.uid == request.auth.uid && resource.data.status == 'approved');
-      allow create: if can('bonuses_approve') || (can('bonuses') && request.resource.data.status == 'pending' && request.resource.data.by == request.auth.uid);
-      allow update: if can('bonuses_approve') || approver();
-      allow delete: if can('req_delete') || can('bonuses_approve') || (can('bonuses') && resource.data.status == 'pending' && resource.data.by == request.auth.uid);
+      allow read: if (can('bonuses') || can('bonuses_approve') || can('payroll_prep') || can('payroll_approve') || approver() || (isStaff() && resource.data.uid == request.auth.uid && resource.data.status == 'approved')) && rOK();
+      allow create: if (can('bonuses_approve') || (can('bonuses') && request.resource.data.status == 'pending' && request.resource.data.by == request.auth.uid)) && wOK();
+      allow update: if (can('bonuses_approve') || approver()) && wOK();
+      allow delete: if (can('req_delete') || can('bonuses_approve') || (can('bonuses') && resource.data.status == 'pending' && resource.data.by == request.auth.uid)) && wOK();
     }
-    match /evals/{id} { allow read: if can('evals') || mineDoc(); allow write: if can('evals'); }
+    match /evals/{id} { allow read: if (can('evals') || mineDoc()) && rOK(); allow write: if (can('evals')) && wOK(); }
     match /penalties/{id} {
-      allow read: if can('penalties') || can('penalties_approve') || can('payroll_prep') || can('payroll_approve') || approver() || (isStaff() && resource.data.uid == request.auth.uid && resource.data.status == 'approved');
-      allow create: if can('penalties_approve') || (can('penalties') && request.resource.data.status == 'pending' && request.resource.data.by == request.auth.uid);
-      allow update: if can('penalties_approve') || approver();
-      allow delete: if can('req_delete') || can('penalties_approve') || (can('penalties') && resource.data.status == 'pending' && resource.data.by == request.auth.uid);
+      allow read: if (can('penalties') || can('penalties_approve') || can('payroll_prep') || can('payroll_approve') || approver() || (isStaff() && resource.data.uid == request.auth.uid && resource.data.status == 'approved')) && rOK();
+      allow create: if (can('penalties_approve') || (can('penalties') && request.resource.data.status == 'pending' && request.resource.data.by == request.auth.uid)) && wOK();
+      allow update: if (can('penalties_approve') || approver()) && wOK();
+      allow delete: if (can('req_delete') || can('penalties_approve') || (can('penalties') && resource.data.status == 'pending' && resource.data.by == request.auth.uid)) && wOK();
     }
-    match /inspections/{id} { allow read: if can('inspections'); allow create, update: if can('inspections'); allow delete: if can('inspections'); }
-    match /secrets/{id} { allow read: if isAdmin(); allow create, update: if can('users') || request.auth.uid == id; allow delete: if isAdmin(); }
-    match /weekrep/{id} { allow read: if can('weekly_report') || can('weekly_view') || isAdmin() || (isStaff() && me().get('nonEmp', false) == true) || (isStaff() && resource.data.approverId == request.auth.uid); allow create: if can('weekly_report') && request.resource.data.uid == request.auth.uid; allow update: if (isStaff() && resource.data.approverId == request.auth.uid) || (can('weekly_report') && resource.data.uid == request.auth.uid); allow delete: if isAdmin() || (can('weekly_report') && resource.data.uid == request.auth.uid && resource.data.status != 'approved'); }
-    match /audit/{id} { allow read: if isAdmin(); allow create: if isStaff() && request.resource.data.uid == request.auth.uid; allow update: if false; allow delete: if isAdmin(); }
-    match /verify/{id} { allow get: if true; allow list: if false; allow create, update: if isStaff(); allow delete: if isAdmin(); }
-    match /deleted/{id} { allow read, create: if active() && me().role != 'clinic'; allow update: if false; allow delete: if isAdmin(); }
-    match /archive/{id} { allow read: if can('reports_all') || can('accounts') || isAdmin(); allow write: if isAdmin(); }
-    match /notes/{id} { allow read, update, delete: if isStaff() && resource.data.uid == request.auth.uid; allow create: if isStaff() && request.resource.data.uid == request.auth.uid; }
+    match /inspections/{id} { allow read: if (can('inspections')) && rOK(); allow create, update: if (can('inspections')) && wOK(); allow delete: if (can('inspections')) && wOK(); }
+    match /secrets/{id} { allow read: if (isAdmin()) && rOK(); allow create, update: if (can('users') || request.auth.uid == id) && wOK(); allow delete: if (isAdmin()) && wOK(); }
+    match /weekrep/{id} { allow read: if (can('weekly_report') || can('weekly_view') || isAdmin() || (isStaff() && me().get('nonEmp', false) == true) || (isStaff() && resource.data.approverId == request.auth.uid)) && rOK(); allow create: if (can('weekly_report') && request.resource.data.uid == request.auth.uid) && wOK(); allow update: if ((isStaff() && resource.data.approverId == request.auth.uid) || (can('weekly_report') && resource.data.uid == request.auth.uid)) && wOK(); allow delete: if (isAdmin() || (can('weekly_report') && resource.data.uid == request.auth.uid && resource.data.status != 'approved')) && wOK(); }
+    match /audit/{id} { allow read: if (isAdmin()) && rOK(); allow create: if (isStaff() && request.resource.data.uid == request.auth.uid) && wOK(); allow update: if false; allow delete: if (isAdmin()) && wOK(); }
+    match /verify/{id} { allow get: if true; allow list: if false; allow create, update: if (isStaff()) && wOK(); allow delete: if (isAdmin()) && wOK(); }
+    match /deleted/{id} { allow read: if (active() && me().role != 'clinic') && rOK(); allow create: if (active() && me().role != 'clinic') && wOK(); allow update: if false; allow delete: if (isAdmin()) && wOK(); }
+    match /archive/{id} { allow read: if (can('reports_all') || can('accounts') || isAdmin()) && rOK(); allow write: if (isAdmin()) && wOK(); }
+    match /notes/{id} { allow read: if (isStaff() && resource.data.uid == request.auth.uid) && rOK(); allow update, delete: if (isStaff() && resource.data.uid == request.auth.uid) && wOK(); allow create: if (isStaff() && request.resource.data.uid == request.auth.uid) && wOK(); }
     match /handovers/{id} {
-      allow read: if can('capital_view') || can('handover_recv') || can('accounts') || can('treasury') || can('custody') || mineDoc() || approver();
-      allow create: if isStaff() && request.resource.data.uid == request.auth.uid && request.resource.data.status == 'pending';
-      allow update: if can('handover_recv') || can('handover_parts') || approver();
-      allow delete: if can('req_delete') || mineDoc() && resource.data.status == 'pending';
+      allow read: if (can('capital_view') || can('handover_recv') || can('accounts') || can('treasury') || can('custody') || mineDoc() || approver()) && rOK();
+      allow create: if (isStaff() && request.resource.data.uid == request.auth.uid && request.resource.data.status == 'pending') && wOK();
+      allow update: if (can('handover_recv') || can('handover_parts') || approver()) && wOK();
+      allow delete: if (can('req_delete') || mineDoc() && resource.data.status == 'pending') && wOK();
     }
-    match /policies/{id} { allow read: if isStaff(); allow write: if can('policy_edit'); }
-    match /comps/{id} { allow read: if can('extra_pay') || can('payroll_prep') || can('payroll_approve') || can('hr') || mineDoc(); allow write: if can('extra_pay'); }
-    match /treasury/{id} { allow read: if can('treasury') || can('treasury_view') || can('accounts') || can('treasury_cfg') || can('capital_view'); allow create, update: if can('treasury') || (can('treasury_cfg') && id == 'cfg') || (can('capital_move') && request.resource.data.get('cap', false) == true); allow delete: if can('treasury') || (can('capital_move') && resource.data.get('cap', false) == true); }
-    match /capsnaps/{id} { allow read, write: if can('capital_view'); }
-    match /frret/{id} { allow read: if can('freon_collect') || can('freon_buy') || can('freon_fill') || can('freon_empties') || can('freon_sell') || can('freon_ret') || can('freon_send') || can('freon_edit') || can('freon') || can('freon_view') || can('accounts') || can('capital_view'); allow write: if can('freon') || can('freon_ret') || can('freon_send') || can('freon_edit') || can('freon_collect'); }
+    match /policies/{id} { allow read: if (isStaff()) && rOK(); allow write: if (can('policy_edit')) && wOK(); }
+    match /comps/{id} { allow read: if (can('extra_pay') || can('payroll_prep') || can('payroll_approve') || can('hr') || mineDoc()) && rOK(); allow write: if (can('extra_pay')) && wOK(); }
+    match /treasury/{id} { allow read: if (can('treasury') || can('treasury_view') || can('accounts') || can('treasury_cfg') || can('capital_view')) && rOK(); allow create, update: if (can('treasury') || (can('treasury_cfg') && id == 'cfg') || (can('capital_move') && request.resource.data.get('cap', false) == true)) && wOK(); allow delete: if (can('treasury') || (can('capital_move') && resource.data.get('cap', false) == true)) && wOK(); }
+    match /capsnaps/{id} { allow read: if (can('capital_view')) && rOK(); allow write: if (can('capital_view')) && wOK(); }
+    match /frret/{id} { allow read: if (can('freon_collect') || can('freon_buy') || can('freon_fill') || can('freon_empties') || can('freon_sell') || can('freon_ret') || can('freon_send') || can('freon_edit') || can('freon') || can('freon_view') || can('accounts') || can('capital_view')) && rOK(); allow write: if (can('freon') || can('freon_ret') || can('freon_send') || can('freon_edit') || can('freon_collect')) && wOK(); }
     match /vouchers/{id} {
-      allow read: if can('capital_view') || can('vouchers_approve') || can('suppay_approve') || can('treasury') || can('treasury_view') || can('accounts') || mineDoc() || approver();
-      allow create: if can('treasury') || ((can('vouchers') || can('suppay_req')) && request.resource.data.uid == request.auth.uid && request.resource.data.status == 'pending');
-      allow update: if can('treasury') || can('vouchers_approve') || can('suppay_approve') || approver();
-      allow delete: if can('req_delete') || can('treasury') || (mineDoc() && resource.data.status == 'pending');
+      allow read: if (can('capital_view') || can('vouchers_approve') || can('suppay_approve') || can('treasury') || can('treasury_view') || can('accounts') || mineDoc() || approver()) && rOK();
+      allow create: if (can('treasury') || ((can('vouchers') || can('suppay_req')) && request.resource.data.uid == request.auth.uid && request.resource.data.status == 'pending')) && wOK();
+      allow update: if (can('treasury') || can('vouchers_approve') || can('suppay_approve') || approver()) && wOK();
+      allow delete: if (can('req_delete') || can('treasury') || (mineDoc() && resource.data.status == 'pending')) && wOK();
     }
     match /custody/{id} {
-      allow read: if can('capital_view') || can('custody') || can('accounts') || can('treasury') || can('treasury_view') || mineDoc() || approver();
-      allow create: if can('custody') || (isStaff() && request.resource.data.uid == request.auth.uid && request.resource.data.kind == 'expense' && request.resource.data.status == 'pending');
-      allow update: if can('custody') || approver();
-      allow delete: if can('req_delete') || can('custody') || (mineDoc() && resource.data.kind == 'expense' && resource.data.status == 'pending');
+      allow read: if (can('capital_view') || can('custody') || can('accounts') || can('treasury') || can('treasury_view') || mineDoc() || approver()) && rOK();
+      allow create: if (can('custody') || (isStaff() && request.resource.data.uid == request.auth.uid && request.resource.data.kind == 'expense' && request.resource.data.status == 'pending')) && wOK();
+      allow update: if (can('custody') || approver()) && wOK();
+      allow delete: if (can('req_delete') || can('custody') || (mineDoc() && resource.data.kind == 'expense' && resource.data.status == 'pending')) && wOK();
     }
     match /hr/{id} {
-      allow read: if can('capital_view') || can('hr') || can('payroll_prep') || can('payroll_approve') || can('loans') || can('custody') || can('home_att') || mineDoc() || approver();
-      allow create: if (isStaff() && request.resource.data.uid == request.auth.uid && request.resource.data.status == 'pending') || can('assign') || can('assign_mission') || can('hr');
-      allow update: if can('hr') || can('loans') || can('custody') || approver() || (mineDoc() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['loc','_u']));
-      allow delete: if can('req_delete') || can('hr') || (mineDoc() && resource.data.status == 'pending');
+      allow read: if (can('capital_view') || can('hr') || can('payroll_prep') || can('payroll_approve') || can('loans') || can('custody') || can('home_att') || mineDoc() || approver()) && rOK();
+      allow create: if ((isStaff() && request.resource.data.uid == request.auth.uid && request.resource.data.status == 'pending') || can('assign') || can('assign_mission') || can('hr')) && wOK();
+      allow update: if (can('hr') || can('loans') || can('custody') || approver() || (mineDoc() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['loc','_u']))) && wOK();
+      allow delete: if (can('req_delete') || can('hr') || (mineDoc() && resource.data.status == 'pending')) && wOK();
     }
   }
 }
@@ -4998,7 +5006,7 @@ async function inspSend(id,mode){
   }catch(e){if(e?.name!=='AbortError')toast('معرفتش أعمل التقرير — جرب تاني')}
 }
 function inspToClient(id){
-  const x=INSPS().find(y=>y.id===id);if(!x||x.clientId)return;const cl=x.cl||{};
+  const x=INSPS().find(y=>y.id===id);if(!x||x.clientId)return;if(!subLimitClient())return;const cl=x.cl||{};
   confirmBox(`تسجيل "${cl.clinic||cl.name}" كعميل جديد في السيستم ومعاه الجهاز ده؟`,()=>{
     const d=x.device||{};const c={id:uid(),name:cl.name||cl.clinic,clinic:cl.clinic||'',phone:cl.phone||'',address:[cl.address,cl.gov].filter(Boolean).join(' – '),type:'visit',notes:'اتسجل من كشف K-'+pad(x.no),branches:[],devices:[{brand:d.brand||'',name:d.name||'',model:d.model||'',serial:d.serial||'',branch:x.branch||''}],createdAt:new Date().toISOString()};
     S.clients.push(c);x.clientId=c.id;save();toast('اتسجل العميل ✓');go('client',c.id);
@@ -6171,7 +6179,7 @@ let XR_PRE='';
 
 
 /* ---------- فحص التحديثات ---------- */
-const APP_VER='2026.10.31.3';
+const APP_VER='2026.11.01.1';
 async function checkUpdate(){try{if(location.protocol==='file:')return;const t=await (await fetch(location.pathname+'?_='+Date.now(),{cache:'no-store'})).text();const m=t.match(/const APP_VER='([^']+)'/);if(m&&m[1]!==APP_VER)showUpd(m[1])}catch(e){}}
 function showUpd(v){if(document.getElementById('updBar'))return;const b=document.createElement('div');b.id='updBar';b.style.cssText='position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:80;background:#1d2b45;color:#fff;padding:10px 16px;border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,.25);display:flex;gap:12px;align-items:center;font-weight:600;max-width:92vw';b.innerHTML='<span>🔄 فيه نسخة جديدة من السيستم</span><button type="button" style="background:#2b8fb8;color:#fff;border:0;border-radius:10px;padding:6px 14px;font:inherit;cursor:pointer">حدّث دلوقتي</button>';b.querySelector('button').onclick=()=>{location.replace(location.pathname+'?v='+encodeURIComponent(v)+location.hash)};document.body.appendChild(b)}
 setTimeout(checkUpdate,8000);setInterval(checkUpdate,5*60*1000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkUpdate()});
@@ -6808,7 +6816,7 @@ function gsRow(c,x){const o={};
   return o}
 const SHQ=new Map();let SHT=null;
 function gsOn(c){const g=gsCfg();return !!(g.url&&g.on!==false&&(g.cols||GS_DEF).includes(c)&&GS_COLS[c])}
-function gsQ(c,id,s){if(!gsOn(c))return;SHQ.set(c+'|'+id,{c,id,del:s==null});clearTimeout(SHT);SHT=setTimeout(gsFlush,1200)}
+function gsQ(c,id,s){if(!gsOn(c)||!subMod('gs'))return;SHQ.set(c+'|'+id,{c,id,del:s==null});clearTimeout(SHT);SHT=setTimeout(gsFlush,1200)}
 async function gsPost(body){const g=gsCfg();if(!g.url)return false;try{const bodyS=JSON.stringify({token:g.token,...body});await fetch(g.url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:bodyS,keepalive:bodyS.length<60000});try{localStorage.setItem('pm-gs-last',new Date().toISOString())}catch(e){}return true}catch(e){return false}}
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&SHQ.size){clearTimeout(SHT);gsFlush()}});
 async function gsFlush(){const items=[...SHQ.values()];SHQ.clear();if(!items.length)return;
@@ -7352,6 +7360,74 @@ function dsPanel(){if(!ONLINE||isClinic())return '';const L=Object.values(DS.col
    <div class="muted small">${ch} نوع بيانات من الجهاز · ${full} نوع اتحمّل كامل في الفتحة دي.</div>
    <div><button type="button" class="btn sm" data-act="dsRefresh">🔄 تحديث كامل دلوقتي</button></div></div>`}
 Object.assign(X9,{dsRefresh:()=>dsFullRefresh()});
+/* =====================================================================
+   v52 — الاشتراك الشهري: بيتحكم فيه حساب المطوّر بس
+   ===================================================================== */
+const SUB_MODS=[['freon','الفريون',['freon']],['sales','المبيعات والمستهلكات والعروض',['psales','orders','offers']],['devices','بيع وإيجار الأجهزة',['devices']],['contracts','عقود الصيانة',['contracts']],['suppliers','الموردين والمشتريات',['suppliers']],['finance','الحسابات والخزينة ورأس المال والآجل',['ar','accounts','capital','treasury','ledger']],['hr','الحضور والإجازات',['hr']],['payroll','المرتبات والمكافآت',['payroll']],['staff','إدارة الموظفين (العهدة، الاجتماعات، التقييم، الاختبارات، السياسة، الملفات)',['custody','meetings','perf','tests','policy','emps']],['weekly','التقارير الدورية',['weekly']],['analytics','التحليلات',['analytics']],['gs','النسخ لجوجل شيت',[]]];
+const SUB_TAB={};SUB_MODS.forEach(([k,,tabs])=>tabs.forEach(t=>SUB_TAB[t]=k));
+const subX=()=>S&&S.sub&&S.sub.on&&S.sub.until?S.sub:null;
+function subState(){const x=subX();if(!x)return {on:false,locked:false,grace:false,warn:false};const lockDay=addDays(x.until,n(x.grace));const left=daysTo(x.until);
+  const locked=today()>lockDay,grace=!locked&&today()>x.until,warn=!locked&&!grace&&left<=n(x.warn??7);return {on:true,x,left,lockDay,locked,grace,warn,mode:x.mode||'read'}}
+const subLockFull=()=>{if(!ME||isDev(ME))return false;const s=subState();return s.locked&&s.mode==='full'};
+const subRO=()=>{if(!ME||isDev(ME))return false;const s=subState();return s.locked};
+function subMod(k){if(ME&&isDev(ME))return true;const x=subX();return !x||!x.mods||x.mods[k]!==false}
+const modOn=tab=>{const k=SUB_TAB[tab];return !k||subMod(k)};
+TABS.forEach(t=>{const f=t[2];t[2]=()=>modOn(t[0])&&f()});
+TABS.splice(TABS.findIndex(t=>t[0]==='archive')+1,0,['subscr','الاشتراك',()=>isDev(ME)]);
+ICONS.subscr='<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h4"/>';
+const subContact=x=>x&&x.contact?` — للتجديد كلّم <b class="num" dir="ltr">${esc(x.contact)}</b>`:'';
+function subBanner(){const s=subState();if(!s.on||!ME)return '';const dev=isDev(ME),boss=dev||ME.role==='admin'||ME.role==='exec';
+  if(s.locked)return dev?`<div class="banner no-print">🔒 اشتراك الشركة منتهي من ${fd(s.lockDay)} — السيستم ${s.mode==='full'?'مقفول':'للقراءة بس'} عند الكل (إنت كمطوّر شغال عادي).</div>`:`<div class="banner no-print" style="border-color:var(--bad)">🔒 <b>الاشتراك منتهي</b> — السيستم للقراءة بس: تقدر تشوف وتطبع، بس مفيش إضافة ولا تعديل لحد ما الاشتراك يتجدد${subContact(s.x)}.</div>`;
+  if(s.grace)return `<div class="banner no-print" style="border-color:var(--bad)">⚠️ <b>الاشتراك خلص يوم ${fd(s.x.until)}</b> — السيستم ${s.mode==='full'?'هيتقفل':'هيبقى للقراءة بس'} يوم ${fd(addDays(s.lockDay,1))}${subContact(s.x)}.</div>`;
+  if(s.warn&&boss)return `<div class="banner no-print">📅 اشتراك السيستم بيخلص يوم <b>${fd(s.x.until)}</b> (فاضل ${s.left} يوم)${subContact(s.x)}.</div>`;
+  return ''}
+function subLockScreen(){const s=subState();return `<div class="panel grid" style="max-width:560px;margin:30px auto;text-align:center"><div style="font-size:2.6rem">🔒</div><h2 style="margin:0">اشتراك السيستم منتهي</h2><div class="muted">الاشتراك خلص يوم ${fd(s.x.until)}. بياناتك كلها محفوظة ومش هتضيع، وأول ما الاشتراك يتجدد السيستم هيرجع يشتغل على طول${subContact(s.x)}.</div></div>`}
+/* في وضع "قراءة بس": أي تعديل بيرجع زي ما كان */
+function subBlock(){toast('الاشتراك منتهي — السيستم للقراءة بس');
+  if(ONLINE){(SUBS||[]).forEach(c=>{if(SYNCED[c]instanceof Map)S[c]=[...SYNCED[c].values()].map(x=>JSON.parse(x))});if(typeof SYNCED.settings==='string')S.settings={...DEFAULT_SETTINGS,...JSON.parse(SYNCED.settings)}}
+  else{loadState().then(L=>{if(L){const keep=S.sub;S=L;S.settings={...DEFAULT_SETTINGS,...S.settings};ALL_COLS.forEach(c=>S[c]=S[c]||[]);if(keep)S.sub=keep;render()}}).catch(()=>{})}
+  setTimeout(()=>{try{closeModal(true)}catch(e){}render()},0)}
+const subUsersN=()=>S.users.filter(u=>!u.owner&&u.role!=='clinic'&&u.active!==false).length;
+function subLimitUser(role){const x=subX();if(!x||(ME&&isDev(ME))||role==='clinic')return;if(n(x.maxUsers)>0&&subUsersN()>=n(x.maxUsers))throw `الباقة الحالية مسموح فيها بـ ${n(x.maxUsers)} مستخدم بس — كلّم مسئول السيستم لزيادة العدد`}
+function subLimitClient(){const x=subX();if(!x||(ME&&isDev(ME)))return true;if(n(x.maxClients)>0&&(S.clients||[]).length>=n(x.maxClients)){toast(`الباقة الحالية مسموح فيها بـ ${n(x.maxClients)} عيادة بس — كلّم مسئول السيستم لزيادة العدد`);return false}return true}
+/* ---------- صفحة المطوّر ---------- */
+async function subWrite(x){x={...x};x.lockAt=null;
+  if(x.on&&x.until){const d=new Date(addDays(x.until,n(x.grace)+1)+'T00:00:00');x.lockAt=ONLINE?firebase.firestore.Timestamp.fromDate(d):d.toISOString()}
+  x.updatedAt=new Date().toISOString();x.by=ME.id;
+  if(ONLINE){await FB.db.doc('meta/sub').set(x);S.sub=x}else{S.sub=x;save()}}
+function viewSubscr(){if(!isDev(ME))return '<div class="empty">الصفحة دي للمطوّر بس</div>';
+  const x=S.sub||{on:false,until:'',grace:3,warn:7,mode:'read',price:0,maxUsers:0,maxClients:0,mods:{},contact:'',log:[]};const s=subState();
+  const st=!x.on?'<span class="pill p-mut">مقفول — السيستم شغال من غير اشتراك</span>':s.locked?`<span class="pill p-bad">منتهي — ${x.mode==='full'?'مقفول':'قراءة بس'}</span>`:s.grace?'<span class="pill p-bad">في فترة السماح</span>':`<span class="pill p-ok">ساري لحد ${fd(x.until)} · فاضل ${s.left} يوم</span>`;
+  return `<div class="row between"><h2>اشتراك السيستم</h2>${st}</div>
+  <div class="muted small">الصفحة دي بتظهر لحساب المطوّر بس. الحماية متطبقة في قواعد Firebase كمان، فمحدش يقدر يتخطاها.</div>
+  <div class="panel grid"><div class="row between"><h3 style="margin:0">التجديد</h3><div class="row">${[1,3,6,12].map(m=>`<button class="btn sm ${m===1?'pri':''}" data-act="subRenew" data-id="${m}">+ ${m===12?'سنة':m+' شهر'}</button>`).join('')}</div></div>
+   <div class="muted small">التجديد بيبدأ من آخر يوم في الاشتراك الحالي (أو من النهارده لو خلص)، وبيتسجل في السجل تحت.</div></div>
+  <form id="subF" class="panel grid"><h3 style="margin:0">الإعدادات</h3>
+   <label class="row" style="gap:8px"><input type="checkbox" id="sb_on" style="width:auto" ${x.on?'checked':''}> <b>الاشتراك مفعّل</b> <span class="muted small">— لو مقفول، السيستم شغال عادي من غير أي قفل</span></label>
+   <div class="grid g3"><label class="f">آخر يوم في الاشتراك<input type="date" id="sb_until" value="${esc(x.until||'')}"></label>
+    <label class="f">أيام سماح بعد ما يخلص<input type="number" min="0" step="1" id="sb_grace" value="${n(x.grace)}"></label>
+    <label class="f">التنبيه قبلها بكام يوم<input type="number" min="0" step="1" id="sb_warn" value="${n(x.warn??7)}"></label>
+    <label class="f">بعد السماح<select id="sb_mode"><option value="read" ${x.mode!=='full'?'selected':''}>قراءة بس (يشوفوا ومايعدّلوش)</option><option value="full" ${x.mode==='full'?'selected':''}>قفل كامل</option></select></label>
+    <label class="f">قيمة الاشتراك الشهري<input type="number" min="0" step="any" id="sb_price" value="${n(x.price)||''}"></label>
+    <label class="f">رقم التواصل للتجديد<input id="sb_contact" dir="ltr" value="${esc(x.contact||'')}" placeholder="01xxxxxxxxx"></label>
+    <label class="f">أقصى عدد مستخدمين (0 = مفتوح)<input type="number" min="0" step="1" id="sb_users" value="${n(x.maxUsers)}"><span class="muted small">دلوقتي: ${subUsersN()} (من غير حسابات العيادات)</span></label>
+    <label class="f">أقصى عدد عيادات (0 = مفتوح)<input type="number" min="0" step="1" id="sb_clients" value="${n(x.maxClients)}"><span class="muted small">دلوقتي: ${(S.clients||[]).length}</span></label></div>
+   <div class="sec-title">أجزاء السيستم المفتوحة في الباقة</div>
+   <div class="grid g2" style="gap:6px">${SUB_MODS.map(([k,l])=>`<label class="row" style="gap:6px"><input type="checkbox" class="sb-mod" value="${k}" style="width:auto" ${!x.mods||x.mods[k]!==false?'checked':''}> ${esc(l)}</label>`).join('')}</div>
+   <div class="muted small">الأجزاء الأساسية (الطلبات، التقارير، العيادات، المخزن، المستخدمين، الإعدادات) مفتوحة دايماً. الجزء المقفول بيختفي من القايمة عند الكل ما عدا المطوّر، وبياناته بتفضل محفوظة.</div>
+   <div><button class="btn pri" type="submit">حفظ</button></div></form>
+  <div class="panel"><h3 style="margin-top:0">سجل التجديدات</h3>${(x.log||[]).length?`<div class="tbl-wrap"><table class="t"><thead><tr><th>التاريخ</th><th>المدة</th><th>من</th><th>لحد</th><th>المبلغ</th><th>ملاحظة</th></tr></thead><tbody>${x.log.slice().reverse().map(l=>`<tr><td>${fd(l.date)}</td><td>${l.months===12?'سنة':l.months+' شهر'}</td><td>${fd(l.from)}</td><td>${fd(l.to)}</td><td class="num">${money(l.amount)}</td><td class="small">${esc(l.note||'')}</td></tr>`).join('')}</tbody></table></div><div class="muted small">الإجمالي: <b>${money(x.log.reduce((a,l)=>a+n(l.amount),0))}</b></div>`:'<div class="empty">لسه مفيش تجديدات</div>'}</div>`}
+function subRead(){const x={...(S.sub||{}),on:$('#sb_on').checked,until:$('#sb_until').value,grace:Math.max(0,n($('#sb_grace').value)),warn:Math.max(0,n($('#sb_warn').value)),mode:$('#sb_mode').value,price:n($('#sb_price').value),contact:$('#sb_contact').value.trim(),maxUsers:Math.max(0,n($('#sb_users').value)),maxClients:Math.max(0,n($('#sb_clients').value)),mods:{}};
+  $$('.sb-mod').forEach(c=>{if(!c.checked)x.mods[c.value]=false});x.log=(S.sub&&S.sub.log)||[];return x}
+document.addEventListener('submit',async e=>{if(e.target.id!=='subF')return;e.preventDefault();const x=subRead();if(x.on&&!x.until){toast('حدد آخر يوم في الاشتراك');return}
+  try{await subWrite(x);toast('اتحفظ ✓');render()}catch(er){toast('مقدرتش أحفظ: '+fbErr(er))}});
+function subRenew(m){const cur=$('#subF')?subRead():{...(S.sub||{})};const from0=cur.until&&cur.until>=today()?addDays(cur.until,1):today();
+  const to=addDays(addMonths(from0,m),-1);
+  modal(`<h3>تجديد ${m===12?'سنة':m+' شهر'}</h3><div class="muted">من <b>${fd(from0)}</b> لحد <b>${fd(to)}</b></div><div class="grid g2"><label class="f">المبلغ اللي اتدفع<input type="number" min="0" step="any" id="sr_amt" value="${n(cur.price)*m||''}"></label><label class="f">ملاحظة<input id="sr_note" placeholder="مثلاً: فودافون كاش"></label></div>`,async()=>{
+    const x={...cur,on:true,until:to,log:[...(cur.log||[]),{date:today(),months:m,from:from0,to,amount:n($('#sr_amt').value),note:$('#sr_note').value.trim(),by:ME.id}]};
+    if(x.grace==null)x.grace=3;if(x.warn==null)x.warn=7;if(!x.mode)x.mode='read';
+    try{await subWrite(x);toast(`اتجدد لحد ${fd(to)} ✓`);render()}catch(er){toast('مقدرتش أحفظ: '+fbErr(er));return false}})}
+Object.assign(X9,{subRenew:(t,id)=>{if(isDev(ME))subRenew(+id)}});
 /* =====================================================================
    التشغيل
    ===================================================================== */

@@ -759,7 +759,7 @@ function getFbConfig(){let v=null;try{v=localStorage.getItem('pm-fb')}catch(e){}
 const NO_CFG=()=>{let v=null;try{v=localStorage.getItem('pm-fb')}catch(e){}return v!=='off'&&!getFbConfig()};
 function setFbConfig(c){try{localStorage.setItem('pm-fb',c?JSON.stringify(c):'off');return true}catch(e){return false}}
 function parseFbConfig(text){const o={};['apiKey','authDomain','projectId','storageBucket','messagingSenderId','appId'].forEach(k=>{const m=text.match(new RegExp(k+'["\']?\\s*:\\s*["\']([^"\']+)["\']'));if(m)o[k]=m[1]});return o.apiKey&&o.projectId?o:null}
-function fbErr(e){const c=e?.code||'';const map={'auth/invalid-credential':'اسم المستخدم أو كلمة السر غلط','auth/wrong-password':'اسم المستخدم أو كلمة السر غلط','auth/user-not-found':'اسم المستخدم أو كلمة السر غلط','auth/too-many-requests':'محاولات كتير — استنى شوية وجرب تاني','auth/network-request-failed':'مفيش إنترنت','permission-denied':'مفيش صلاحية — اتأكد إن قواعد Firestore اتلزقت صح','unavailable':'مفيش اتصال بالسيرفر','auth/operation-not-allowed':'لازم تفعل Email/Password في Authentication','auth/requires-recent-login':'اخرج وادخل تاني وبعدين غيّر كلمة السر','auth/api-key-not-valid.-please-pass-a-valid-api-key.':'كود الربط (apiKey) فيه حرف غلط — ابعت كود firebaseConfig منسوخ نصاً','auth/invalid-api-key':'كود الربط (apiKey) فيه حرف غلط — ابعت كود firebaseConfig منسوخ نصاً','auth/email-already-in-use':'اسم المستخدم ده موجود قبل كده'};return map[c]||e?.message||String(e)}
+function fbErr(e){const c=e?.code||'';const map={'auth/invalid-credential':'اسم المستخدم أو كلمة السر غلط','auth/wrong-password':'اسم المستخدم أو كلمة السر غلط','auth/user-not-found':'اسم المستخدم أو كلمة السر غلط','auth/too-many-requests':'محاولات كتير — استنى شوية وجرب تاني','auth/network-request-failed':'مفيش إنترنت','permission-denied':'مفيش صلاحية للعملية دي','unavailable':'مفيش اتصال بالسيرفر','auth/operation-not-allowed':'فيه مشكلة في إعداد السيستم — كلّم الدعم الفني','auth/requires-recent-login':'اخرج وادخل تاني وبعدين غيّر كلمة السر','auth/api-key-not-valid.-please-pass-a-valid-api-key.':'فيه مشكلة في إعداد السيستم — كلّم الدعم الفني','auth/invalid-api-key':'فيه مشكلة في إعداد السيستم — كلّم الدعم الفني','auth/email-already-in-use':'اسم المستخدم ده موجود قبل كده'};const m=map[c]||e?.message||String(e);return /firebase|firestore|googleapis|auth\/|api.?key/i.test(m)?'حصلت مشكلة في الاتصال — جرب تاني':m}
 const FB_VER='10.12.2';
 async function initOnline(cfg){
   for(const f of ['app','auth','firestore'])await loadScript(`https://www.gstatic.com/firebasejs/${FB_VER}/firebase-${f}-compat.js`);
@@ -787,7 +787,7 @@ function startListeners(){
   const L=(q,fn)=>UNSUB.push(q.onSnapshot(fn,e=>toast('مشكلة مزامنة: '+fbErr(e))));
   L(FB.db.doc('meta/nav'),d=>{S.nav=d.exists?d.data():null;liveRender()});
   L(FB.db.doc('meta/sub'),d=>{S.sub=d.exists?d.data():null;liveRender()});
-  if(!isClinic())L(FB.db.doc('meta/gs'),d=>{S.gsCfg=d.exists?d.data():null;GS_LOADED=true;try{if(!S.gsCfg&&S.settings?.gs?.url&&isOwnerU(ME))gsWriteCfg(S.settings.gs)}catch(e){}});
+  if(!isClinic())L(FB.db.doc('meta/gs'),d=>{S.gsCfg=d.exists?d.data():null;GS_LOADED=true;try{gsFullReqCheck()}catch(e){}try{if(!S.gsCfg&&S.settings?.gs?.url&&isOwnerU(ME))gsWriteCfg(S.settings.gs)}catch(e){}});
   L(FB.db.doc('meta/settings'),d=>{if(d.exists)S.settings={...DEFAULT_SETTINGS,...d.data()};SYNCED.settings=JSON.stringify(S.settings);dsEpochCheck();liveRender()});
   if(isClinic()){
     S.users=[ME];
@@ -922,12 +922,14 @@ const TABS=[
  ['archive','الأرشيف',()=>false],
  ['payroll','المرتبات والمكافآت',()=>can('salary_set')||can('payroll_prep')||can('payroll_approve')||can('bonuses')||can('bonuses_approve')],
  ['users','المستخدمين',()=>can('users'),'الإدارة'],
+ ['mysub','الاشتراك والباكدج',()=>{try{const s=subState();return s.on&&subBoss()}catch(e){return false}}],
  ['settings','الإعدادات',()=>can('settings')||can('nav_order')]
 ];
 const SUBVIEW={new:'reports',insp:'reports',branch:'clients',inspf:'reports',inspv:'reports',test:'tests',tgrade:'tests',empf:'emps',devh:'clients',perfu:'perf',view:'reports',edit:'reports',client:'clients',dev:'devices',sdev:'devices',supplier:'suppliers',cust:'custody',psale:'psales'};
 const tabOf=v=>SUBVIEW[v]||v;
 function allowed(v,p){if(v==='archive')return isDev(ME);if(v==='new')return can('reports_write');if(v==='insp'||v==='inspf'||v==='inspv')return can('inspections');if(v==='empf')return (can('emp_files')&&inSc(p))||p===ME?.id;if(v==='test')return isStaff();if(v==='tgrade')return can('tests');if(v==='view')return can('reports_write')||can('reports_all');if(v==='edit')return can('reports_write')||can('reports_all');const t=TABS.find(x=>x[0]===tabOf(v));return !t||t[2]()}
 const ICONS={
+ mysub:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h4"/>',
  home:'<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',
  requests:'<path d="M6 9a6 6 0 1 1 12 0c0 6 3 8 3 8H3s3-2 3-8"/><path d="M10 21h4"/>',
  new:'<path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8z"/><path d="M14 3v5h5M12 11v6M9 14h6"/>',
@@ -1001,8 +1003,8 @@ function render(){try{applyTheme(themeOf(ME))}catch(e){}try{applyLayout(layoutOf
   $('#tabs').innerHTML=navTabs().map(([k,l,,sec,ic])=>`${sec?`<div class="navsec">${esc(sec)}</div>`:''}<button class="tab ${sameHub(cur,k)?'on':''}" data-go="${k}"><svg viewBox="0 0 24 24" aria-hidden="true">${ic||ICONS[k]||''}</svg><span>${l}</span>${badge[k]?`<span class="cnt">${badge[k]}</span>`:''}</button>`).join('');
   document.body.classList.remove('nonav');setTimeout(()=>{try{const a=document.querySelector('#tabs .tab.on');const t=$('#tabs');if(a&&t&&t.scrollWidth>t.clientWidth+4){const r=a.getBoundingClientRect(),q=t.getBoundingClientRect();if(r.left<q.left||r.right>q.right)t.scrollLeft+=(r.left+r.width/2)-(q.left+q.width/2)}}catch(e){}},30);
   const banner=S.demo&&isAdmin()?`<div class="banner row between no-print"><span>دي بيانات تجريبية. فيه مهندس (karim)، ومحاسب (amr)، ومدير المستهلكات (nader)، ومندوب توصيل (sayed)، وعيادة (skinline) — كلهم بكلمة سر 123456 علشان تجرب شاشاتهم.</span><button class="btn sm" data-act="clearDemo">امسح البيانات التجريبية وابدأ</button></div>`:'';
-  const V={devices:viewDevices,dev:()=>viewDev(PARAM),sdev:()=>viewSdev(PARAM),suppliers:viewSuppliers,supplier:()=>viewSupplier(PARAM),home:viewHome,requests:viewRequests,new:()=>viewForm(null),edit:()=>viewForm(PARAM),reports:viewReports,view:()=>viewReport(PARAM),clients:viewClients,client:()=>viewClient(PARAM),contracts:viewContracts,stock:viewStock,psales:viewPartSales,psale:()=>viewPartSale(PARAM),ar:viewAR,accounts:viewAccounts,capital:viewCapital,custody:viewCustody,cust:()=>viewCustodyOf(PARAM),hr:viewHR2,devh:()=>viewDevHistory(PARAM),orders:viewOrders,perf:viewPerf,perfu:()=>viewPerfUser(PARAM),tests:viewTests,test:()=>viewTakeTest(PARAM),tgrade:()=>viewGrade(PARAM),emps:viewEmps,payroll:viewPayroll,offers:viewOffers,meetings:viewMeetings,policy:()=>viewPolicy(),branch:()=>viewBranch(PARAM),insp:()=>viewInsp(),inspf:()=>viewInspForm(PARAM),inspv:()=>viewInspView(PARAM),treasury:()=>viewTreasury(),freon:()=>frStrip(can('stock')?`<div class="row between"><h2>المخزن</h2>${stockTabs()}</div>`+viewFreon():viewFreon()),weekly:()=>viewWeekly(),analytics:()=>viewAnalytics(),ledger:()=>viewLedger(),audit:()=>viewAudit(),archive:()=>viewArchive(),empf:()=>viewEmpFile(PARAM),users:viewUsers,settings:()=>(can('nav_order')?navOrderPanel():'')+(can('settings')?viewSettings():'')};
-  m.innerHTML=subBanner()+(VIEW==='home'?subHomeCard():'')+banner+hubBar(VIEW)+(V[VIEW]||viewHome)();
+  const V={mysub:viewMySub,devices:viewDevices,dev:()=>viewDev(PARAM),sdev:()=>viewSdev(PARAM),suppliers:viewSuppliers,supplier:()=>viewSupplier(PARAM),home:viewHome,requests:viewRequests,new:()=>viewForm(null),edit:()=>viewForm(PARAM),reports:viewReports,view:()=>viewReport(PARAM),clients:viewClients,client:()=>viewClient(PARAM),contracts:viewContracts,stock:viewStock,psales:viewPartSales,psale:()=>viewPartSale(PARAM),ar:viewAR,accounts:viewAccounts,capital:viewCapital,custody:viewCustody,cust:()=>viewCustodyOf(PARAM),hr:viewHR2,devh:()=>viewDevHistory(PARAM),orders:viewOrders,perf:viewPerf,perfu:()=>viewPerfUser(PARAM),tests:viewTests,test:()=>viewTakeTest(PARAM),tgrade:()=>viewGrade(PARAM),emps:viewEmps,payroll:viewPayroll,offers:viewOffers,meetings:viewMeetings,policy:()=>viewPolicy(),branch:()=>viewBranch(PARAM),insp:()=>viewInsp(),inspf:()=>viewInspForm(PARAM),inspv:()=>viewInspView(PARAM),treasury:()=>viewTreasury(),freon:()=>frStrip(can('stock')?`<div class="row between"><h2>المخزن</h2>${stockTabs()}</div>`+viewFreon():viewFreon()),weekly:()=>viewWeekly(),analytics:()=>viewAnalytics(),ledger:()=>viewLedger(),audit:()=>viewAudit(),archive:()=>viewArchive(),empf:()=>viewEmpFile(PARAM),users:viewUsers,settings:()=>(can('nav_order')?navOrderPanel():'')+(can('settings')?viewSettings():'')};
+  m.innerHTML=subBanner()+banner+hubBar(VIEW)+(V[VIEW]||viewHome)();
   if(VIEW==='new'||VIEW==='edit')initForm();
   if(VIEW==='settings'&&can('settings'))bindSettings();
   if(VIEW==='settings')bindNavOrder();
@@ -1011,7 +1013,7 @@ function render(){try{applyTheme(themeOf(ME))}catch(e){}try{applyLayout(layoutOf
   if(VIEW==='inspf')inspBindAfter();
 }
 /* ---------- الإعداد الأول وتسجيل الدخول ---------- */
-function connLine(){return ONLINE?`<div class="muted small row between"><span>متصل بـ Firebase: <span class="num">${esc(CFG.projectId)}</span></span><button class="btn sm ghost" data-act="disconnect">إلغاء الربط</button></div>`:''}
+function connLine(){return ''}
 function viewSetup(){
   return `<div class="panel grid" style="margin-top:20px"><h2>إنشاء حساب المدير</h2>
   <div class="muted">${ONLINE?'ده أول دخول على السيستم الأونلاين.':'ده أول تشغيل.'} الحساب ده هيبقى ليه صلاحية كاملة، ومنه تعمل حساب لكل مهندس وكل عيادة.</div>
@@ -2792,7 +2794,7 @@ service cloud.firestore {
     function me() { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data; }
     function active() { return hasUser() && me().get('active', true) != false; }
     function isAdmin() { return active() && (me().get('owner', false) == true || (me().role == 'admin' && !('perms' in me()))); }
-    function notOwnerDoc() { return resource.data.get('owner', false) != true && request.resource.data.get('owner', false) != true; }
+    function notOwnerDoc() { return resource.data.get('owner', false) != true && request.resource.data.get('owner', false) != true && resource.data.get('main', false) != true && request.resource.data.get('main', false) != true; }
     function isStaff() { return active() && me().role in ['admin', 'exec', 'manager', 'engineer', 'accountant', 'cons_staff', 'courier', 'staff']; }
     function can(p) { return isAdmin() || (isStaff() && me().get('perms', {}).get(p, false) == true); }
     function ownClient() { return active() && me().role == 'clinic' && resource.data.clientId == me().clientId; }
@@ -2815,9 +2817,9 @@ service cloud.firestore {
 
     match /users/{uid} {
       allow read: if signed() && (request.auth.uid == uid || isStaff() || isDev());
-      allow create: if ((((can('users') && request.resource.data.get('owner', false) != true) || (request.auth.uid == uid && request.resource.data.role == 'admin' && !exists(/databases/$(database)/documents/meta/admin)))) && wOK()) || isDev();
-      allow update: if ((((can('users') && notOwnerDoc()) || (request.auth.uid == uid && isAdmin()) || (can('leave_bal') && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['leaveBal'])))) && wOK()) || isDev();
-      allow delete: if (((can('users') && resource.data.get('owner', false) != true && request.auth.uid != uid)) && wOK()) || isDev();
+      allow create: if ((((can('users') && request.resource.data.get('owner', false) != true && request.resource.data.get('main', false) != true) || (request.auth.uid == uid && request.resource.data.role == 'admin' && !exists(/databases/$(database)/documents/meta/admin)))) && wOK()) || isDev();
+      allow update: if ((((can('users') && notOwnerDoc()) || (request.auth.uid == uid && isAdmin() && request.resource.data.get('main', false) == resource.data.get('main', false)) || (can('leave_bal') && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['leaveBal'])) || (can('users') && resource.data.role == 'clinic' && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['mainClinic'])))) && wOK()) || isDev();
+      allow delete: if (((can('users') && resource.data.get('owner', false) != true && resource.data.get('main', false) != true && request.auth.uid != uid)) && wOK()) || isDev();
     }
     match /clients/{id} {
       allow read: if (((isStaff() || (hasUser() && me().clientId == id))) && rOK()) || isDev();
@@ -2936,7 +2938,7 @@ service cloud.firestore {
 `;
 function viewSettings(){
   const s=S.settings;
-  return `<h2>الإعدادات</h2>${dsPanel()}
+  return `<h2>الإعدادات</h2>
   <form id="sf" class="grid">
   <div class="panel grid g2"><h3 style="grid-column:1/-1;margin:0">اسم الشركة واللوجو</h3><div class="muted small" style="grid-column:1/-1">بيظهروا في السيستم كله: القايمة، وشاشة الدخول، واسم الأبلكيشن وأيقونته على الموبايل، والتقارير والفواتير.</div>
     <label class="f">اسم الشركة<input id="s_company" value="${esc(s.company)}"></label>
@@ -2971,19 +2973,18 @@ function viewSettings(){
     <label class="row" style="gap:6px;grid-column:1/-1"><input type="checkbox" id="s_prices" style="width:auto" ${s.showPrices?'checked':''}> إظهار الأسعار والحساب في التقرير اللي بيتسلم للعميل</label>
   </div>
   ${chainsSettingsHTML()}
-  ${gsPanel()}
   <div class="panel grid"><h3 style="margin:0">طرق الدفع</h3><label class="f">كل طريقة في سطر<textarea id="s_methods">${esc(s.methods.join('\n'))}</textarea></label></div>
   <div class="panel grid"><h3 style="margin:0">ملاحظات هامة (أسفل التقرير)</h3><label class="f">كل بند في سطر<textarea id="s_terms" style="min-height:130px">${esc(s.terms.join('\n'))}</textarea></label></div>
   <div class="row" style="justify-content:flex-end"><button class="btn pri" type="submit">حفظ الإعدادات</button></div>
   </form>
-  ${viewOnlineSettings()}
-  <div class="panel grid"><h3 style="margin:0">النسخ الاحتياطي</h3>
+  ${ONLINE?'':viewOnlineSettings()}
+  ${ONLINE?'':`<div class="panel grid"><h3 style="margin:0">النسخ الاحتياطي</h3>
     <div class="muted">${ONLINE?'البيانات متخزنة أونلاين. النسخة الاحتياطية بتنزل ملف بكل البيانات تحتفظ بيه.':'البيانات متخزنة على الجهاز ده بس. اعمل نسخة احتياطية كل أسبوع واحفظها على الدرايف أو الواتساب.'}</div>
     <div class="row"><button class="btn pri" data-act="export">تنزيل نسخة احتياطية</button>${ONLINE?'':'<button class="btn" data-act="import">استيراد نسخة</button><span style="flex:1"></span><button class="btn danger" data-act="wipe">مسح كل البيانات</button>'}</div>
-  </div>`;
+  </div>`}`;
 }
 function viewOnlineSettings(){
-  if(IN_ART())return `<div class="panel grid"><h3 style="margin:0">الربط الأونلاين</h3><div class="muted">النسخة دي نسخة تجربة على لينك Claude، والبيانات فيها بتتخزن على الموبايل ده بس. الربط الأونلاين (Firebase) بيشتغل من النسخة اللي على لينك Netlify.</div></div>`;
+  if(IN_ART())return `<div class="panel grid"><h3 style="margin:0">الربط الأونلاين</h3><div class="muted">النسخة دي نسخة تجربة على لينك Claude، والبيانات فيها بتتخزن على الموبايل ده بس. الربط الأونلاين بيشتغل من النسخة اللي على لينك Netlify.</div></div>`;
   if(ONLINE)return `<div class="panel grid"><h3 style="margin:0">الربط الأونلاين</h3>
     <div class="row between"><span>متصل بمشروع Firebase: <b class="num">${esc(CFG.projectId)}</b></span><button class="btn sm danger" data-act="disconnect">إلغاء الربط على الجهاز ده</button></div>
     <div class="muted small">لو كان عندك بيانات على الجهاز ده من قبل الربط، تقدر تنقلها للأونلاين مرة واحدة (العملاء والمخزن والتقارير والعقود والتحصيلات والطلبات). الحسابات مش بتتنقل — اعملها من جديد من صفحة المستخدمين.</div>
@@ -3105,7 +3106,7 @@ document.addEventListener('click',e=>{
     case 'endRent':if(!can('devices')&&!can('part_rent')){toast('مفيش عندك صلاحية');break}openEndRent(id);break;
     case 'delRent':confirmBox('حذف الإيجار ده وكل تحصيلاته؟',()=>{S.rentals=S.rentals.filter(x=>x.id!==id);S.payments=S.payments.filter(p=>!(p.refType==='rent'&&p.refId===id));save();go('devices')});break;
     case 'addUser':openUserModal(null,t.dataset.role||'engineer');break;
-    case 'delUser':{const u=S.users.find(x=>x.id===id);confirmBox(`حذف حساب ${u?.name||''} نهائياً؟ مش هيقدر يدخل تاني. تقاريره وحساباته القديمة هتفضل محفوظة.${ONLINE?' (اسم المستخدم ده مش هينفع يتستخدم تاني)':''}`,()=>deleteUser(id).catch(er=>toast(fbErr(er))));break}
+    case 'delUser':{const u=S.users.find(x=>x.id===id);if(mainLocked(u)){toast('ده حساب صاحب الحساب — محمي');break}confirmBox(`حذف حساب ${u?.name||''} نهائياً؟ مش هيقدر يدخل تاني. تقاريره وحساباته القديمة هتفضل محفوظة.${ONLINE?' (اسم المستخدم ده مش هينفع يتستخدم تاني)':''}`,()=>deleteUser(id).catch(er=>toast(fbErr(er))));break}
     case 'sendRep':sendReport(id);break;
     case 'addFault':{const i=$('#f_newfault');const v=(i?.value||'').trim();if(!v)break;const box=$('#f_faults');if(![...box.querySelectorAll('input')].some(x=>x.value===v))box.insertAdjacentHTML('beforeend',`<label class="chipc"><input type="checkbox" value="${esc(v)}" checked><span>${esc(v)}</span></label>`);i.value='';break}
     case 'renewContract':{const k=S.contracts.find(x=>x.id===id);openContractModal(k.clientId,id,true);break}
@@ -3143,8 +3144,9 @@ document.addEventListener('click',e=>{
     case 'hrNo':{const x=S.hr.find(y=>y.id===id);decideChain(hrT(x),id,false);break}
     case 'hrDel':confirmBox('حذف الطلب ده؟',()=>{S.hr=S.hr.filter(y=>y.id!==id);save();render()});break;
     case 'addClinicUser':if(!S.clients.length){toast('ضيف العميل الأول');break}openUserModal(null,'clinic',id||'');break;
-    case 'editUser':openUserModal(id);break;
-    case 'toggleUser':{const u=S.users.find(x=>x.id===id);if(u?.owner||u?.id===ME.id)break;u.active=u.active===false;saveUserDoc(u).catch(er=>toast(fbErr(er)));render();break}
+    case 'editUser':{const u=S.users.find(x=>x.id===id);if(mainLocked(u)){toast('ده حساب صاحب الحساب — محمي ومحدش يقدر يعدّله');break}openUserModal(id);break}
+    case 'mainClinic':{const u=S.users.find(x=>x.id===id);if(!u||u.role!=='clinic')break;const L=S.users.filter(x=>x.role==='clinic'&&x.clientId===u.clientId);Promise.all(L.filter(x=>!!x.mainClinic!==(x.id===id)).map(x=>{x.mainClinic=x.id===id;return saveUserDoc(x)})).then(()=>toast('اتحدد الحساب الأساسي للعيادة ✓')).catch(er=>toast(fbErr(er)));render();break}
+    case 'toggleUser':{const u=S.users.find(x=>x.id===id);if(u?.owner||u?.id===ME.id)break;if(mainLocked(u)){toast('ده حساب صاحب الحساب — محمي');break}u.active=u.active===false;saveUserDoc(u).catch(er=>toast(fbErr(er)));render();break}
     case 'addClient':openClientModal(null);break;
     case 'editClient':openClientModal(id);break;
     case 'delClient':confirmBox('حذف العميل؟ هيختفي من القوايم، وحساب دخول العيادة هيتوقف. تقاريره وحساباته القديمة هتفضل محفوظة.',()=>{const c=client(id);c.deleted=true;c.deletedAt=today();save();S.users.filter(u=>u.clientId===id&&u.active!==false).forEach(u=>{u.active=false;saveUserDoc(u).catch(()=>{})});go('clients')});break;
@@ -3711,11 +3713,11 @@ function viewUsers(){
   const own=S.users.filter(u=>u.owner),staff=S.users.filter(u=>u.role!=='clinic'&&!u.owner),clin=S.users.filter(u=>u.role==='clinic');
   const order=STAFF_ROLE_LIST;
   const groups=Object.keys(DEPTS).map(d=>[d,staff.filter(u=>deptOf(u)===d)]).concat([['',staff.filter(u=>!DEPTS[deptOf(u)])]]).filter(g=>g[1].length);
-  const row=u=>{const pm=permsOf(u);const on=PERMS.filter(p=>pm[p[0]]);if(u.owner&&!isDev(ME))return '';if(u.owner)return `<tr><td><b>${esc(u.name)}</b><div class="muted small">صاحب السيستم</div></td><td class="num">${esc(u.username)}${pwCell(u)}</td><td><span class="pill p-acc">المطوّر / المالك</span></td><td class="small">كل حاجة — محدش يقدر يمسحه أو يشيل صلاحياته</td><td><span class="pill p-ok">نشط</span></td><td>${u.id===ME.id?`<button class="btn sm" data-act="editUser" data-id="${u.id}">تعديل الاسم</button>`:''}</td></tr>`;return `<tr><td><b>${esc(u.name)}</b>${u.nonEmp?' <span class="pill p-acc">صاحب الشركة / شريك</span>':''}${u.hideResults?' <span class="pill p-mut">مش بيشوف نتايجه</span>':''}${u.jobTitle?`<div class="muted small">${esc(u.jobTitle)}</div>`:''}${u.managerId?`<div class="muted small">مديره: ${esc(userName(u.managerId))}</div>`:''}</td><td class="num">${esc(u.username)}${pwCell(u)}</td><td><span class="pill ${u.role==='admin'?'p-acc':u.role==='clinic'?'p-info':'p-mut'}">${ROLE[u.role]||u.role}</span></td><td class="small">${u.role==='clinic'?`<a href="#" data-go="client" data-p="${u.clientId}">${esc(cName(client(u.clientId))||'—')}</a><div class="muted">${CPERMS.filter(([k])=>cpOf(client(u.clientId),k)).map(x=>x[1]).slice(0,3).join('، ')}${CPERMS.filter(([k])=>cpOf(client(u.clientId),k)).length>3?' …':''}</div>`:u.role==='admin'?'كل حاجة':on.length?on.map(p=>p[1]).slice(0,3).join('، ')+(on.length>3?` و${on.length-3} كمان`:''):'العهدة والإجازات بس'}</td><td>${u.active===false?'<span class="pill p-bad">موقوف</span>':'<span class="pill p-ok">نشط</span>'}</td><td><div class="row" style="flex-wrap:nowrap">${u.role!=='clinic'&&!u.nonEmp&&can('emp_files')?`<button class="btn sm" data-go="empf" data-p="${u.id}">الملف</button>`:''}<button class="btn sm" data-act="editUser" data-id="${u.id}">تعديل${' والصلاحيات'}</button>${u.id!==ME.id?`<button class="btn sm ghost" data-act="toggleUser" data-id="${u.id}">${u.active===false?'تفعيل':'إيقاف'}</button><button class="btn sm danger" data-act="delUser" data-id="${u.id}">حذف</button>`:''}</div></td></tr>`};
+  const row=u=>{const pm=permsOf(u);const on=PERMS.filter(p=>pm[p[0]]);if(u.owner&&!isDev(ME))return '';if(u.owner)return `<tr><td><b>${esc(u.name)}</b><div class="muted small">صاحب السيستم</div></td><td class="num">${esc(u.username)}${pwCell(u)}</td><td><span class="pill p-acc">المطوّر / المالك</span></td><td class="small">كل حاجة — محدش يقدر يمسحه أو يشيل صلاحياته</td><td><span class="pill p-ok">نشط</span></td><td>${u.id===ME.id?`<button class="btn sm" data-act="editUser" data-id="${u.id}">تعديل الاسم</button>`:''}</td></tr>`;return `<tr><td><b>${esc(u.name)}</b>${u.main?' <span class="pill p-warn">👑 صاحب الحساب</span>':''}${u.role==='clinic'&&u.mainClinic?' <span class="pill p-info">⭐ الحساب الأساسي للعيادة</span>':''}${u.nonEmp?' <span class="pill p-acc">صاحب الشركة / شريك</span>':''}${u.hideResults?' <span class="pill p-mut">مش بيشوف نتايجه</span>':''}${u.jobTitle?`<div class="muted small">${esc(u.jobTitle)}</div>`:''}${u.managerId?`<div class="muted small">مديره: ${esc(userName(u.managerId))}</div>`:''}</td><td class="num">${esc(u.username)}${pwCell(u)}</td><td><span class="pill ${u.role==='admin'?'p-acc':u.role==='clinic'?'p-info':'p-mut'}">${ROLE[u.role]||u.role}</span></td><td class="small">${u.role==='clinic'?`<a href="#" data-go="client" data-p="${u.clientId}">${esc(cName(client(u.clientId))||'—')}</a><div class="muted">${CPERMS.filter(([k])=>cpOf(client(u.clientId),k)).map(x=>x[1]).slice(0,3).join('، ')}${CPERMS.filter(([k])=>cpOf(client(u.clientId),k)).length>3?' …':''}</div>`:u.role==='admin'?'كل حاجة':on.length?on.map(p=>p[1]).slice(0,3).join('، ')+(on.length>3?` و${on.length-3} كمان`:''):'العهدة والإجازات بس'}</td><td>${u.active===false?'<span class="pill p-bad">موقوف</span>':'<span class="pill p-ok">نشط</span>'}</td><td><div class="row" style="flex-wrap:nowrap">${u.role!=='clinic'&&!u.nonEmp&&can('emp_files')?`<button class="btn sm" data-go="empf" data-p="${u.id}">الملف</button>`:''}${mainLocked(u)?'<span class="muted small">حساب أساسي — محمي</span>':`<button class="btn sm" data-act="editUser" data-id="${u.id}">تعديل${' والصلاحيات'}</button>${u.role==='clinic'&&!u.mainClinic&&can('users')&&S.users.filter(x=>x.role==='clinic'&&x.clientId===u.clientId).length>1?`<button class="btn sm ghost" data-act="mainClinic" data-id="${u.id}">⭐ خليه الأساسي</button>`:''}${u.id!==ME.id?`<button class="btn sm ghost" data-act="toggleUser" data-id="${u.id}">${u.active===false?'تفعيل':'إيقاف'}</button><button class="btn sm danger" data-act="delUser" data-id="${u.id}">حذف</button>`:''}`}</div></td></tr>`};
   const tbl=list=>`<div class="tbl-wrap"><table class="t"><thead><tr><th>الاسم</th><th>اسم المستخدم</th><th>الوظيفة</th><th>الصلاحيات</th><th>الحالة</th><th></th></tr></thead><tbody>${[...list].sort((a,b)=>order.indexOf(a.role)-order.indexOf(b.role)||a.name.localeCompare(b.name,'ar')).map(row).join('')}</tbody></table></div>`;
   return `<div class="row between"><h2>المستخدمين</h2><div class="row"><button class="btn pri" data-act="addUser" data-role="engineer">+ موظف جديد</button><button class="btn" data-act="addClinicUser">+ حساب عيادة</button></div></div>
   <div class="panel small muted">كل موظف ليه وظيفة وإدارة وصلاحيات بتختارها له. كل وظيفة بتيجي بصلاحيات جاهزة، وتقدر تزوّد أو تشيل منها.</div>
-  ${own.length?`<div class="panel"><h3>المطوّر</h3>${tbl(own)}</div>`:''}
+  ${own.length&&isDev(ME)?`<div class="panel"><h3>حسابك</h3>${tbl(own)}</div>`:''}
   ${groups.map(([d,list])=>`<div class="panel"><h3>${DEPTS[d]||'من غير إدارة'} <span class="muted small">(${list.length})</span></h3>${tbl(list)}</div>`).join('')}
   ${clin.length?`<div class="panel"><h3>حسابات العيادات <span class="muted small">(${clin.length})</span></h3>${tbl(clin)}</div>`:''}`;
 }
@@ -4409,6 +4411,10 @@ document.addEventListener('change',e=>{if(e.target.id==='bonm'){BONM=e.target.va
    v15 — المالك، فواتير المستهلكات، العروض، الاجتماعات، التكليفات، الموقع
    ===================================================================== */
 const isOwnerU=u=>!!u&&(u.owner||(u.role==='admin'&&!u.perms));
+/* صاحب الحساب: اليوزر الأساسي للشركة — بيتحدد من لوحة Beam Care بس */
+const hasMainU=()=>(S.users||[]).some(u=>u.main===true&&u.active!==false);
+const mainLocked=u=>!!u&&u.main===true&&!!ME&&u.id!==ME.id&&!isDev(ME);
+const subBoss=()=>!!ME&&(isDev(ME)||(hasMainU()?ME.main===true:(ME.role==='admin'||ME.role==='exec')));
 const isOwner=()=>isOwnerU(ME);
 const psKind=x=>x?.kind==='cons'?'cons':'spare';
 const psTitle=x=>psKind(x)==='cons'?'فاتورة مستهلكات':'فاتورة قطع غيار';
@@ -6182,7 +6188,7 @@ let XR_PRE='';
 
 
 /* ---------- فحص التحديثات ---------- */
-const APP_VER='2026.11.01.4';
+const APP_VER='2026.11.02.1';
 async function checkUpdate(){try{if(location.protocol==='file:')return;const t=await (await fetch(location.pathname+'?_='+Date.now(),{cache:'no-store'})).text();const m=t.match(/const APP_VER='([^']+)'/);if(m&&m[1]!==APP_VER)showUpd(m[1])}catch(e){}}
 function showUpd(v){if(document.getElementById('updBar'))return;const b=document.createElement('div');b.id='updBar';b.style.cssText='position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:80;background:#1d2b45;color:#fff;padding:10px 16px;border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,.25);display:flex;gap:12px;align-items:center;font-weight:600;max-width:92vw';b.innerHTML='<span>🔄 فيه نسخة جديدة من السيستم</span><button type="button" style="background:#2b8fb8;color:#fff;border:0;border-radius:10px;padding:6px 14px;font:inherit;cursor:pointer">حدّث دلوقتي</button>';b.querySelector('button').onclick=()=>{location.replace(location.pathname+'?v='+encodeURIComponent(v)+location.hash)};document.body.appendChild(b)}
 setTimeout(checkUpdate,8000);setInterval(checkUpdate,5*60*1000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkUpdate()});
@@ -6825,11 +6831,16 @@ document.addEventListener('visibilitychange',()=>{if(document.visibilityState===
 async function gsFlush(){const items=[...SHQ.values()];SHQ.clear();if(!items.length)return;
   const ops=items.map(it=>{const x=(S[it.c]||[]).find(y=>y.id===it.id);return it.del||!x?{s:GS_COLS[it.c],id:it.id,del:true}:{s:GS_COLS[it.c],id:it.id,row:gsRow(it.c,x)}});
   for(let i=0;i<ops.length;i+=60)await gsPost({ops:ops.slice(i,i+60)})}
-async function gsFull(){const g=gsCfg();if(!g.url){toast('حط رابط الربط الأول');return}const cols=(g.cols||GS_DEF).filter(c=>GS_COLS[c]);toast('بيتبعت… استنى شوية');let k=0;
+async function gsFull(quiet){const g=gsCfg();if(!g.url){if(!quiet)toast('حط رابط الربط الأول');return 0}const cols=(g.cols||GS_DEF).filter(c=>GS_COLS[c]);if(!quiet)toast('بيتبعت… استنى شوية');let k=0;
   for(const c of cols){const L=(S[c]||[]).filter(x=>!(c==='treasury'&&x.id==='cfg'));const rows=L.map(x=>({id:x.id,...gsRow(c,x)}));
     if(!rows.length){await gsPost({bulk:{s:GS_COLS[c],rows:[]}});continue}
     for(let i=0;i<rows.length;i+=800){await gsPost({bulk:{s:GS_COLS[c],rows:rows.slice(i,i+800),append:i>0}});k+=Math.min(800,rows.length-i)}}
-  toast(`اتبعت ${k} سطر في ${cols.length} شيت — افتح الشيت واتأكد`);render()}
+  if(!quiet){toast(`اتبعت ${k} سطر في ${cols.length} شيت — افتح الشيت واتأكد`);render()}return k}
+/* لوحة Beam Care بتطلب "ابعت كل البيانات" — أول جهاز للمدير مفتوح بيبعتها */
+let GS_FULL_RUN=false;
+async function gsFullReqCheck(){const g=S.gsCfg;if(!g||!g.url||!ONLINE||!ME||!isOwnerU(ME)||GS_FULL_RUN)return;if(!(n(g.fullReq)>n(g.fullDone)))return;
+  GS_FULL_RUN=true;try{await Promise.all(DS.loads);await new Promise(r=>setTimeout(r,1500));const cur=S.gsCfg||{};if(!(n(cur.fullReq)>n(cur.fullDone)))return;
+    const k=await gsFull(true);await FB.db.doc('meta/gs').set({fullDone:Date.now(),fullRows:k},{merge:true})}catch(e){}finally{GS_FULL_RUN=false}}
 function gsCode(token){return `// ${BRAND().replace(/[`$\\]/g,'')} → Google Sheet (الصق الكود ده كله في Apps Script)
 const TOKEN='${token}';
 function doGet(){return ContentService.createTextOutput('OK');}
@@ -7357,7 +7368,7 @@ async function dsFullRefresh(){await dsClear(dsPref());DS.srv=0;DS.cache=0;stopL
 function dsPanel(){if(!ONLINE||isClinic())return '';const L=Object.values(DS.cols);const full=L.filter(s=>s.mode==='full').length,ch=L.filter(s=>s.mode==='cache').length;
   const oldest=L.filter(s=>s.at).map(s=>s.at).sort((a,b)=>a-b)[0];
   return `<div class="panel grid"><h3 style="margin:0">مزامنة البيانات</h3>
-   <div class="muted small">البيانات بتتحفظ على الجهاز ده، وكل مرة السيستم يتفتح بيجيب من السيرفر <b>الجديد بس</b> — ده بيوفّر استهلاك Firebase ويخلّي الفتح أسرع. مرة كل أسبوع بيعمل تحديث كامل لوحده للأمان.</div>
+   <div class="muted small">البيانات بتتحفظ على الجهاز ده، وكل مرة السيستم يتفتح بيجيب من السيرفر <b>الجديد بس</b> — ده بيوفّر استهلاك النت ويخلّي الفتح أسرع. مرة كل أسبوع بيعمل تحديث كامل لوحده للأمان.</div>
    <div class="grid g3"><div class="panel kpi"><span>اتقرا من الجهاز</span><b class="num">${DS.cache}</b></div><div class="panel kpi"><span>اتقرا من السيرفر</span><b class="num">${DS.srv}</b></div><div class="panel kpi"><span>آخر تحديث كامل</span><b class="small">${oldest?fdt(new Date(oldest).toISOString()):'—'}</b></div></div>
    ${DS.ok?'':'<div class="banner">المتصفح ده مش بيسمح بالتخزين على الجهاز — السيستم شغال عادي بس بيجيب كل حاجة من السيرفر.</div>'}
    <div class="muted small">${ch} نوع بيانات من الجهاز · ${full} نوع اتحمّل كامل في الفتحة دي.</div>
@@ -7381,16 +7392,21 @@ TABS.forEach(t=>{const f=t[2];t[2]=()=>modOn(t[0])&&f()});
 const subWL=()=>{const x=subX();return !x||x.whiteLabel!==false};
 const subPermsFree=()=>{if(ME&&isDev(ME))return true;const x=subX();return !x||x.ownerPerms!==false};
 const subContact=x=>`للتجديد كلّم Beam Care${x&&x.contact?` على <b class="num" dir="ltr">${esc(x.contact)}</b>`:''}`;
-function subBanner(){const s=subState();if(!s.on||!ME)return '';const dev=isDev(ME),boss=dev||ME.role==='admin'||ME.role==='exec';
+function subBanner(){const s=subState();if(!s.on||!ME)return '';const dev=isDev(ME),boss=subBoss();
   if(dev&&S.sub&&S.sub.upd)return `<div class="banner no-print">🛠️ السيستم متوقف للتحديث عند الكل — إنت كمطوّر شغال عادي.</div>`;
   if(s.locked)return dev?`<div class="banner no-print">🔒 الشركة ${s.stop?'موقوفة':'اشتراكها منتهي'} — السيستم ${s.mode==='full'?'مقفول':'للقراءة بس'} عند الكل (إنت شغال عادي).</div>`:`<div class="banner no-print" style="border-color:var(--bad)">🔒 <b>الاشتراك منتهي</b> — السيستم للقراءة بس: تقدر تشوف وتطبع، بس مفيش إضافة ولا تعديل لحد ما الاشتراك يتجدد. ${subContact(s.x)}.</div>`;
   if(s.grace)return `<div class="banner no-print" style="border-color:var(--bad)">⚠️ <b>الاشتراك خلص يوم ${fd(s.x.until)}</b> — السيستم ${s.mode==='full'?'هيتقفل':'هيبقى للقراءة بس'} يوم ${fd(addDays(s.lockDay,1))}. ${subContact(s.x)}.</div>`;
   if(s.warn&&boss)return `<div class="banner no-print">📅 الاشتراك هيخلص بعد <b>${s.left} يوم</b> (${fd(s.x.until)}). ${subContact(s.x)}.</div>`;
   return ''}
-function subHomeCard(){const s=subState();if(!s.on||!ME||!(ME.role==='admin'||ME.role==='exec'||isDev(ME)))return '';const x=s.x;
+function subHomeCard(){const s=subState();if(!s.on||!subBoss())return '';const x=s.x;
   const bar=(k,m)=>`<div class="grid" style="gap:4px"><span class="small muted">${k}: ${m[0]} من ${m[1]||'مفتوح'}</span>${m[1]?`<div style="height:8px;background:var(--line);border-radius:99px;overflow:hidden"><div style="height:8px;width:${Math.min(100,m[0]/m[1]*100)}%;margin-inline-start:0;background:${m[0]>=m[1]*0.9?'var(--bad)':'var(--accent)'}"></div></div>`:''}</div>`;
   return `<div class="panel grid" style="gap:10px"><div class="row between"><h3 style="margin:0">الاشتراك والباكدج</h3><span class="muted small">ينتهي ${fd(x.until)}${s.left>=0?` · فاضل ${s.left} يوم`:''}</span></div>
    <div class="grid g2">${bar('المستخدمين',[subUsersN(),n(x.maxUsers)])}${bar('العيادات',[(S.clients||[]).length,n(x.maxClients)])}</div></div>`}
+function viewMySub(){const s=subState();if(!s.on)return '<div class="empty">مفيش اشتراك</div>';const x=s.x;const mods=x.mods||{};
+  const P=[['freon','الفريون'],['sales','المبيعات والمستهلكات والعروض'],['devices','بيع وإيجار الأجهزة'],['contracts','عقود الصيانة'],['suppliers','الموردين والمشتريات'],['finance','الحسابات والخزينة'],['hr','الحضور والإجازات'],['payroll','المرتبات والمكافآت'],['staff','إدارة الموظفين'],['weekly','التقارير الدورية'],['analytics','التحليلات']];
+  return `<h2>الاشتراك والباكدج</h2>${subHomeCard()}
+  <div class="panel grid" style="gap:10px"><h3 style="margin:0">أجزاء السيستم في الباكدج</h3><div class="row" style="flex-wrap:wrap;gap:6px">${P.map(([k,l])=>`<span class="pill ${mods[k]===false?'p-mut':'p-ok'}">${mods[k]===false?'✗':'✓'} ${l}</span>`).join('')}</div></div>
+  ${x.contact?`<div class="panel grid" style="gap:8px"><h3 style="margin:0">للتجديد أو زيادة الباكدج</h3><div>${subContact(x)}</div></div>`:''}`}
 function subLockScreen(){const s=subState();return `<div class="panel grid" style="max-width:560px;margin:30px auto;text-align:center"><div style="font-size:2.6rem">${s.stop?'⏸️':'🔒'}</div><h2 style="margin:0">${s.stop?'السيستم موقوف مؤقتاً':'اشتراك السيستم منتهي'}</h2><div class="muted">${s.stop?'تم إيقاف حساب الشركة مؤقتاً.':`الاشتراك خلص يوم ${fd(s.x.until)}.`} بياناتك كلها محفوظة ومش هتضيع، وأول ما ${s.stop?'يتفعّل':'الاشتراك يتجدد'} السيستم هيرجع يشتغل على طول.</div><div>${subContact(s.x)}</div><div><button class="btn" data-act="logout">خروج</button></div></div>`}
 function subBlock(msg){toast(msg||'الاشتراك منتهي — السيستم للقراءة بس');
   if(ONLINE){(SUBS||[]).forEach(c=>{if(SYNCED[c]instanceof Map)S[c]=[...SYNCED[c].values()].map(x=>JSON.parse(x))});if(typeof SYNCED.settings==='string')S.settings={...DEFAULT_SETTINGS,...JSON.parse(SYNCED.settings)}}
@@ -7410,12 +7426,12 @@ function subLimitClient(){const x=subX();if(!x||(ME&&isDev(ME)))return true;if(n
 setTimeout(()=>{const m=document.getElementById('main');if(m&&/بيحمّل/.test(m.textContent)){m.innerHTML='<div class="panel grid" style="max-width:520px;margin:30px auto"><h2>التحميل واخد وقت</h2><div class="muted">السيستم مش قادر يوصل لقاعدة البيانات. اتأكد إن النت شغال، وجرب واي فاي لو على باقة موبايل.</div><div class="row"><button class="btn pri" onclick="location.reload()">جرب تاني</button></div></div>'}},25000);
 (async()=>{
   const cfg=getFbConfig();
-  if(NO_CFG()){S=emptyState();$('#main').innerHTML=`<div class="panel grid" style="max-width:560px;margin:30px auto"><h2>السيستم لسه مش متوصل بقاعدة بيانات</h2><div class="muted">النسخة دي محتاجة ملف <b>config.js</b> جنب <b>index.html</b> فيه بيانات مشروع Firebase بتاع الشركة.</div><ol style="line-height:2;padding-inline-start:20px"><li>اعمل مشروع جديد على Firebase وفعّل Authentication (Email/Password) وFirestore.</li><li>من Project settings ← Your apps ← Web app انسخ <b>firebaseConfig</b>.</li><li>حطه في ملف config.js وارفعه على نفس المكان اللي فيه index.html.</li><li>انشر ملف القواعد في Firestore ← Rules.</li></ol></div>`;return}
+  if(NO_CFG()){S=emptyState();$('#main').innerHTML=`<div class="panel grid" style="max-width:520px;margin:30px auto;text-align:center"><h2>السيستم لسه بيتجهز</h2><div class="muted">النسخة دي لسه ما اتفعّلتش. كلّم الدعم الفني.</div></div>`;return}
   if(cfg){
     try{await initOnline(cfg);return}
     catch(e){
       S=emptyState();
-      $('#main').innerHTML=`<div class="panel grid" style="max-width:520px;margin:30px auto"><h2>مش قادر أتصل</h2><div class="muted">السيستم مربوط أونلاين بس مش قادر يحمّل Firebase. اتأكد إن النت شغال وجرب تاني.</div><div class="row"><button class="btn pri" onclick="location.reload()">جرب تاني</button><button class="btn" data-act="disconnect">إلغاء الربط والرجوع للجهاز</button></div></div>`;
+      $('#main').innerHTML=`<div class="panel grid" style="max-width:520px;margin:30px auto"><h2>مش قادر أتصل</h2><div class="muted">السيستم مش قادر يوصل للسيرفر. اتأكد إن النت شغال وجرب تاني.</div><div class="row"><button class="btn pri" onclick="location.reload()">جرب تاني</button><button class="btn" data-act="disconnect">إلغاء الربط والرجوع للجهاز</button></div></div>`;
       return;
     }
   }

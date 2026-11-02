@@ -6188,7 +6188,7 @@ let XR_PRE='';
 
 
 /* ---------- فحص التحديثات ---------- */
-const APP_VER='2026.11.02.1';
+const APP_VER='2026.11.02.2';
 async function checkUpdate(){try{if(location.protocol==='file:')return;const t=await (await fetch(location.pathname+'?_='+Date.now(),{cache:'no-store'})).text();const m=t.match(/const APP_VER='([^']+)'/);if(m&&m[1]!==APP_VER)showUpd(m[1])}catch(e){}}
 function showUpd(v){if(document.getElementById('updBar'))return;const b=document.createElement('div');b.id='updBar';b.style.cssText='position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:80;background:#1d2b45;color:#fff;padding:10px 16px;border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,.25);display:flex;gap:12px;align-items:center;font-weight:600;max-width:92vw';b.innerHTML='<span>🔄 فيه نسخة جديدة من السيستم</span><button type="button" style="background:#2b8fb8;color:#fff;border:0;border-radius:10px;padding:6px 14px;font:inherit;cursor:pointer">حدّث دلوقتي</button>';b.querySelector('button').onclick=()=>{location.replace(location.pathname+'?v='+encodeURIComponent(v)+location.hash)};document.body.appendChild(b)}
 setTimeout(checkUpdate,8000);setInterval(checkUpdate,5*60*1000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkUpdate()});
@@ -7424,6 +7424,20 @@ function subLimitClient(){const x=subX();if(!x||(ME&&isDev(ME)))return true;if(n
    التشغيل
    ===================================================================== */
 setTimeout(()=>{const m=document.getElementById('main');if(m&&/بيحمّل/.test(m.textContent)){m.innerHTML='<div class="panel grid" style="max-width:520px;margin:30px auto"><h2>التحميل واخد وقت</h2><div class="muted">السيستم مش قادر يوصل لقاعدة البيانات. اتأكد إن النت شغال، وجرب واي فاي لو على باقة موبايل.</div><div class="row"><button class="btn pri" onclick="location.reload()">جرب تاني</button></div></div>'}},25000);
+/* دخول المطوّر من لوحة Beam Care بزرار واحد (بيوصل بـ postMessage من اللوحة بس، مش في الرابط) */
+(function(){if(location.hash!=='#bc-login'||!window.opener)return;
+  const ORIG='https://beamcare.github.io';let done=false;
+  try{history.replaceState(null,'',location.pathname+location.search)}catch(x){}
+  const ping=setInterval(()=>{if(done)return clearInterval(ping);try{window.opener.postMessage({type:'pm-ready'},ORIG)}catch(e){}},400);
+  setTimeout(()=>clearInterval(ping),30000);
+  window.addEventListener('message',async e=>{if(e.origin!==ORIG||done||!e.data||e.data.type!=='bc-login')return;done=true;clearInterval(ping);
+    for(let i=0;i<150&&!(FB&&FB.auth);i++)await new Promise(r=>setTimeout(r,100));
+    if(!(FB&&FB.auth)){toast('مقدرتش أدخل — جرب تاني');return}
+    try{const cur=FB.auth.currentUser;
+      if(!cur||String(cur.email||'').toLowerCase()!==String(e.data.email||'').toLowerCase()){if(cur)await FB.auth.signOut();await FB.auth.signInWithEmailAndPassword(e.data.email,e.data.pass)}
+      if(e.data.go==='archive'){try{history.replaceState(null,'',location.pathname+location.search+'#dev-archive')}catch(x){}try{if(ME)render()}catch(x){}}
+    }catch(er){toast(fbErr(er))}});
+})();
 (async()=>{
   const cfg=getFbConfig();
   if(NO_CFG()){S=emptyState();$('#main').innerHTML=`<div class="panel grid" style="max-width:520px;margin:30px auto;text-align:center"><h2>السيستم لسه بيتجهز</h2><div class="muted">النسخة دي لسه ما اتفعّلتش. كلّم الدعم الفني.</div></div>`;return}

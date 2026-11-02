@@ -8,7 +8,11 @@
 <script>
 /* الشركة: الاسم واللوجو بيتحفظوا على الجهاز علشان يظهروا من أول ما السيستم يفتح */
 const PM_HOME=()=>{const h=location.hostname,p=location.pathname;return location.protocol==='file:'||h==='localhost'||h==='127.0.0.1'||(h==='pioneermiant.github.io'&&/^\/pioneer(\/|$)/.test(p))};
-const PM_BKEY='pm-brand:'+location.pathname.replace(/[^/]*$/,'');
+/* رابط واحد لكل الشركات: كل شركة ليها كود في الرابط (?c=...) */
+const PM_CO=(()=>{try{const q=new URLSearchParams(location.search).get('c');if(q&&/^[A-Za-z0-9_-]{3,60}$/.test(q))return q;
+  if(!PM_HOME()&&!location.hash.startsWith('#v=')){const L=localStorage.getItem('pm-last-co');if(L&&/^[A-Za-z0-9_-]{3,60}$/.test(L)){history.replaceState(null,'',location.pathname+'?c='+L+location.hash);return L}}}catch(e){}return ''})();
+const PM_Q=PM_CO?'?c='+PM_CO:'';
+const PM_BKEY='pm-brand:'+location.pathname.replace(/[^/]*$/,'')+PM_Q;
 function pmBrand(){try{return JSON.parse(localStorage.getItem(PM_BKEY)||'null')}catch(e){return null}}
 function pmLetterIcon(size,name){try{const c=document.createElement('canvas');c.width=c.height=size;const x=c.getContext('2d');x.fillStyle='#3f4b6e';x.fillRect(0,0,size,size);x.fillStyle='#fff';x.font=`bold ${Math.round(size*.5)}px Arial, sans-serif`;x.textAlign='center';x.textBaseline='middle';x.fillText(String(name||'S').trim().charAt(0).toUpperCase()||'S',size/2,size*.54);return c.toDataURL('image/png')}catch(e){return ''}}
 </script>
@@ -20,7 +24,7 @@ const PM_ASSETS={"logo": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wB
   const B=pmBrand(),home=PM_HOME(),nm=(B&&B.name)||(home?'Pioneer':'نظام الإدارة');
   const I=B&&B.i512?{i192:B.i192,i512:B.i512,im512:B.i512,apple:B.i192,fav:B.fav||B.i192}:home?PM_ASSETS:(()=>{const a=pmLetterIcon(192,nm),b=pmLetterIcon(512,nm);return {i192:a,i512:b,im512:b,apple:a,fav:a}})();
   try{document.title=nm+' — نظام الصيانة'}catch(e){}
-  const m={name:nm+' — نظام الصيانة',short_name:nm.slice(0,14),description:'سيستم '+nm+' للصيانة والإدارة',lang:'ar',dir:'rtl',start_url:base,scope:base,id:base,display:'standalone',orientation:'any',background_color:'#eceef2',theme_color:'#f6f7f9',
+  const m={name:nm+' — نظام الصيانة',short_name:nm.slice(0,14),description:'سيستم '+nm+' للصيانة والإدارة',lang:'ar',dir:'rtl',start_url:base+PM_Q,scope:base,id:base+PM_Q,display:'standalone',orientation:'any',background_color:'#eceef2',theme_color:'#f6f7f9',
     icons:[{src:I.i192,sizes:'192x192',type:'image/png',purpose:'any'},{src:I.i512,sizes:'512x512',type:I.i512.startsWith('data:image/png')?'image/png':'image/jpeg',purpose:'any'},{src:I.im512,sizes:'512x512',type:I.im512.startsWith('data:image/png')?'image/png':'image/jpeg',purpose:'maskable'}]};
   try{add('manifest',URL.createObjectURL(new Blob([JSON.stringify(m)],{type:'application/manifest+json'})))}catch(e){}
   add('icon',I.fav,{type:'image/png'});add('apple-touch-icon',I.apple);
@@ -85,6 +89,7 @@ a{color:var(--info)}
 .mode{font-size:.72rem;border-radius:99px;padding:0 8px;background:var(--surface-2);color:var(--info)}
 .tabs{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;padding-bottom:10px}
 .tabs::-webkit-scrollbar{display:none}
+.tab.acct{margin-top:auto}
 .tab{background:none;border:0;color:var(--muted);padding:9px 14px;border-radius:12px;white-space:nowrap;cursor:pointer;display:flex;align-items:center;gap:10px;font-size:.95rem}
 .tab svg{width:20px;height:20px;flex:none;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
 .tab:hover{color:var(--ink);background:var(--surface)}
@@ -97,7 +102,7 @@ a{color:var(--info)}
   body:not(.nonav) .brand{flex-direction:column;align-items:flex-start;padding-bottom:6px}
   body:not(.nonav) .brand.has-logo{align-items:center;border-bottom:1px solid var(--line);padding-bottom:16px}
   body:not(.nonav) .brand-logo{width:100%;max-width:196px}
-  body:not(.nonav) .tabs{flex-direction:column;overflow:visible;padding:0}
+  body:not(.nonav) .tabs{flex-direction:column;overflow:visible;padding:0;flex:1}
   body:not(.nonav) .tab{padding:11px 14px}
   body:not(.nonav) .navsec{display:block}
   body:not(.nonav) main{max-width:1200px}
@@ -755,8 +760,8 @@ let SUBS=[], BOOTED=false, ONLINE=false, FB=null, CFG=null, SYNCED={}, UNSUB=[],
 const EMAIL_DOMAIN='pioneer-maint.app';
 const emailOf=u=>u.trim().toLowerCase()+'@'+EMAIL_DOMAIN;
 const EMBEDDED_FB={apiKey:"AIzaSyDx-5sfb2KimNB7vzGK40MEcc-e96S4S_w",authDomain:"pioneer-maint.firebaseapp.com",projectId:"pioneer-maint",storageBucket:"pioneer-maint.firebasestorage.app",messagingSenderId:"1085190576492",appId:"1:1085190576492:web:2cbd7941bd70fce2cd7b49"};
-function getFbConfig(){let v=null;try{v=localStorage.getItem('pm-fb')}catch(e){}if(v==='off')return null;try{if(v)return JSON.parse(v)}catch(e){}const pc=window.PM_CONFIG&&window.PM_CONFIG.firebase;if(pc&&pc.apiKey&&pc.projectId)return pc;return PM_HOME()?EMBEDDED_FB:null}
-const NO_CFG=()=>{let v=null;try{v=localStorage.getItem('pm-fb')}catch(e){}return v!=='off'&&!getFbConfig()};
+function getFbConfig(){if(PM_CO){try{const c=JSON.parse(localStorage.getItem('pm-co:'+PM_CO)||'null');return c&&c.apiKey&&c.projectId?c:null}catch(e){return null}}let v=null;try{v=localStorage.getItem('pm-fb')}catch(e){}if(v==='off')return null;try{if(v)return JSON.parse(v)}catch(e){}const pc=window.PM_CONFIG&&window.PM_CONFIG.firebase;if(pc&&pc.apiKey&&pc.projectId)return pc;return PM_HOME()?EMBEDDED_FB:null}
+const NO_CFG=()=>{if(PM_CO)return !getFbConfig();let v=null;try{v=localStorage.getItem('pm-fb')}catch(e){}return v!=='off'&&!getFbConfig()};
 function setFbConfig(c){try{localStorage.setItem('pm-fb',c?JSON.stringify(c):'off');return true}catch(e){return false}}
 function parseFbConfig(text){const o={};['apiKey','authDomain','projectId','storageBucket','messagingSenderId','appId'].forEach(k=>{const m=text.match(new RegExp(k+'["\']?\\s*:\\s*["\']([^"\']+)["\']'));if(m)o[k]=m[1]});return o.apiKey&&o.projectId?o:null}
 function fbErr(e){const c=e?.code||'';const map={'auth/invalid-credential':'اسم المستخدم أو كلمة السر غلط','auth/wrong-password':'اسم المستخدم أو كلمة السر غلط','auth/user-not-found':'اسم المستخدم أو كلمة السر غلط','auth/too-many-requests':'محاولات كتير — استنى شوية وجرب تاني','auth/network-request-failed':'مفيش إنترنت','permission-denied':'مفيش صلاحية للعملية دي','unavailable':'مفيش اتصال بالسيرفر','auth/operation-not-allowed':'فيه مشكلة في إعداد السيستم — كلّم الدعم الفني','auth/requires-recent-login':'اخرج وادخل تاني وبعدين غيّر كلمة السر','auth/api-key-not-valid.-please-pass-a-valid-api-key.':'فيه مشكلة في إعداد السيستم — كلّم الدعم الفني','auth/invalid-api-key':'فيه مشكلة في إعداد السيستم — كلّم الدعم الفني','auth/email-already-in-use':'اسم المستخدم ده موجود قبل كده'};const m=map[c]||e?.message||String(e);return /firebase|firestore|googleapis|auth\/|api.?key/i.test(m)?'حصلت مشكلة في الاتصال — جرب تاني':m}
@@ -990,7 +995,7 @@ function render(){try{applyTheme(themeOf(ME))}catch(e){}try{applyLayout(layoutOf
   const modeTag=ONLINE?`<span class="mode">أونلاين</span>`:`<span class="mode">على الجهاز ده</span>`;
   if(ONLINE?NEEDS_SETUP:!S.users.some(u=>u.role==='admin')){$('#tabs').innerHTML='';document.body.classList.add('nonav');$('#brandSub').innerHTML='نظام الصيانة '+modeTag;m.classList.add('narrow');m.innerHTML=viewSetup();return}
   if(!ME){$('#tabs').innerHTML='';document.body.classList.add('nonav');$('#brandSub').innerHTML='نظام الصيانة '+modeTag;m.classList.add('narrow');m.innerHTML=viewLogin();return}
-  $('#brandSub').innerHTML=`${esc(ME.name)} · ${ROLE[ME.role]||''} ${modeTag} ${bellBtn()} <button class="hbtn" data-act="myPass">كلمة السر</button> <button class="hbtn" data-act="logout">خروج</button>`;
+  $('#brandSub').innerHTML=`${esc(ME.name)} · ${ROLE[ME.role]||''} ${modeTag} ${bellBtn()}`+(isClinic()||updOn()||subLockFull()?` <button class="hbtn" data-act="myPass">كلمة السر</button> <button class="hbtn" data-act="logout">خروج</button>`:'');
   if(updOn()){$('#tabs').innerHTML='';document.body.classList.add('nonav');m.classList.add('narrow');m.innerHTML=updScreen();return}
   if(subLockFull()){$('#tabs').innerHTML='';document.body.classList.add('nonav');m.classList.add('narrow');m.innerHTML=subLockScreen();return}
   setTimeout(pushDeviceNotifs,50);
@@ -1000,7 +1005,8 @@ function render(){try{applyTheme(themeOf(ME))}catch(e){}try{applyLayout(layoutOf
   const badge={requests:can('requests')?S.requests.filter(r=>r.status==='new').length:0,hr:can('hr')?(S.hr||[]).filter(x=>x.status==='pending'&&x.uid!==ME.id).length:0,custody:can('custody')?(S.custody||[]).filter(x=>x.kind==='expense'&&x.status==='pending'&&x.uid!==ME.id).length:0,orders:(S.orders||[]).filter(o=>can('orders_manage')?o.status==='new':o.assignedTo===ME.id&&['assigned','preparing','out'].includes(o.status)).length};
   badge.hr=approvalItems().filter(a=>a.t!=='voucher'&&a.t!=='suppay').length;badge.treasury=can('treasury')?(S.vouchers||[]).filter(x=>x.status==='approved').length+approvalItems().filter(a=>a.t==='voucher'||a.t==='suppay').length:0;badge.custody=(can('custody')?(S.custody||[]).filter(x=>x.kind==='expense'&&x.status==='pending').length:0)+HOS().filter(h=>h.status==='pending'&&h.to===ME.id).length;
   const cur=tabOf(VIEW);
-  $('#tabs').innerHTML=navTabs().map(([k,l,,sec,ic])=>`${sec?`<div class="navsec">${esc(sec)}</div>`:''}<button class="tab ${sameHub(cur,k)?'on':''}" data-go="${k}"><svg viewBox="0 0 24 24" aria-hidden="true">${ic||ICONS[k]||''}</svg><span>${l}</span>${badge[k]?`<span class="cnt">${badge[k]}</span>`:''}</button>`).join('');
+  $('#tabs').innerHTML=navTabs().map(([k,l,,sec,ic])=>`${sec?`<div class="navsec">${esc(sec)}</div>`:''}<button class="tab ${sameHub(cur,k)?'on':''}" data-go="${k}"><svg viewBox="0 0 24 24" aria-hidden="true">${ic||ICONS[k]||''}</svg><span>${l}</span>${badge[k]?`<span class="cnt">${badge[k]}</span>`:''}</button>`).join('')
+    +`<button class="tab acct" data-act="acct"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4-6 8-6s7 2 8 6"/></svg><span>حسابي</span></button>`;
   document.body.classList.remove('nonav');setTimeout(()=>{try{const a=document.querySelector('#tabs .tab.on');const t=$('#tabs');if(a&&t&&t.scrollWidth>t.clientWidth+4){const r=a.getBoundingClientRect(),q=t.getBoundingClientRect();if(r.left<q.left||r.right>q.right)t.scrollLeft+=(r.left+r.width/2)-(q.left+q.width/2)}}catch(e){}},30);
   const banner=S.demo&&isAdmin()?`<div class="banner row between no-print"><span>دي بيانات تجريبية. فيه مهندس (karim)، ومحاسب (amr)، ومدير المستهلكات (nader)، ومندوب توصيل (sayed)، وعيادة (skinline) — كلهم بكلمة سر 123456 علشان تجرب شاشاتهم.</span><button class="btn sm" data-act="clearDemo">امسح البيانات التجريبية وابدأ</button></div>`:'';
   const V={mysub:viewMySub,devices:viewDevices,dev:()=>viewDev(PARAM),sdev:()=>viewSdev(PARAM),suppliers:viewSuppliers,supplier:()=>viewSupplier(PARAM),home:viewHome,requests:viewRequests,new:()=>viewForm(null),edit:()=>viewForm(PARAM),reports:viewReports,view:()=>viewReport(PARAM),clients:viewClients,client:()=>viewClient(PARAM),contracts:viewContracts,stock:viewStock,psales:viewPartSales,psale:()=>viewPartSale(PARAM),ar:viewAR,accounts:viewAccounts,capital:viewCapital,custody:viewCustody,cust:()=>viewCustodyOf(PARAM),hr:viewHR2,devh:()=>viewDevHistory(PARAM),orders:viewOrders,perf:viewPerf,perfu:()=>viewPerfUser(PARAM),tests:viewTests,test:()=>viewTakeTest(PARAM),tgrade:()=>viewGrade(PARAM),emps:viewEmps,payroll:viewPayroll,offers:viewOffers,meetings:viewMeetings,policy:()=>viewPolicy(),branch:()=>viewBranch(PARAM),insp:()=>viewInsp(),inspf:()=>viewInspForm(PARAM),inspv:()=>viewInspView(PARAM),treasury:()=>viewTreasury(),freon:()=>frStrip(can('stock')?`<div class="row between"><h2>المخزن</h2>${stockTabs()}</div>`+viewFreon():viewFreon()),weekly:()=>viewWeekly(),analytics:()=>viewAnalytics(),ledger:()=>viewLedger(),audit:()=>viewAudit(),archive:()=>viewArchive(),empf:()=>viewEmpFile(PARAM),users:viewUsers,settings:()=>(can('nav_order')?navOrderPanel():'')+(can('settings')?viewSettings():'')};
@@ -1655,7 +1661,7 @@ const waPhone=p=>{let d=normD(p||'').replace(/\D/g,'');if(d.startsWith('00'))d=d
 function openWa(phone,txt){const a=document.createElement('a');a.href=`https://wa.me/${waPhone(phone)}?text=${encodeURIComponent(txt)}`;a.target='_blank';a.rel='noopener';document.body.appendChild(a);a.click();a.remove()}
 async function sendReport(id){
   const r=S.reports.find(x=>x.id===id);if(!r)return;const c=client(r.clientId)||{};const br=branchInfo(c,r.branch);
-  const bal=balOf('report',r);const link=location.origin+location.pathname;
+  const bal=balOf('report',r);const link=location.origin+location.pathname+PM_Q;
   const txt=`${BRAND()} — تقرير صيانة رقم ${pad(r.no)}\nالعميل: ${c.name||''}${r.branch?' – فرع '+r.branch:''}\nالتاريخ: ${fd(r.date)}\nالجهاز: ${devName(r.device)}${(r.faults||[]).length?'\nالأعطال: '+r.faults.join('، '):''}\nما تم: ${r.done||'—'}\nالإجمالي: ${money(totOf('report',r))}${bal>0.009?'\nالمتبقي: '+money(bal):''}\n\nتقدر تشوف التقرير وحسابك وضمان القطع من هنا:\n${link}`;
   toast('بيتم تجهيز التقرير…');
   let blob=null;try{blob=await reportBlob(r)}catch(e){}
@@ -3082,8 +3088,11 @@ document.addEventListener('click',e=>{
   if(NEED[a]&&!can(NEED[a])){toast('مفيش عندك صلاحية للحاجة دي');return}
   if(a==='collect'&&t.dataset.type!=='report'&&!(can('ar')||(t.dataset.type==='psale'&&(can('part_sales')||can('cons_sales')))||(t.dataset.type==='contract'&&can('contracts')))){toast('مفيش عندك صلاحية للتحصيل');return}
   switch(a){
-    case 'logout':CTAB='req';if(ONLINE){const pf=dsPref();dsStop();dsClear(pf).finally(()=>FB.auth.signOut())}else{ME=null;setSession(null);VIEW='home';render()}break;
+    case 'logout':try{closeModal(true)}catch(e){}CTAB='req';if(ONLINE){const pf=dsPref();dsStop();dsClear(pf).finally(()=>FB.auth.signOut())}else{ME=null;setSession(null);VIEW='home';render()}break;
     case 'myPass':openMyPass();break;
+    case 'acct':infoModal(`<div class="grid" style="gap:14px"><div class="row" style="gap:12px"><div style="width:48px;height:48px;border-radius:50%;background:var(--accent);color:#fff;display:grid;place-items:center;font-size:1.3rem;font-weight:700">${esc((ME.name||'?').trim().charAt(0))}</div><div><b style="font-size:1.1rem">${esc(ME.name)}</b><div class="muted small">${esc(ROLE[ME.role]||'')}${ME.main?' · 👑 صاحب الحساب':''}</div></div></div>
+      <button class="btn" data-act="myPass" style="justify-content:flex-start">🔑 تغيير كلمة السر</button>
+      <button class="btn danger" data-act="logout" style="justify-content:flex-start">↩ تسجيل الخروج</button></div>`);break;
     case 'showPass':{const i=$('#li_pass');i.type=i.type==='password'?'text':'password';t.textContent=i.type==='password'?'إظهار':'إخفاء';break}
     case 'resetLocal':confirmBox('مسح كل البيانات اللي على الجهاز ده والبدء من جديد؟',()=>{S=demoState();ME=null;setSession(null);save();render()});break;
     case 'showImg':showImg(t.dataset.src);break;
@@ -5635,7 +5644,7 @@ setTimeout(()=>{netBar();syncPendingNos()},4000);
 /* ---------- 7) QR التحقق ---------- */
 let QRLIB_P=null;function loadQR(){if(window.qrcode)return Promise.resolve();return QRLIB_P||(QRLIB_P=loadScript('https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js').catch(()=>{}))}
 setTimeout(loadQR,1500);
-const verifyUrl=(t,id)=>location.origin+location.pathname.replace(/[^/]*$/,'')+'#v='+t+'.'+id;
+const verifyUrl=(t,id)=>location.origin+location.pathname.replace(/[^/]*$/,'')+PM_Q+'#v='+t+'.'+id;
 function qrData(text){try{if(!window.qrcode)return '';const q=qrcode(0,'M');q.addData(text);q.make();return q.createDataURL(4,2)}catch(e){return ''}}
 const VERIFIED=new Set();
 function writeVerify(t,x){if(!x||!x.id)return;const c=client(x.clientId)||{};const v={id:x.id,t,no:x.no||null,date:x.date||'',clinic:cName(c)||x.buyer||'',branch:x.branch||'',device:t==='r'?{name:devLabel(x.device||{}),serial:x.device?.serial||''}:null,serial:t==='r'?(x.device?.serial||''):'',engineer:t==='r'?(x.engineer||''):'',work:t==='r'?(x.work||'صيانة'):(psTitle?psTitle(x):'فاتورة'),items:t==='i'?(x.lines||[]).map(l=>l.name+' × '+l.qty).join('، ').slice(0,300):(x.parts||[]).map(l=>l.name).join('، ').slice(0,300),company:BRAND(),at:new Date().toISOString(),hist:t==='r'&&x.device?.serial?S.reports.filter(y=>y.clientId===x.clientId&&y.device?.serial===x.device.serial).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,20).map(y=>({date:y.date,no:y.no||null,work:y.work||'صيانة',items:(y.parts||[]).map(l=>l.name).join('، ').slice(0,120)})):[]};
@@ -6188,7 +6197,7 @@ let XR_PRE='';
 
 
 /* ---------- فحص التحديثات ---------- */
-const APP_VER='2026.11.02.2';
+const APP_VER='2026.11.02.3';
 async function checkUpdate(){try{if(location.protocol==='file:')return;const t=await (await fetch(location.pathname+'?_='+Date.now(),{cache:'no-store'})).text();const m=t.match(/const APP_VER='([^']+)'/);if(m&&m[1]!==APP_VER)showUpd(m[1])}catch(e){}}
 function showUpd(v){if(document.getElementById('updBar'))return;const b=document.createElement('div');b.id='updBar';b.style.cssText='position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:80;background:#1d2b45;color:#fff;padding:10px 16px;border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,.25);display:flex;gap:12px;align-items:center;font-weight:600;max-width:92vw';b.innerHTML='<span>🔄 فيه نسخة جديدة من السيستم</span><button type="button" style="background:#2b8fb8;color:#fff;border:0;border-radius:10px;padding:6px 14px;font:inherit;cursor:pointer">حدّث دلوقتي</button>';b.querySelector('button').onclick=()=>{location.replace(location.pathname+'?v='+encodeURIComponent(v)+location.hash)};document.body.appendChild(b)}
 setTimeout(checkUpdate,8000);setInterval(checkUpdate,5*60*1000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkUpdate()});
@@ -7424,6 +7433,10 @@ function subLimitClient(){const x=subX();if(!x||(ME&&isDev(ME)))return true;if(n
    التشغيل
    ===================================================================== */
 setTimeout(()=>{const m=document.getElementById('main');if(m&&/بيحمّل/.test(m.textContent)){m.innerHTML='<div class="panel grid" style="max-width:520px;margin:30px auto"><h2>التحميل واخد وقت</h2><div class="muted">السيستم مش قادر يوصل لقاعدة البيانات. اتأكد إن النت شغال، وجرب واي فاي لو على باقة موبايل.</div><div class="row"><button class="btn pri" onclick="location.reload()">جرب تاني</button></div></div>'}},25000);
+/* بيانات ربط الشركة: من لوحة Beam Care (عامة — الحماية في قواعد كل شركة) */
+async function pmCoFetch(){try{const r=await fetch('https://firestore.googleapis.com/v1/projects/beamcare-clinic/databases/(default)/documents/brands/'+encodeURIComponent(PM_CO)+'?key=AIzaSyBF42mXPiwrPm4QKd55YtZVUtmZcbr3s_0',{cache:'no-store'});
+  if(r.status===404)return false;if(!r.ok)return null;const j=await r.json();const f=j.fields?.fb?.mapValue?.fields;if(!f)return false;
+  const o={};['apiKey','authDomain','projectId','storageBucket','messagingSenderId','appId'].forEach(k=>{if(f[k]?.stringValue)o[k]=f[k].stringValue});return o.apiKey&&o.projectId?o:false}catch(e){return null}}
 /* دخول المطوّر من لوحة Beam Care بزرار واحد (بيوصل بـ postMessage من اللوحة بس، مش في الرابط) */
 (function(){if(location.hash!=='#bc-login'||!window.opener)return;
   const ORIG='https://beamcare.github.io';let done=false;
@@ -7439,8 +7452,12 @@ setTimeout(()=>{const m=document.getElementById('main');if(m&&/بيحمّل/.tes
     }catch(er){toast(fbErr(er))}});
 })();
 (async()=>{
+  if(PM_CO){let old=null;try{old=localStorage.getItem('pm-co:'+PM_CO)}catch(e){}
+    const upd=fresh=>{if(fresh){const j=JSON.stringify(fresh);if(j!==old){try{localStorage.setItem('pm-co:'+PM_CO,j)}catch(e){}if(old)location.reload()}}else if(fresh===false&&old){try{localStorage.removeItem('pm-co:'+PM_CO)}catch(e){}location.reload()}};
+    if(old)pmCoFetch().then(upd);else upd(await pmCoFetch())}
   const cfg=getFbConfig();
-  if(NO_CFG()){S=emptyState();$('#main').innerHTML=`<div class="panel grid" style="max-width:520px;margin:30px auto;text-align:center"><h2>السيستم لسه بيتجهز</h2><div class="muted">النسخة دي لسه ما اتفعّلتش. كلّم الدعم الفني.</div></div>`;return}
+  if(PM_CO&&cfg){try{localStorage.setItem('pm-last-co',PM_CO)}catch(e){}}
+  if(NO_CFG()){if(PM_CO){S=emptyState();$('#main').innerHTML=`<div class="panel grid" style="max-width:520px;margin:30px auto;text-align:center"><h2>الرابط ده مش شغال</h2><div class="muted">اتأكد إنك فاتح الرابط الصح، أو كلّم الدعم الفني.</div></div>`;return}S=emptyState();$('#main').innerHTML=`<div class="panel grid" style="max-width:520px;margin:30px auto;text-align:center"><h2>السيستم لسه بيتجهز</h2><div class="muted">النسخة دي لسه ما اتفعّلتش. كلّم الدعم الفني.</div></div>`;return}
   if(cfg){
     try{await initOnline(cfg);return}
     catch(e){

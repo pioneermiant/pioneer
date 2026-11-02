@@ -9,9 +9,12 @@
 /* الشركة: الاسم واللوجو بيتحفظوا على الجهاز علشان يظهروا من أول ما السيستم يفتح */
 const PM_HOME=()=>{const h=location.hostname,p=location.pathname;return location.protocol==='file:'||h==='localhost'||h==='127.0.0.1'||(h==='pioneermiant.github.io'&&/^\/pioneer(\/|$)/.test(p))};
 /* رابط واحد لكل الشركات: كل شركة ليها كود في الرابط (?c=...) */
-const PM_CO=(()=>{try{const q=new URLSearchParams(location.search).get('c');if(q&&/^[A-Za-z0-9_-]{3,60}$/.test(q))return q;
+/* نسخة التجربة (Demo): ?demo=1 — بيانات وهمية على جهاز الزائر بس، من غير سيرفر */
+const PM_DEMO=(()=>{try{return new URLSearchParams(location.search).get('demo')==='1'}catch(e){return false}})();
+const PM_DEMO_WA=(()=>{try{return (new URLSearchParams(location.search).get('wa')||'').replace(/[^0-9]/g,'').slice(0,15)}catch(e){return ''}})();
+const PM_CO=PM_DEMO?'':(()=>{try{const q=new URLSearchParams(location.search).get('c');if(q&&/^[A-Za-z0-9_-]{3,60}$/.test(q))return q;
   if(!PM_HOME()&&!location.hash.startsWith('#v=')){const L=localStorage.getItem('pm-last-co');if(L&&/^[A-Za-z0-9_-]{3,60}$/.test(L)){history.replaceState(null,'',location.pathname+'?c='+L+location.hash);return L}}}catch(e){}return ''})();
-const PM_Q=PM_CO?'?c='+PM_CO:'';
+const PM_Q=PM_DEMO?'?demo=1'+(PM_DEMO_WA?'&wa='+PM_DEMO_WA:''):PM_CO?'?c='+PM_CO:'';
 const PM_BKEY='pm-brand:'+location.pathname.replace(/[^/]*$/,'')+PM_Q;
 function pmBrand(){try{return JSON.parse(localStorage.getItem(PM_BKEY)||'null')}catch(e){return null}}
 function pmLetterIcon(size,name){try{const c=document.createElement('canvas');c.width=c.height=size;const x=c.getContext('2d');x.fillStyle='#3f4b6e';x.fillRect(0,0,size,size);x.fillStyle='#fff';x.font=`bold ${Math.round(size*.5)}px Arial, sans-serif`;x.textAlign='center';x.textBaseline='middle';x.fillText(String(name||'S').trim().charAt(0).toUpperCase()||'S',size/2,size*.54);return c.toDataURL('image/png')}catch(e){return ''}}
@@ -92,6 +95,11 @@ a{color:var(--info)}
 .tab.acct{margin-top:auto}
 .tab{background:none;border:0;color:var(--muted);padding:9px 14px;border-radius:12px;white-space:nowrap;cursor:pointer;display:flex;align-items:center;gap:10px;font-size:.95rem}
 .tab svg{width:20px;height:20px;flex:none;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+/* شكل الأيقونات (بيتنزّل من لوحة Beam Care) */
+body.ico-filled #tabs .tab svg{fill:currentColor!important;stroke:var(--surface)!important;stroke-width:1.3!important}
+body.ico-duotone #tabs .tab svg{fill:var(--accent-soft)!important;stroke:var(--accent)!important}
+body.ico-circle #tabs .tab svg{background:var(--accent)!important;stroke:#fff!important;border-radius:50%!important;width:18px!important;height:18px!important;padding:7px!important;box-sizing:content-box!important;box-shadow:none!important}
+body.ico-square #tabs .tab svg{background:var(--accent-soft)!important;stroke:var(--accent)!important;border-radius:9px!important;width:18px!important;height:18px!important;padding:7px!important;box-sizing:content-box!important;box-shadow:none!important}
 .tab:hover{color:var(--ink);background:var(--surface)}
 .tab.on{color:#fff;background:var(--g1);font-weight:600;box-shadow:0 6px 18px rgba(91,77,255,.4)}
 .navsec{font-size:.78rem;color:var(--muted);opacity:.8;padding:14px 14px 4px;display:none}
@@ -376,19 +384,19 @@ input:focus,select:focus,textarea:focus{border-color:var(--accent)}
 /* =====================================================================
    التخزين المحلي (IndexedDB مع بديل localStorage)
    ===================================================================== */
-const DBN='pioneer-maint-v1', ST='kv';
+const DBN=PM_DEMO?'pioneer-demo-v1':'pioneer-maint-v1', ST='kv';const LSK=PM_DEMO?'pm-demo-state':'pm-state';
 function idb(){return new Promise((res,rej)=>{let done=false;const t=setTimeout(()=>{if(!done){done=true;rej(new Error('idb timeout'))}},1500);try{const r=indexedDB.open(DBN,1);r.onupgradeneeded=()=>r.result.createObjectStore(ST);r.onsuccess=()=>{if(!done){done=true;clearTimeout(t);res(r.result)}};r.onerror=r.onblocked=()=>{if(!done){done=true;clearTimeout(t);rej(r.error)}}}catch(e){done=true;clearTimeout(t);rej(e)}})}
 window.addEventListener('error',e=>{const m=document.getElementById('main');if(m&&/بيحمّل/.test(m.textContent))m.innerHTML='<div class="empty">حصلت مشكلة في التشغيل: '+String(e.message).replace(/</g,'&lt;')+'</div>'});
 window.addEventListener('unhandledrejection',e=>{const m=document.getElementById('main');if(m&&/بيحمّل/.test(m.textContent))m.innerHTML='<div class="empty">حصلت مشكلة في التشغيل: '+String(e.reason&&e.reason.message||e.reason).replace(/</g,'&lt;')+'</div>'});
 async function loadState(){
   try{const db=await idb();const v=await new Promise(res=>{const q=db.transaction(ST).objectStore(ST).get('state');q.onsuccess=()=>res(q.result);q.onerror=()=>res(null)});if(v)return v}catch(e){}
-  try{return JSON.parse(localStorage.getItem('pm-state'))}catch(e){return null}
+  try{return JSON.parse(localStorage.getItem(LSK))}catch(e){return null}
 }
 let saveTimer=null;
 function save(){if(updOn()){subBlock('السيستم متوقف للتحديث — التعديل هيرجع بعد ما التحديث يخلص');return}if(subRO()){subBlock();return}if(ME&&isStaff())syncCatalog();try{audOffline()}catch(e){}if(ONLINE){persistOnline();return}clearTimeout(saveTimer);saveTimer=setTimeout(persistLocal,150)}
 async function persistLocal(){
   try{const db=await idb();await new Promise((res,rej)=>{const t=db.transaction(ST,'readwrite');t.objectStore(ST).put(S,'state');t.oncomplete=res;t.onerror=()=>rej(t.error)})}
-  catch(e){try{localStorage.setItem('pm-state',JSON.stringify(S))}catch(err){if(!persistLocal.warned){persistLocal.warned=1;toast('المتصفح ده مش بيسمح بحفظ البيانات — اللي هتكتبه هيضيع لما تقفل الصفحة')}}}
+  catch(e){try{localStorage.setItem(LSK,JSON.stringify(S))}catch(err){if(!persistLocal.warned){persistLocal.warned=1;toast('المتصفح ده مش بيسمح بحفظ البيانات — اللي هتكتبه هيضيع لما تقفل الصفحة')}}}
 }
 
 /* =====================================================================
@@ -760,8 +768,8 @@ let SUBS=[], BOOTED=false, ONLINE=false, FB=null, CFG=null, SYNCED={}, UNSUB=[],
 const EMAIL_DOMAIN='pioneer-maint.app';
 const emailOf=u=>u.trim().toLowerCase()+'@'+EMAIL_DOMAIN;
 const EMBEDDED_FB={apiKey:"AIzaSyDx-5sfb2KimNB7vzGK40MEcc-e96S4S_w",authDomain:"pioneer-maint.firebaseapp.com",projectId:"pioneer-maint",storageBucket:"pioneer-maint.firebasestorage.app",messagingSenderId:"1085190576492",appId:"1:1085190576492:web:2cbd7941bd70fce2cd7b49"};
-function getFbConfig(){if(PM_CO){try{const c=JSON.parse(localStorage.getItem('pm-co:'+PM_CO)||'null');return c&&c.apiKey&&c.projectId?c:null}catch(e){return null}}let v=null;try{v=localStorage.getItem('pm-fb')}catch(e){}if(v==='off')return null;try{if(v)return JSON.parse(v)}catch(e){}const pc=window.PM_CONFIG&&window.PM_CONFIG.firebase;if(pc&&pc.apiKey&&pc.projectId)return pc;return PM_HOME()?EMBEDDED_FB:null}
-const NO_CFG=()=>{if(PM_CO)return !getFbConfig();let v=null;try{v=localStorage.getItem('pm-fb')}catch(e){}return v!=='off'&&!getFbConfig()};
+function getFbConfig(){if(PM_DEMO)return null;if(PM_CO){try{const c=JSON.parse(localStorage.getItem('pm-co:'+PM_CO)||'null');return c&&c.apiKey&&c.projectId?c:null}catch(e){return null}}let v=null;try{v=localStorage.getItem('pm-fb')}catch(e){}if(v==='off')return null;try{if(v)return JSON.parse(v)}catch(e){}const pc=window.PM_CONFIG&&window.PM_CONFIG.firebase;if(pc&&pc.apiKey&&pc.projectId)return pc;return PM_HOME()?EMBEDDED_FB:null}
+const NO_CFG=()=>{if(PM_DEMO)return false;if(PM_CO)return !getFbConfig();let v=null;try{v=localStorage.getItem('pm-fb')}catch(e){}return v!=='off'&&!getFbConfig()};
 function setFbConfig(c){try{localStorage.setItem('pm-fb',c?JSON.stringify(c):'off');return true}catch(e){return false}}
 function parseFbConfig(text){const o={};['apiKey','authDomain','projectId','storageBucket','messagingSenderId','appId'].forEach(k=>{const m=text.match(new RegExp(k+'["\']?\\s*:\\s*["\']([^"\']+)["\']'));if(m)o[k]=m[1]});return o.apiKey&&o.projectId?o:null}
 function fbErr(e){const c=e?.code||'';const map={'auth/invalid-credential':'اسم المستخدم أو كلمة السر غلط','auth/wrong-password':'اسم المستخدم أو كلمة السر غلط','auth/user-not-found':'اسم المستخدم أو كلمة السر غلط','auth/too-many-requests':'محاولات كتير — استنى شوية وجرب تاني','auth/network-request-failed':'مفيش إنترنت','permission-denied':'مفيش صلاحية للعملية دي','unavailable':'مفيش اتصال بالسيرفر','auth/operation-not-allowed':'فيه مشكلة في إعداد السيستم — كلّم الدعم الفني','auth/requires-recent-login':'اخرج وادخل تاني وبعدين غيّر كلمة السر','auth/api-key-not-valid.-please-pass-a-valid-api-key.':'فيه مشكلة في إعداد السيستم — كلّم الدعم الفني','auth/invalid-api-key':'فيه مشكلة في إعداد السيستم — كلّم الدعم الفني','auth/email-already-in-use':'اسم المستخدم ده موجود قبل كده'};const m=map[c]||e?.message||String(e);return /firebase|firestore|googleapis|auth\/|api.?key/i.test(m)?'حصلت مشكلة في الاتصال — جرب تاني':m}
@@ -987,7 +995,7 @@ async function migrateReturns(){
   }
   try{await newUnits(nu);S.returns=[];save();render()}catch(e){}
 }
-function render(){try{applyTheme(themeOf(ME))}catch(e){}try{applyLayout(layoutOf(ME))}catch(e){}
+function render(){try{applyTheme(themeOf(ME))}catch(e){}try{applyLayout(layoutOf(ME))}catch(e){}try{const ic=S?.sub?.icons||'';document.body.classList.remove('ico-filled','ico-duotone','ico-circle','ico-square');if(ic&&ic!=='outline')document.body.classList.add('ico-'+ic);if(ME&&S?.sub?.look){const k='pm-look:'+PM_BKEY,old=localStorage.getItem(k);if(old!==S.sub.look){localStorage.setItem(k,S.sub.look);if(old)setTimeout(()=>toast('🎉 شكل جديد للسيستم — '+(S.sub.lookName||'')),400)}}}catch(e){}
   if(location.hash.startsWith('#v=')){if(window.VER_SHOWN!==location.hash){window.VER_SHOWN=location.hash;viewVerifyPage(location.hash.slice(3))}return}
   if(isStaff()){backfill();try{if(!ONLINE||(SYNCED.requests&&SYNCED.contracts))autoPlanVisits()}catch(e){}}
   brandApply();
@@ -1008,7 +1016,7 @@ function render(){try{applyTheme(themeOf(ME))}catch(e){}try{applyLayout(layoutOf
   $('#tabs').innerHTML=navTabs().map(([k,l,,sec,ic])=>`${sec?`<div class="navsec">${esc(sec)}</div>`:''}<button class="tab ${sameHub(cur,k)?'on':''}" data-go="${k}"><svg viewBox="0 0 24 24" aria-hidden="true">${ic||ICONS[k]||''}</svg><span>${l}</span>${badge[k]?`<span class="cnt">${badge[k]}</span>`:''}</button>`).join('')
     +`<button class="tab acct" data-act="acct"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4-6 8-6s7 2 8 6"/></svg><span>حسابي</span></button>`;
   document.body.classList.remove('nonav');setTimeout(()=>{try{const a=document.querySelector('#tabs .tab.on');const t=$('#tabs');if(a&&t&&t.scrollWidth>t.clientWidth+4){const r=a.getBoundingClientRect(),q=t.getBoundingClientRect();if(r.left<q.left||r.right>q.right)t.scrollLeft+=(r.left+r.width/2)-(q.left+q.width/2)}}catch(e){}},30);
-  const banner=S.demo&&isAdmin()?`<div class="banner row between no-print"><span>دي بيانات تجريبية. فيه مهندس (karim)، ومحاسب (amr)، ومدير المستهلكات (nader)، ومندوب توصيل (sayed)، وعيادة (skinline) — كلهم بكلمة سر 123456 علشان تجرب شاشاتهم.</span><button class="btn sm" data-act="clearDemo">امسح البيانات التجريبية وابدأ</button></div>`:'';
+  const banner=(PM_DEMO?`<div class="banner info row between no-print" style="gap:10px;flex-wrap:wrap"><span>🧪 <b>دي نسخة تجربة من Beam Care Maintenance</b> — البيانات وهمية ومحفوظة على جهازك بس. جرّب براحتك.</span><span class="row" style="gap:6px">${PM_DEMO_WA?`<a class="btn sm pri" target="_blank" rel="noopener" href="https://wa.me/${PM_DEMO_WA}?text=${encodeURIComponent('أهلاً، جربت نسخة التجربة من Beam Care Maintenance وعايز أعرف تفاصيل الاشتراك')}">💬 عايز أشترك</a>`:''}<button class="btn sm" data-act="demoReset">ابدأ التجربة من جديد</button></span></div>`:'')+(S.demo&&isAdmin()&&!PM_DEMO?`<div class="banner row between no-print"><span>دي بيانات تجريبية. فيه مهندس (karim)، ومحاسب (amr)، ومدير المستهلكات (nader)، ومندوب توصيل (sayed)، وعيادة (skinline) — كلهم بكلمة سر 123456 علشان تجرب شاشاتهم.</span><button class="btn sm" data-act="clearDemo">امسح البيانات التجريبية وابدأ</button></div>`:PM_DEMO&&isAdmin()?`<div class="banner row between no-print"><span>تقدر تدخل بحسابات تانية علشان تشوف كل شاشة: مهندس (karim)، محاسب (amr)، مستهلكات (nader)، مندوب (sayed)، عيادة (skinline) — كلهم بكلمة سر 123456، والمدير admin بكلمة سر 123456.</span></div>`:'');
   const V={mysub:viewMySub,devices:viewDevices,dev:()=>viewDev(PARAM),sdev:()=>viewSdev(PARAM),suppliers:viewSuppliers,supplier:()=>viewSupplier(PARAM),home:viewHome,requests:viewRequests,new:()=>viewForm(null),edit:()=>viewForm(PARAM),reports:viewReports,view:()=>viewReport(PARAM),clients:viewClients,client:()=>viewClient(PARAM),contracts:viewContracts,stock:viewStock,psales:viewPartSales,psale:()=>viewPartSale(PARAM),ar:viewAR,accounts:viewAccounts,capital:viewCapital,custody:viewCustody,cust:()=>viewCustodyOf(PARAM),hr:viewHR2,devh:()=>viewDevHistory(PARAM),orders:viewOrders,perf:viewPerf,perfu:()=>viewPerfUser(PARAM),tests:viewTests,test:()=>viewTakeTest(PARAM),tgrade:()=>viewGrade(PARAM),emps:viewEmps,payroll:viewPayroll,offers:viewOffers,meetings:viewMeetings,policy:()=>viewPolicy(),branch:()=>viewBranch(PARAM),insp:()=>viewInsp(),inspf:()=>viewInspForm(PARAM),inspv:()=>viewInspView(PARAM),treasury:()=>viewTreasury(),freon:()=>frStrip(can('stock')?`<div class="row between"><h2>المخزن</h2>${stockTabs()}</div>`+viewFreon():viewFreon()),weekly:()=>viewWeekly(),analytics:()=>viewAnalytics(),ledger:()=>viewLedger(),audit:()=>viewAudit(),archive:()=>viewArchive(),empf:()=>viewEmpFile(PARAM),users:viewUsers,settings:()=>(can('nav_order')?navOrderPanel():'')+(can('settings')?viewSettings():'')};
   m.innerHTML=subBanner()+banner+hubBar(VIEW)+(V[VIEW]||viewHome)();
   if(VIEW==='new'||VIEW==='edit')initForm();
@@ -2983,8 +2991,8 @@ function viewSettings(){
   <div class="panel grid"><h3 style="margin:0">ملاحظات هامة (أسفل التقرير)</h3><label class="f">كل بند في سطر<textarea id="s_terms" style="min-height:130px">${esc(s.terms.join('\n'))}</textarea></label></div>
   <div class="row" style="justify-content:flex-end"><button class="btn pri" type="submit">حفظ الإعدادات</button></div>
   </form>
-  ${ONLINE?'':viewOnlineSettings()}
-  ${ONLINE?'':`<div class="panel grid"><h3 style="margin:0">النسخ الاحتياطي</h3>
+  ${ONLINE||PM_DEMO?'':viewOnlineSettings()}
+  ${ONLINE||PM_DEMO?'':`<div class="panel grid"><h3 style="margin:0">النسخ الاحتياطي</h3>
     <div class="muted">${ONLINE?'البيانات متخزنة أونلاين. النسخة الاحتياطية بتنزل ملف بكل البيانات تحتفظ بيه.':'البيانات متخزنة على الجهاز ده بس. اعمل نسخة احتياطية كل أسبوع واحفظها على الدرايف أو الواتساب.'}</div>
     <div class="row"><button class="btn pri" data-act="export">تنزيل نسخة احتياطية</button>${ONLINE?'':'<button class="btn" data-act="import">استيراد نسخة</button><span style="flex:1"></span><button class="btn danger" data-act="wipe">مسح كل البيانات</button>'}</div>
   </div>`}`;
@@ -3094,6 +3102,7 @@ document.addEventListener('click',e=>{
       <button class="btn" data-act="myPass" style="justify-content:flex-start">🔑 تغيير كلمة السر</button>
       <button class="btn danger" data-act="logout" style="justify-content:flex-start">↩ تسجيل الخروج</button></div>`);break;
     case 'showPass':{const i=$('#li_pass');i.type=i.type==='password'?'text':'password';t.textContent=i.type==='password'?'إظهار':'إخفاء';break}
+    case 'demoReset':if(!PM_DEMO)break;confirmBox('ترجّع التجربة من الأول؟ أي حاجة جربتها هتتمسح.',()=>{S=demoState();ME=null;setSession(null);save();setTimeout(()=>location.reload(),300)});break;
     case 'resetLocal':confirmBox('مسح كل البيانات اللي على الجهاز ده والبدء من جديد؟',()=>{S=demoState();ME=null;setSession(null);save();render()});break;
     case 'showImg':showImg(t.dataset.src);break;
     case 'clinicReport':openClinicReport(id);break;
@@ -6197,7 +6206,7 @@ let XR_PRE='';
 
 
 /* ---------- فحص التحديثات ---------- */
-const APP_VER='2026.11.02.3';
+const APP_VER='2026.11.03.1';
 async function checkUpdate(){try{if(location.protocol==='file:')return;const t=await (await fetch(location.pathname+'?_='+Date.now(),{cache:'no-store'})).text();const m=t.match(/const APP_VER='([^']+)'/);if(m&&m[1]!==APP_VER)showUpd(m[1])}catch(e){}}
 function showUpd(v){if(document.getElementById('updBar'))return;const b=document.createElement('div');b.id='updBar';b.style.cssText='position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:80;background:#1d2b45;color:#fff;padding:10px 16px;border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,.25);display:flex;gap:12px;align-items:center;font-weight:600;max-width:92vw';b.innerHTML='<span>🔄 فيه نسخة جديدة من السيستم</span><button type="button" style="background:#2b8fb8;color:#fff;border:0;border-radius:10px;padding:6px 14px;font:inherit;cursor:pointer">حدّث دلوقتي</button>';b.querySelector('button').onclick=()=>{location.replace(location.pathname+'?v='+encodeURIComponent(v)+location.hash)};document.body.appendChild(b)}
 setTimeout(checkUpdate,8000);setInterval(checkUpdate,5*60*1000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkUpdate()});
@@ -7469,6 +7478,10 @@ async function pmCoFetch(){try{const r=await fetch('https://firestore.googleapis
   try{S=await Promise.race([loadState(),new Promise(r=>setTimeout(()=>r(null),2500))])}catch(e){S=null}
   if(!S){S=demoState();save()}
   S.settings={...DEFAULT_SETTINGS,...S.settings};ALL_COLS.forEach(c=>S[c]=S[c]||[]);
+  if(PM_DEMO){S.demo=true;S.settings.company='Beam Care Maintenance';S.settings.sub='نسخة تجربة';S.settings.appLogo=BC_LOGO;S.settings.logo=BC_LOGO;
+    let a=S.users.find(u=>u.role==='admin'&&u.username==='admin');
+    if(!a){a={id:uid(),name:'المدير (تجربة)',username:'admin',role:'admin',active:true,clientId:'',hash:pwHash('admin','123456')};S.users.push(a);save()}
+    if(!getSession())setSession(a.id)}
   const sid=getSession();ME=S.users.find(u=>u.id===sid&&u.active!==false)||null;render();
 })();
 </script>

@@ -823,6 +823,7 @@ function startListeners(){
     liveRender();
   })};
   for(const c of COLS)sub(c,FB.db.collection(c));
+  wrListen(L);
   for(const c in PERM_COLS)if(PERM_COLS[c].some(can))sub(c,FB.db.collection(c));
   if(isDev(ME))sub('secrets',FB.db.collection('secrets'));
   if(isDev(ME))sub('audit',FB.db.collection('audit').where('at','>=',new Date(Date.now()-120*864e5).toISOString()));
@@ -911,6 +912,7 @@ function moveSlot(oldD,oldS,newD,newS){
 const TABS=[
  ['home','الرئيسية',()=>true],
  ['requests','الطلبات',()=>can('requests')],
+ ['webreq','طلبات الأونلاين',()=>can('requests')&&ONLINE],
  ['reports','التقارير والكشف',()=>can('reports_all')||(can('reports_write')&&seeRes())||can('inspections')],
  ['clients','العيادات (العملاء)',()=>can('clients'),'العيادات والمخزن'],
  ['contracts','عقود الصيانة',()=>can('contracts')],
@@ -948,6 +950,7 @@ function allowed(v,p){if(v==='archive')return isDev(ME);if(v==='new')return can(
 const ICONS={
  mysub:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h4"/>',
  home:'<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',
+ webreq:'<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.7 3.8 5.7 3.8 9s-1.3 6.3-3.8 9c-2.5-2.7-3.8-5.7-3.8-9S9.5 5.7 12 3"/>',
  requests:'<path d="M6 9a6 6 0 1 1 12 0c0 6 3 8 3 8H3s3-2 3-8"/><path d="M10 21h4"/>',
  new:'<path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8z"/><path d="M14 3v5h5M12 11v6M9 14h6"/>',
  insp:'<circle cx="10.5" cy="10.5" r="6.5"/><path d="m20 20-4.8-4.8M8 10.5l1.8 1.8 3.4-3.6"/>',
@@ -1000,6 +1003,7 @@ async function migrateReturns(){
   try{await newUnits(nu);S.returns=[];save();render()}catch(e){}
 }
 function render(){try{applyTheme(themeOf(ME))}catch(e){}try{applyLayout(layoutOf(ME))}catch(e){}try{const ic=S?.sub?.icons||'';document.body.classList.remove('ico-filled','ico-duotone','ico-circle','ico-square');if(ic&&ic!=='outline')document.body.classList.add('ico-'+ic);if(ME&&S?.sub?.look){const k='pm-look:'+PM_BKEY,old=localStorage.getItem(k);if(old!==S.sub.look){localStorage.setItem(k,S.sub.look);if(old)setTimeout(()=>toast('🎉 شكل جديد للسيستم — '+(S.sub.lookName||'')),400)}}}catch(e){}
+  if(location.hash==='#req'){if(!window.WRP_SHOWN){window.WRP_SHOWN=1;viewWebReqPage(getFbConfig())}return}
   if(location.hash.startsWith('#v=')){if(window.VER_SHOWN!==location.hash){window.VER_SHOWN=location.hash;viewVerifyPage(location.hash.slice(3))}return}
   if(isStaff()){backfill();try{if(!ONLINE||(SYNCED.requests&&SYNCED.contracts))autoPlanVisits()}catch(e){}}
   brandApply();
@@ -1015,15 +1019,16 @@ function render(){try{applyTheme(themeOf(ME))}catch(e){}try{applyLayout(layoutOf
   if(location.hash==='#dev-archive'){try{history.replaceState(null,'',location.pathname+location.search)}catch(e){}if(isDev(ME)){VIEW='archive';PARAM=null}}
   if(!allowed(VIEW,PARAM))VIEW='home';
   const badge={requests:can('requests')?S.requests.filter(r=>r.status==='new').length:0,hr:can('hr')?(S.hr||[]).filter(x=>x.status==='pending'&&x.uid!==ME.id).length:0,custody:can('custody')?(S.custody||[]).filter(x=>x.kind==='expense'&&x.status==='pending'&&x.uid!==ME.id).length:0,orders:(S.orders||[]).filter(o=>can('orders_manage')?o.status==='new':o.assignedTo===ME.id&&['assigned','preparing','out'].includes(o.status)).length};
-  badge.hr=approvalItems().filter(a=>a.t!=='voucher'&&a.t!=='suppay').length;badge.treasury=can('treasury')?(S.vouchers||[]).filter(x=>x.status==='approved').length+approvalItems().filter(a=>a.t==='voucher'||a.t==='suppay').length:0;badge.custody=(can('custody')?(S.custody||[]).filter(x=>x.kind==='expense'&&x.status==='pending').length:0)+HOS().filter(h=>h.status==='pending'&&h.to===ME.id).length;
+  badge.requests+=can('requests')?(S.webreq||[]).filter(x=>(x.status||'new')==='new').length:0;badge.hr=approvalItems().filter(a=>a.t!=='voucher'&&a.t!=='suppay').length;badge.treasury=can('treasury')?(S.vouchers||[]).filter(x=>x.status==='approved').length+approvalItems().filter(a=>a.t==='voucher'||a.t==='suppay').length:0;badge.custody=(can('custody')?(S.custody||[]).filter(x=>x.kind==='expense'&&x.status==='pending').length:0)+HOS().filter(h=>h.status==='pending'&&h.to===ME.id).length;
   const cur=tabOf(VIEW);
   $('#tabs').innerHTML=navTabs().map(([k,l,,sec,ic])=>`${sec?`<div class="navsec">${esc(sec)}</div>`:''}<button class="tab ${sameHub(cur,k)?'on':''}" data-go="${k}"><svg viewBox="0 0 24 24" aria-hidden="true">${ic||ICONS[k]||''}</svg><span>${l}</span>${badge[k]?`<span class="cnt">${badge[k]}</span>`:''}</button>`).join('')
     +`<button class="tab acct" data-act="acct"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4-6 8-6s7 2 8 6"/></svg><span>حسابي</span></button>`;
   document.body.classList.remove('nonav');setTimeout(()=>{try{const a=document.querySelector('#tabs .tab.on');const t=$('#tabs');if(a&&t&&t.scrollWidth>t.clientWidth+4){const r=a.getBoundingClientRect(),q=t.getBoundingClientRect();if(r.left<q.left||r.right>q.right)t.scrollLeft+=(r.left+r.width/2)-(q.left+q.width/2)}}catch(e){}},30);
   const banner=(PM_DEMO?`<div class="banner info row between no-print" style="gap:10px;flex-wrap:wrap"><span>🧪 <b>دي نسخة تجربة من Beam Care Maintenance</b> — البيانات وهمية ومحفوظة على جهازك بس. جرّب براحتك.</span><span class="row" style="gap:6px">${PM_DEMO_WA?`<a class="btn sm pri" target="_blank" rel="noopener" href="https://wa.me/${PM_DEMO_WA}?text=${encodeURIComponent('أهلاً، جربت نسخة التجربة من Beam Care Maintenance وعايز أعرف تفاصيل الاشتراك')}">💬 عايز أشترك</a>`:''}<button class="btn sm" data-act="demoReset">ابدأ التجربة من جديد</button></span></div>`:'')+(S.demo&&isAdmin()&&!PM_DEMO?`<div class="banner row between no-print"><span>دي بيانات تجريبية. فيه مهندس (karim)، ومحاسب (amr)، ومدير المستهلكات (nader)، ومندوب توصيل (sayed)، وعيادة (skinline) — كلهم بكلمة سر 123456 علشان تجرب شاشاتهم.</span><button class="btn sm" data-act="clearDemo">امسح البيانات التجريبية وابدأ</button></div>`:PM_DEMO&&isAdmin()?`<div class="banner row between no-print"><span>تقدر تدخل بحسابات تانية علشان تشوف كل شاشة: مهندس (karim)، محاسب (amr)، مستهلكات (nader)، مندوب (sayed)، عيادة (skinline) — كلهم بكلمة سر 123456، والمدير admin بكلمة سر 123456.</span></div>`:'');
-  const V={mysub:viewMySub,devices:viewDevices,dev:()=>viewDev(PARAM),sdev:()=>viewSdev(PARAM),suppliers:viewSuppliers,supplier:()=>viewSupplier(PARAM),home:viewHome,requests:viewRequests,new:()=>viewForm(null),edit:()=>viewForm(PARAM),reports:viewReports,view:()=>viewReport(PARAM),clients:viewClients,client:()=>viewClient(PARAM),contracts:viewContracts,stock:viewStock,psales:viewPartSales,psale:()=>viewPartSale(PARAM),ar:viewAR,accounts:viewAccounts,capital:viewCapital,custody:viewCustody,cust:()=>viewCustodyOf(PARAM),hr:viewHR2,devh:()=>viewDevHistory(PARAM),orders:viewOrders,perf:viewPerf,perfu:()=>viewPerfUser(PARAM),tests:viewTests,test:()=>viewTakeTest(PARAM),tgrade:()=>viewGrade(PARAM),emps:viewEmps,payroll:viewPayroll,offers:viewOffers,meetings:viewMeetings,policy:()=>viewPolicy(),branch:()=>viewBranch(PARAM),insp:()=>viewInsp(),inspf:()=>viewInspForm(PARAM),inspv:()=>viewInspView(PARAM),treasury:()=>viewTreasury(),freon:()=>frStrip(can('stock')?`<div class="row between"><h2>المخزن</h2>${stockTabs()}</div>`+viewFreon():viewFreon()),weekly:()=>viewWeekly(),analytics:()=>viewAnalytics(),ledger:()=>viewLedger(),audit:()=>viewAudit(),archive:()=>viewArchive(),empf:()=>viewEmpFile(PARAM),users:viewUsers,settings:()=>(can('nav_order')?navOrderPanel():'')+(can('settings')?viewSettings():'')};
+  const V={webreq:viewWebReq,mysub:viewMySub,devices:viewDevices,dev:()=>viewDev(PARAM),sdev:()=>viewSdev(PARAM),suppliers:viewSuppliers,supplier:()=>viewSupplier(PARAM),home:viewHome,requests:viewRequests,new:()=>viewForm(null),edit:()=>viewForm(PARAM),reports:viewReports,view:()=>viewReport(PARAM),clients:viewClients,client:()=>viewClient(PARAM),contracts:viewContracts,stock:viewStock,psales:viewPartSales,psale:()=>viewPartSale(PARAM),ar:viewAR,accounts:viewAccounts,capital:viewCapital,custody:viewCustody,cust:()=>viewCustodyOf(PARAM),hr:viewHR2,devh:()=>viewDevHistory(PARAM),orders:viewOrders,perf:viewPerf,perfu:()=>viewPerfUser(PARAM),tests:viewTests,test:()=>viewTakeTest(PARAM),tgrade:()=>viewGrade(PARAM),emps:viewEmps,payroll:viewPayroll,offers:viewOffers,meetings:viewMeetings,policy:()=>viewPolicy(),branch:()=>viewBranch(PARAM),insp:()=>viewInsp(),inspf:()=>viewInspForm(PARAM),inspv:()=>viewInspView(PARAM),treasury:()=>viewTreasury(),freon:()=>frStrip(can('stock')?`<div class="row between"><h2>المخزن</h2>${stockTabs()}</div>`+viewFreon():viewFreon()),weekly:()=>viewWeekly(),analytics:()=>viewAnalytics(),ledger:()=>viewLedger(),audit:()=>viewAudit(),archive:()=>viewArchive(),empf:()=>viewEmpFile(PARAM),users:viewUsers,settings:()=>(can('nav_order')?navOrderPanel():'')+(can('settings')?viewSettings():'')};
   m.innerHTML=subBanner()+banner+hubBar(VIEW)+(V[VIEW]||viewHome)();
   if(VIEW==='new'||VIEW==='edit')initForm();
+  if(VIEW==='webreq')wrBind();
   if(VIEW==='settings'&&can('settings'))bindSettings();
   if(VIEW==='settings')bindNavOrder();
   if(VIEW==='test')bindTakeTest(PARAM);
@@ -2822,11 +2827,18 @@ service cloud.firestore {
     function subOn() { return exists(/databases/$(database)/documents/meta/sub) && get(/databases/$(database)/documents/meta/sub).data.get('lockAt', null) != null; }
     function subLive() { return request.time < get(/databases/$(database)/documents/meta/sub).data.lockAt && get(/databases/$(database)/documents/meta/sub).data.get('stop', false) != true; }
     function noUpd() { return !exists(/databases/$(database)/documents/meta/sub) || get(/databases/$(database)/documents/meta/sub).data.get('upd', false) != true; }
+    function wrOk(d) { return d.keys().hasOnly(['name', 'phone', 'area', 'address', 'device', 'catId', 'catName', 'item', 'pref', 'notes', 'status', 'at']) && d.name is string && d.name.size() > 1 && d.name.size() <= 80 && d.phone is string && d.phone.size() >= 8 && d.phone.size() <= 20 && d.get('area', '') is string && d.get('area', '').size() <= 60 && d.get('address', '') is string && d.get('address', '').size() <= 200 && d.get('device', '') is string && d.get('device', '').size() <= 80 && d.catName is string && d.catName.size() <= 40 && d.get('item', '') is string && d.get('item', '').size() <= 60 && d.get('notes', '') is string && d.get('notes', '').size() <= 600 && d.status == 'new' && d.at == request.time; }
     function wOK() { return ((!subOn() || subLive()) && noUpd()) || isDev(); }
     function rOK() { return !subOn() || subLive() || (get(/databases/$(database)/documents/meta/sub).data.get('mode', 'read') != 'full' && get(/databases/$(database)/documents/meta/sub).data.get('stop', false) != true) || isDev(); }
 
     match /meta/sub { allow read: if signed(); allow write: if isDev(); }
     match /meta/admin { allow read: if true; allow create: if signed() && !exists(/databases/$(database)/documents/meta/admin); }
+    match /meta/webreq { allow read: if true; allow write: if (((can('settings'))) && wOK()) || isDev(); }
+    match /webreq/{id} {
+      allow create: if exists(/databases/$(database)/documents/meta/webreq) && get(/databases/$(database)/documents/meta/webreq).data.get('on', false) == true && (!subOn() || subLive()) && wrOk(request.resource.data);
+      allow read: if (((can('requests'))) && rOK()) || isDev();
+      allow update, delete: if (((can('requests'))) && wOK()) || isDev();
+    }
     match /meta/settings { allow read: if signed(); allow write: if (((can('settings'))) && wOK()) || isDev(); }
     match /meta/nav { allow read: if signed(); allow write: if (((can('nav_order'))) && wOK()) || isDev(); }
     match /meta/gs { allow read: if isStaff(); allow write: if (((isAdmin())) && wOK()) || isDev(); }
@@ -5678,6 +5690,169 @@ async function viewVerifyPage(code){
    <div style="text-align:center"><a class="btn" href="${location.pathname}">الدخول على السيستم</a></div></div>`;
 }
 
+/* ---------- 9) طلب الخدمة أونلاين (لينك + QR للعملاء) ---------- */
+const WWR_DEF_CATS=[
+ {id:'c1',icon:'🛠️',name:'صيانة جهاز',items:['عطل في جهاز','صيانة دورية','كشف على جهاز']},
+ {id:'c2',icon:'⚙️',name:'قطع غيار',items:['طلب قطعة غيار','تركيب قطعة']},
+ {id:'c3',icon:'📄',name:'عقد صيانة',items:['عقد صيانة سنوي','عرض سعر']},
+ {id:'c4',icon:'🚚',name:'تركيب ونقل',items:['تركيب جهاز جديد','نقل جهاز']}
+];
+const WWR_ST={new:['جديد','p-warn'],talk:['اتكلمنا معاه','p-info'],done:['اتنفذ','p-ok'],cancel:['ملغي','p-bad']};
+const WWR_PREF=['في أقرب وقت','النهارده','بكرة','خلال الأسبوع ده'];
+const webReqUrl=()=>location.origin+location.pathname.replace(/[^/]*$/,'')+PM_Q+'#req';
+let WWR_CFG=null,WWR_CFG_LOADED=false,WWR_TAB='list',WWR_F='new',WWR_FIRST=true;
+const WRS=()=>S.webreq||[];
+const wrDate=x=>{try{const d=x.at&&x.at.toDate?x.at.toDate():x.at?new Date(x.at):null;return d?d.toLocaleString('ar-EG',{day:'numeric',month:'short',hour:'numeric',minute:'2-digit'}):''}catch(e){return ''}};
+const wrTime=x=>{try{return x.at&&x.at.toDate?x.at.toDate().getTime():x.at?Date.parse(x.at):0}catch(e){return 0}};
+function wrListen(L){WWR_FIRST=true;WWR_CFG_LOADED=false;if(!ONLINE||!can('requests'))return;
+  L(FB.db.collection('webreq').orderBy('at','desc').limit(300),snap=>{
+    if(!WWR_FIRST)snap.docChanges().forEach(c=>{if(c.type==='added'&&!c.doc.metadata.hasPendingWrites&&(c.doc.data().status||'new')==='new')toast('🔔 طلب خدمة جديد أونلاين من '+(c.doc.data().name||''))});
+    WWR_FIRST=false;S.webreq=snap.docs.map(d=>({...d.data(),id:d.id}));liveRender()});
+}
+async function wrLoadCfg(force){if(WWR_CFG_LOADED&&!force)return WWR_CFG;try{const d=await FB.db.doc('meta/webreq').get();WWR_CFG=d.exists?d.data():null}catch(e){WWR_CFG=null}WWR_CFG_LOADED=true;return WWR_CFG}
+const wrCanCfg=()=>can('settings')||isDev(ME);
+function viewWebReq(){
+  if(!ONLINE)return `<div class="panel"><div class="empty">طلب الخدمة أونلاين شغال في نسخة الأونلاين بس.</div></div>`;
+  if(!WWR_CFG_LOADED){wrLoadCfg().then(()=>{if(VIEW==='webreq')render()});}
+  const L=WRS(),cnt=k=>L.filter(x=>(x.status||'new')===k).length;
+  const tabs=`<div class="seg" style="flex-wrap:wrap"><button data-wrt="list" class="${WWR_TAB==='list'?'on':''}">الطلبات اللي وصلت${cnt('new')?` <span class="cnt">${cnt('new')}</span>`:''}</button>${wrCanCfg()?`<button data-wrt="cfg" class="${WWR_TAB==='cfg'?'on':''}">اللينك والـ QR والخدمات</button>`:''}</div>`;
+  const off=WWR_CFG_LOADED&&!(WWR_CFG&&WWR_CFG.on);
+  const head=`<div class="panel grid" style="gap:8px"><div class="row between" style="flex-wrap:wrap;gap:8px"><h2 style="margin:0">🌐 طلبات الخدمة أونلاين</h2>${WWR_CFG_LOADED?`<span class="pill ${off?'p-bad':'p-ok'}">${off?'الصفحة مقفولة':'الصفحة شغالة'}</span>`:''}</div><div class="muted small">العميل بيفتح اللينك أو يمسح الـ QR، يختار الخدمة ويكتب بياناته، والطلب يوصلك هنا على طول.</div>${tabs}</div>`;
+  if(WWR_TAB==='cfg'&&wrCanCfg())return head+wrCfgView();
+  const F=WWR_F,list=L.filter(x=>F==='all'||(x.status||'new')===F).sort((a,b)=>wrTime(b)-wrTime(a));
+  const fl=`<div class="seg" style="flex-wrap:wrap">${[['new','جديدة'],['talk','اتكلمنا'],['done','اتنفذت'],['cancel','ملغية'],['all','الكل']].map(([k,l])=>`<button data-wrf="${k}" class="${F===k?'on':''}">${l}${k!=='all'&&cnt(k)?` (${cnt(k)})`:''}</button>`).join('')}</div>`;
+  const card=x=>{const st=WWR_ST[x.status||'new']||WWR_ST.new;return `<div class="panel grid" style="gap:6px">
+   <div class="row between" style="flex-wrap:wrap;gap:6px"><b>${esc(x.name||'')}</b><span class="row" style="gap:6px"><span class="pill ${st[1]}">${st[0]}</span><span class="muted small">${wrDate(x)}</span></span></div>
+   <div><span class="pill p-info">${esc(x.catName||'')}</span>${x.item?` <b>${esc(x.item)}</b>`:''}${x.pref?` <span class="muted small">· ${esc(x.pref)}</span>`:''}</div>
+   <div class="small"><span class="num">📞 ${esc(x.phone||'')}</span>${x.area?` · 📍 ${esc(x.area)}`:''}${x.address?` — ${esc(x.address)}`:''}</div>
+   ${x.device?`<div class="small">🔧 الجهاز: ${esc(x.device)}</div>`:''}${x.notes?`<div class="small" style="white-space:pre-wrap;background:var(--surface-2,#f4f6f8);border-radius:8px;padding:6px 9px">${esc(x.notes)}</div>`:''}
+   ${x.staffNote?`<div class="small muted">ملاحظتك: ${esc(x.staffNote)}</div>`:''}${x.byName?`<div class="small muted">آخر تعديل: ${esc(x.byName)}</div>`:''}
+   <div class="row" style="flex-wrap:wrap;gap:6px"><a class="btn sm" href="tel:${esc(x.phone||'')}">📞 اتصال</a><button class="btn sm" data-wr="wa" data-id="${x.id}">💬 واتساب</button>
+    <select data-wr="st" data-id="${x.id}" style="width:auto">${Object.entries(WWR_ST).map(([k,v])=>`<option value="${k}" ${(x.status||'new')===k?'selected':''}>${v[0]}</option>`).join('')}</select>
+    <button class="btn sm" data-wr="note" data-id="${x.id}">📝 ملاحظة</button>${can('clients')?`<button class="btn sm" data-wr="client" data-id="${x.id}">➕ سجّله عميل</button>`:''}${can('req_delete')||can('requests')?`<button class="btn sm ghost" data-wr="del" data-id="${x.id}">🗑️</button>`:''}</div></div>`};
+  return head+`<div class="panel">${fl}</div>`+(list.length?list.map(card).join(''):`<div class="panel"><div class="empty">${F==='new'?'مفيش طلبات جديدة':'مفيش طلبات هنا'}${off&&wrCanCfg()?' — الصفحة لسه مقفولة، افتحها من «اللينك والـ QR والخدمات»':''}</div></div>`);
+}
+function wrCfgView(){
+  if(!WWR_CFG_LOADED)return `<div class="panel"><div class="empty">بيحمّل…</div></div>`;
+  const c=WWR_CFG||{},cats=(c.cats&&c.cats.length?c.cats:WWR_DEF_CATS),url=webReqUrl();
+  const catRow=(k,i)=>`<div class="wr-cat grid" style="gap:6px;border:1px solid var(--line);border-radius:10px;padding:10px" data-cid="${esc(k.id||'')}">
+    <div class="row" style="gap:6px;flex-wrap:nowrap"><input class="wr-ic" value="${esc(k.icon||'🛠️')}" style="width:58px;text-align:center" maxlength="4" title="أيقونة"><input class="wr-nm" style="flex:1;min-width:0" value="${esc(k.name||'')}" placeholder="اسم القسم (مثلاً: صيانة جهاز)" maxlength="40"><button type="button" class="btn sm ghost" data-wr="catdel">✕</button></div>
+    <label class="f small">الخدمات اللي في القسم ده — كل خدمة في سطر<textarea class="wr-it" rows="3" maxlength="600">${esc((k.items||[]).join('\n'))}</textarea></label></div>`;
+  return `<div class="panel grid" style="gap:10px"><h3 style="margin:0">⚙️ إعدادات الصفحة</h3>
+   <label class="row" style="gap:8px"><input type="checkbox" id="wr_on" style="width:auto" ${c.on?'checked':''}> <b>الصفحة شغالة</b> — العملاء يقدروا يبعتوا طلبات</label>
+   <label class="f">رقم واتساب الشركة (العميل يقدر يكلمك عليه بعد ما يبعت الطلب — اختياري)<input id="wr_wa" value="${esc(c.wa||'')}" inputmode="tel" placeholder="01xxxxxxxxx" maxlength="20"></label>
+   <label class="f">رسالة ترحيب تظهر للعميل فوق (اختياري)<input id="wr_msg" value="${esc(c.msg||'')}" maxlength="160" placeholder="مثلاً: فريقنا جاهز يخدمك في أسرع وقت"></label>
+   <label class="row" style="gap:8px"><input type="checkbox" id="wr_dev" style="width:auto" ${c.askDevice===false?'':'checked'}> اسأل العميل عن اسم الجهاز أو الموديل</label>
+   <div class="sec-title" style="margin:4px 0">الأقسام والخدمات اللي العميل هيختار منها</div>
+   <div id="wr_cats" class="grid" style="gap:8px">${cats.map(catRow).join('')}</div>
+   <div><button type="button" class="btn sm" data-wr="catadd">+ قسم جديد</button></div>
+   <div class="row"><button class="btn pri" data-wr="save">💾 حفظ</button></div></div>
+  <div class="panel grid" style="gap:10px"><h3 style="margin:0">🔗 اللينك والـ QR</h3>
+   <div class="muted small">حط اللينك على صفحة الفيسبوك أو في الـ Bio، أو نزّل صورة الـ QR وانشرها ستوري على الواتساب أو اطبعها.</div>
+   <div class="row" style="gap:6px"><input id="wr_url" readonly value="${esc(url)}" style="direction:ltr;text-align:left"><button class="btn sm" data-wr="copy">نسخ</button><a class="btn sm" href="${esc(url)}" target="_blank" rel="noopener">فتح</a></div>
+   <div class="row" style="gap:14px;flex-wrap:wrap;align-items:flex-start"><img id="wr_qr" alt="QR" style="width:170px;height:170px;border:1px solid var(--line);border-radius:10px;background:#fff;padding:6px">
+    <div class="grid" style="gap:6px"><button class="btn" data-wr="dlqr">⬇️ تنزيل الـ QR بس</button><button class="btn pri" data-wr="dlstory">⬇️ تنزيل صورة ستوري جاهزة</button><button class="btn" data-wr="share">📤 مشاركة اللينك</button></div></div>
+   ${c.on?'':'<div class="banner small">الصفحة لسه مقفولة — علّم «الصفحة شغالة» واضغط حفظ قبل ما تنشر اللينك.</div>'}</div>`;
+}
+function wrBind(){if(VIEW!=='webreq'||WWR_TAB!=='cfg')return;const img=$('#wr_qr');if(img)loadQR().then(()=>{const d=qrData(webReqUrl());if(d)img.src=d})}
+function wrReadCats(){return $$('#wr_cats .wr-cat').map((el,i)=>({id:el.dataset.cid||('c'+Date.now().toString(36)+i),icon:(el.querySelector('.wr-ic').value||'').trim().slice(0,4)||'🛠️',name:el.querySelector('.wr-nm').value.trim().slice(0,40),items:el.querySelector('.wr-it').value.split('\n').map(s=>s.trim().slice(0,60)).filter(Boolean).slice(0,20)})).filter(k=>k.name).slice(0,12)}
+async function wrSaveCfg(){
+  const cats=wrReadCats();if(!cats.length){toast('لازم قسم واحد على الأقل');return}
+  const s=S.settings||{};let logo=s.logo||s.appLogo||'';if(logo.length>350000)logo='';
+  const d={on:$('#wr_on').checked,wa:normD($('#wr_wa').value).replace(/[^0-9+]/g,'').slice(0,20),msg:$('#wr_msg').value.trim().slice(0,160),askDevice:$('#wr_dev').checked,cats,name:BRAND(),logo,color:(s.color||s.brandColor||''),at:new Date().toISOString()};
+  try{await FB.db.doc('meta/webreq').set(d);WWR_CFG=d;toast(d.on?'اتحفظ — الصفحة شغالة':'اتحفظ — الصفحة مقفولة');render()}catch(e){toast(fbErr(e))}
+}
+function wrCanvasQR(text,size){const q=qrcode(0,'M');q.addData(text);q.make();const n0=q.getModuleCount(),cv=document.createElement('canvas'),m=Math.floor(size/(n0+4));cv.width=cv.height=m*(n0+4);const g=cv.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,cv.width,cv.height);g.fillStyle='#0f172a';for(let r=0;r<n0;r++)for(let c=0;c<n0;c++)if(q.isDark(r,c))g.fillRect((c+2)*m,(r+2)*m,m,m);return cv}
+function wrDownload(cv,name){const a=document.createElement('a');a.download=name;a.href=cv.toDataURL('image/png');document.body.appendChild(a);a.click();a.remove()}
+async function wrStory(){
+  await loadQR();if(!window.qrcode){toast('مقدرتش أعمل الصورة — جرب تاني');return}
+  const c=WWR_CFG||{},W=1080,H=1920,cv=document.createElement('canvas');cv.width=W;cv.height=H;const g=cv.getContext('2d');
+  let col=getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()||'#1c2a44';try{const t=document.createElement('canvas').getContext('2d');t.fillStyle=col;const h=t.fillStyle;if(/^#[0-9a-f]{6}$/i.test(h)){const r=parseInt(h.slice(1,3),16),g2=parseInt(h.slice(3,5),16),b2=parseInt(h.slice(5,7),16);if((.299*r+.587*g2+.114*b2)/255>.55)col='#1c2a44'}}catch(e){col='#1c2a44'}
+  const gr=g.createLinearGradient(0,0,W,H);gr.addColorStop(0,col);gr.addColorStop(1,'#0b1220');g.fillStyle=gr;g.fillRect(0,0,W,H);
+  g.fillStyle='rgba(255,255,255,.06)';g.beginPath();g.arc(W*.9,H*.12,320,0,7);g.fill();g.beginPath();g.arc(W*.05,H*.9,260,0,7);g.fill();
+  g.textAlign='center';g.direction='rtl';const F='"Cairo","Tajawal","Segoe UI",Tahoma,sans-serif';
+  let y=230;const logo=(S.settings||{}).logo||(S.settings||{}).appLogo||c.logo||'';
+  if(logo){try{const im=await new Promise((ok,no)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=no;i.src=logo});const h=170,w=Math.min(520,im.width*h/im.height);g.fillStyle='#fff';const bw=w+60,bh=h+50;g.beginPath();g.roundRect?g.roundRect((W-bw)/2,y-bh/2-10,bw,bh,36):g.rect((W-bw)/2,y-bh/2-10,bw,bh);g.fill();g.drawImage(im,(W-w)/2,y-h/2-10,w,h);y+=170}catch(e){}}
+  g.fillStyle='#fff';g.font=`800 78px ${F}`;g.fillText(BRAND(),W/2,y+40);
+  g.font=`700 64px ${F}`;g.fillStyle='#ffd166';g.fillText('اطلب خدمتك أونلاين',W/2,y+150);
+  g.font=`500 40px ${F}`;g.fillStyle='rgba(255,255,255,.88)';g.fillText(c.msg||'امسح الكود واختار الخدمة — وفريقنا هيكلمك على طول',W/2,y+225);
+  const qs=640,qx=(W-qs-60)/2,qy=y+300;g.fillStyle='#fff';g.beginPath();g.roundRect?g.roundRect(qx,qy,qs+60,qs+60,44):g.rect(qx,qy,qs+60,qs+60);g.fill();
+  const q=wrCanvasQR(webReqUrl(),qs);g.drawImage(q,qx+30,qy+30,qs,qs);
+  let cy=qy+qs+150;const cats=(c.cats||[]).slice(0,6);g.font=`600 40px ${F}`;
+  for(let i=0;i<cats.length;i+=2){const row=cats.slice(i,i+2).map(k=>(k.icon||'')+' '+k.name).join('     ');g.fillStyle='rgba(255,255,255,.95)';g.fillText(row,W/2,cy);cy+=70}
+  if(c.wa){g.font=`600 42px ${F}`;g.fillStyle='#fff';g.fillText('واتساب: '+c.wa,W/2,Math.min(H-90,cy+40))}
+  wrDownload(cv,'طلب-الخدمة-'+BRAND()+'.png');
+}
+document.addEventListener('click',async e=>{
+  const t=e.target.closest('[data-wrt]');if(t){WWR_TAB=t.dataset.wrt;render();return}
+  const f=e.target.closest('[data-wrf]');if(f){WWR_F=f.dataset.wrf;render();return}
+  const b=e.target.closest('[data-wr]');if(!b||b.tagName==='SELECT')return;const k=b.dataset.wr,x=WRS().find(y=>y.id===b.dataset.id);
+  if(k==='catadd'){$('#wr_cats').insertAdjacentHTML('beforeend',`<div class="wr-cat grid" style="gap:6px;border:1px solid var(--line);border-radius:10px;padding:10px" data-cid=""><div class="row" style="gap:6px;flex-wrap:nowrap"><input class="wr-ic" value="🛠️" style="width:58px;text-align:center" maxlength="4"><input class="wr-nm" style="flex:1;min-width:0" placeholder="اسم القسم" maxlength="40"><button type="button" class="btn sm ghost" data-wr="catdel">✕</button></div><label class="f small">الخدمات اللي في القسم ده — كل خدمة في سطر<textarea class="wr-it" rows="3" maxlength="600"></textarea></label></div>`);return}
+  if(k==='catdel'){b.closest('.wr-cat').remove();return}
+  if(k==='save')return wrSaveCfg();
+  if(k==='copy'){const u=webReqUrl();try{await navigator.clipboard.writeText(u);toast('اتنسخ اللينك')}catch(er){const i=$('#wr_url');i.select();document.execCommand('copy');toast('اتنسخ اللينك')}return}
+  if(k==='share'){const u=webReqUrl();try{if(navigator.share){await navigator.share({title:BRAND(),text:'اطلب خدمتك من '+BRAND()+' أونلاين:',url:u});return}}catch(er){return}openWa('', 'اطلب خدمتك من '+BRAND()+' أونلاين من هنا:\n'+u);return}
+  if(k==='dlqr'){await loadQR();if(!window.qrcode)return toast('جرب تاني');wrDownload(wrCanvasQR(webReqUrl(),900),'QR-'+BRAND()+'.png');return}
+  if(k==='dlstory')return wrStory();
+  if(!x)return;
+  const upd=async p=>{try{await FB.db.collection('webreq').doc(x.id).update({...p,by:ME.id,byName:ME.name||''})}catch(er){toast(fbErr(er))}};
+  if(k==='wa'){openWa(x.phone,`أهلاً ${x.name||''} 👋\nمعاك ${BRAND()} — وصلنا طلبك (${x.catName||''}${x.item?' - '+x.item:''}).`);if((x.status||'new')==='new')upd({status:'talk'});return}
+  if(k==='note'){modal(`<h3>📝 ملاحظة على طلب ${esc(x.name||'')}</h3><textarea id="wr_note" rows="3" maxlength="400">${esc(x.staffNote||'')}</textarea>`,async()=>{await upd({staffNote:$('#wr_note').value.trim().slice(0,400)});toast('اتحفظت')});return}
+  if(k==='del'){modal(`<h3>مسح الطلب ده؟</h3><div class="muted">طلب ${esc(x.name||'')} هيتمسح نهائي.</div>`,async()=>{try{await FB.db.collection('webreq').doc(x.id).delete();toast('اتمسح')}catch(er){toast(fbErr(er))}});return}
+  if(k==='client'){openClientModal(null);setTimeout(()=>{const s=(id,v)=>{const i=$(id);if(i&&!i.value)i.value=v};s('#c_name',x.name||'');s('#c_phone',x.phone||'');const a=document.querySelector('#brRows .b-addr');if(a&&!a.value)a.value=[x.area,x.address].filter(Boolean).join(' - ');const nt=$('#c_notes');if(nt&&!nt.value)nt.value='جه من طلب أونلاين: '+(x.catName||'')+(x.item?' - '+x.item:'')},60);return}
+});
+document.addEventListener('change',async e=>{const s=e.target.closest('select[data-wr="st"]');if(!s)return;const x=WRS().find(y=>y.id===s.dataset.id);if(!x)return;try{await FB.db.collection('webreq').doc(x.id).update({status:s.value,by:ME.id,byName:ME.name||''});toast('اتغيرت الحالة')}catch(er){toast(fbErr(er))}});
+
+/* الصفحة العامة اللي العميل بيفتحها (من غير دخول) */
+const WRP={step:1,cat:null,item:'',t0:Date.now(),db:null,cfg:null};
+async function viewWebReqPage(cfg){
+  document.body.classList.add('nonav');try{$('#tabs').innerHTML='';$('#brandSub').innerHTML='طلب خدمة'}catch(e){}
+  const m=$('#main');m.className='narrow';m.innerHTML='<div class="panel"><div class="empty">بيحمّل…</div></div>';
+  try{if(!cfg)throw 0;for(const f of ['app','firestore'])await loadScript(`https://www.gstatic.com/firebasejs/${FB_VER}/firebase-${f}-compat.js`);
+    const app=firebase.apps.find(a=>a.name==='webreq')||firebase.initializeApp(cfg,'webreq');WRP.db=app.firestore();
+    const d=await WRP.db.doc('meta/webreq').get();WRP.cfg=d.exists?d.data():null}catch(e){WRP.cfg=null}
+  const c=WRP.cfg;
+  if(c&&c.name){try{document.title='طلب خدمة — '+c.name;const bn=document.querySelector('.brand-name,#brandName');if(bn)bn.textContent=c.name;const bl=document.querySelector('.brand-logo');if(bl&&c.logo){bl.hidden=false;bl.src=c.logo}}catch(e){}}
+  if(!c||!c.on||!(c.cats||[]).length){m.innerHTML=`<div class="panel grid" style="max-width:520px;margin:30px auto;text-align:center"><div style="font-size:2.4rem">🕒</div><h2>الصفحة دي مش متاحة دلوقتي</h2><div class="muted">${c&&c.wa?`تقدر تكلمنا على واتساب: <a href="https://wa.me/${waPhone(c.wa)}" target="_blank" rel="noopener" class="num">${esc(c.wa)}</a>`:'جرب تاني بعدين.'}</div></div>`;return}
+  WRP.t0=Date.now();wrpRender();
+}
+function wrpRender(){const c=WRP.cfg,m=$('#main');const cats=c.cats||[];
+  const top=`<div style="text-align:center;margin-bottom:6px">${c.logo?`<img src="${c.logo}" alt="" style="max-height:70px;max-width:200px;object-fit:contain">`:''}<h2 style="margin:6px 0 2px">${esc(c.name||'')}</h2><div class="muted">${esc(c.msg||'اطلب الخدمة اللي محتاجها وهنكلمك في أسرع وقت')}</div></div>`;
+  const steps=`<div class="row" style="justify-content:center;gap:6px;margin:6px 0 4px">${[1,2,3].map(i=>`<span style="width:${WRP.step===i?28:10}px;height:10px;border-radius:99px;background:${WRP.step>=i?'var(--accent,#0f6cbd)':'var(--line,#dde3ea)'};transition:.2s"></span>`).join('')}</div>`;
+  let body='';
+  if(WRP.step===1)body=`<h3 style="margin:4px 0">محتاج إيه؟</h3><div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">${cats.map(k=>`<button class="btn" data-wrp="cat" data-id="${esc(k.id)}" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:18px 10px;height:auto;border-radius:14px"><span style="font-size:2rem">${esc(k.icon||'🛠️')}</span><b>${esc(k.name)}</b></button>`).join('')}</div>`;
+  else if(WRP.step===2){const k=WRP.cat;body=`<h3 style="margin:4px 0">${esc(k.icon||'')} ${esc(k.name)} — اختار الخدمة</h3><div class="grid" style="gap:8px">${(k.items||[]).map((it,i)=>`<button class="btn" data-wrp="item" data-i="${i}" style="justify-content:flex-start;padding:14px;border-radius:12px;text-align:start">${esc(it)}</button>`).join('')}<button class="btn ghost" data-wrp="item" data-i="-1" style="justify-content:flex-start;padding:14px;border-radius:12px">حاجة تانية (هكتبها في الملاحظات)</button></div><div><button class="btn ghost sm" data-wrp="back">→ رجوع</button></div>`}
+  else if(WRP.step===3)body=`<h3 style="margin:4px 0">بياناتك</h3><div class="muted small">${esc(WRP.cat.name)}${WRP.item?' — '+esc(WRP.item):''}</div>
+   <label class="f">الاسم (أو اسم العيادة / المكان)<input id="wp_name" maxlength="80" autocomplete="name"></label>
+   <label class="f">رقم الموبايل<input id="wp_phone" maxlength="20" inputmode="tel" autocomplete="tel" placeholder="01xxxxxxxxx"></label>
+   <label class="f">المنطقة<input id="wp_area" maxlength="60" placeholder="مثلاً: مدينة نصر"></label>
+   <label class="f">العنوان بالتفصيل (اختياري)<input id="wp_addr" maxlength="200"></label>
+   ${c.askDevice===false?'':'<label class="f">اسم الجهاز أو الموديل (اختياري)<input id="wp_dev" maxlength="80"></label>'}
+   <label class="f">إمتى يناسبك؟<select id="wp_pref">${WWR_PREF.map(p=>`<option>${p}</option>`).join('')}</select></label>
+   <label class="f">تفاصيل أكتر (اختياري)<textarea id="wp_notes" rows="3" maxlength="600" placeholder="اكتب المشكلة باختصار"></textarea></label>
+   <div style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap" aria-hidden="true"><label>Website<input id="wp_web" tabindex="-1" autocomplete="off"></label></div>
+   <div class="row" style="gap:8px"><button class="btn pri" data-wrp="send" style="flex:1;padding:13px">إرسال الطلب ✔</button><button class="btn ghost" data-wrp="back">→ رجوع</button></div>`;
+  else if(WRP.step===4)body=`<div style="text-align:center" class="grid"><div style="font-size:3rem">✅</div><h2 style="margin:0">طلبك وصل</h2><div class="muted">شكراً ${esc(WRP.sentName||'')} — هنكلمك على رقمك في أقرب وقت.</div>${c.wa?`<a class="btn pri" style="text-decoration:none" target="_blank" rel="noopener" href="https://wa.me/${waPhone(c.wa)}?text=${encodeURIComponent('أهلاً، بعت طلب '+(WRP.cat?.name||'')+(WRP.item?' - '+WRP.item:'')+' من الموقع باسم '+(WRP.sentName||''))}">💬 كلمنا على واتساب</a>`:''}<button class="btn ghost" data-wrp="again">طلب تاني</button></div>`;
+  m.innerHTML=`<div class="panel grid" style="max-width:560px;width:100%;box-sizing:border-box;margin:14px auto;gap:12px">${top}${WRP.step<4?steps:''}${body}</div><div class="muted small" style="text-align:center;margin-bottom:20px">${esc(c.name||'')}</div>`;
+}
+document.addEventListener('click',async e=>{const b=e.target.closest('[data-wrp]');if(!b||!WRP.cfg)return;const k=b.dataset.wrp;
+  if(k==='cat'){WRP.cat=(WRP.cfg.cats||[]).find(x=>x.id===b.dataset.id);if(!WRP.cat)return;WRP.step=(WRP.cat.items||[]).length?2:3;WRP.item='';wrpRender();scrollTo(0,0);return}
+  if(k==='item'){const i=+b.dataset.i;WRP.item=i>=0?(WRP.cat.items||[])[i]||'':'';WRP.step=3;wrpRender();scrollTo(0,0);return}
+  if(k==='back'){WRP.step=WRP.step===3&&(WRP.cat?.items||[]).length?2:1;wrpRender();return}
+  if(k==='again'){WRP.step=1;WRP.cat=null;WRP.item='';WRP.t0=Date.now();wrpRender();return}
+  if(k==='send'){
+    const v=id=>($(id)?.value||'').trim();const name=v('#wp_name'),phone=normD(v('#wp_phone')).replace(/[^0-9+]/g,'');
+    if(name.length<2){toast('اكتب اسمك');return}if(phone.length<8||phone.length>20){toast('اكتب رقم موبايل صحيح');return}if(!v('#wp_area')){toast('اكتب المنطقة');return}
+    if(v('#wp_web')||Date.now()-WRP.t0<4000){WRP.sentName=name;WRP.step=4;wrpRender();return}
+    const dk='pm-wr-'+new Date().toISOString().slice(0,10);let nn=0;try{nn=+localStorage.getItem(dk)||0}catch(er){}
+    if(nn>=3){toast('بعت طلبات كتير النهارده — لو محتاج حاجة كلمنا على واتساب');return}
+    b.disabled=true;b.textContent='بيبعت…';
+    const d={name:name.slice(0,80),phone:phone.slice(0,20),area:v('#wp_area').slice(0,60),address:v('#wp_addr').slice(0,200),device:v('#wp_dev').slice(0,80),catId:String(WRP.cat.id).slice(0,40),catName:String(WRP.cat.name).slice(0,40),item:(WRP.item||'').slice(0,60),pref:v('#wp_pref').slice(0,30),notes:v('#wp_notes').slice(0,600),status:'new',at:firebase.firestore.FieldValue.serverTimestamp()};
+    try{await Promise.race([WRP.db.collection('webreq').add(d),new Promise((_,j)=>setTimeout(()=>j({code:'timeout'}),15000))]);try{localStorage.setItem(dk,String(nn+1))}catch(er){}WRP.sentName=name;WRP.step=4;wrpRender();scrollTo(0,0)}
+    catch(er){b.disabled=false;b.textContent='إرسال الطلب ✔';toast(er?.code==='timeout'?'النت بطيء — جرب تاني':'مقدرتش أبعت الطلب — جرب تاني أو كلمنا على واتساب')}
+  }
+});
+
 /* ---------- 8) المهندس في الطريق ---------- */
 function onWayBtns(r){if(r.engineerId!==ME?.id||r.status!=='assigned'||r.date>today())return '';
   if(r.arrivedAt)return `<span class="pill p-ok">وصلت ${timeOf(r.arrivedAt)}</span>`;
@@ -6210,7 +6385,7 @@ let XR_PRE='';
 
 
 /* ---------- فحص التحديثات ---------- */
-const APP_VER='2026.11.03.2';
+const APP_VER='2026.11.03.3';
 async function checkUpdate(){try{if(location.protocol==='file:')return;const t=await (await fetch(location.pathname+'?_='+Date.now(),{cache:'no-store'})).text();const m=t.match(/const APP_VER='([^']+)'/);if(m&&m[1]!==APP_VER)showUpd(m[1])}catch(e){}}
 function showUpd(v){if(document.getElementById('updBar'))return;const b=document.createElement('div');b.id='updBar';b.style.cssText='position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:80;background:#1d2b45;color:#fff;padding:10px 16px;border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,.25);display:flex;gap:12px;align-items:center;font-weight:600;max-width:92vw';b.innerHTML='<span>🔄 فيه نسخة جديدة من السيستم</span><button type="button" style="background:#2b8fb8;color:#fff;border:0;border-radius:10px;padding:6px 14px;font:inherit;cursor:pointer">حدّث دلوقتي</button>';b.querySelector('button').onclick=()=>{location.replace(location.pathname+'?v='+encodeURIComponent(v)+location.hash)};document.body.appendChild(b)}
 setTimeout(checkUpdate,8000);setInterval(checkUpdate,5*60*1000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkUpdate()});
@@ -6659,6 +6834,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-capm]');if
    v38 — دمج الاختيارات (Hubs) + شكل المربعات للاختيارات
    ===================================================================== */
 const HUBS=[
+ {id:'reqh',label:'الطلبات',icon:'requests',items:[['requests','طلبات الصيانة'],['webreq','طلبات الأونلاين']]},
  {id:'fin',label:'الحسابات',icon:'accounts',items:[['accounts','ملخص الحسابات'],['capital','رأس المال'],['ledger','القيود والقوائم'],['weekly','التقارير الدورية']]},
  {id:'staffh',label:'شؤون الموظفين',icon:'perf',items:[['perf','الأداء والتقييم'],['tests','الاختبارات'],['meetings','الاجتماعات'],['policy','سياسة العمل']]},
  {id:'salesh',label:'فواتير البيع والعروض',icon:'psales',items:[['psales','فواتير البيع'],['offers','العروض']]},
@@ -7471,6 +7647,7 @@ async function pmCoFetch(){try{const r=await fetch('https://firestore.googleapis
   const cfg=getFbConfig();
   if(PM_CO&&cfg){try{localStorage.setItem('pm-last-co',PM_CO)}catch(e){}}
   if(NO_CFG()){if(PM_CO){S=emptyState();$('#main').innerHTML=`<div class="panel grid" style="max-width:520px;margin:30px auto;text-align:center"><h2>الرابط ده مش شغال</h2><div class="muted">اتأكد إنك فاتح الرابط الصح، أو كلّم الدعم الفني.</div></div>`;return}S=emptyState();$('#main').innerHTML=`<div class="panel grid" style="max-width:520px;margin:30px auto;text-align:center"><h2>السيستم لسه بيتجهز</h2><div class="muted">النسخة دي لسه ما اتفعّلتش. كلّم الدعم الفني.</div></div>`;return}
+  if(location.hash==='#req'){S=emptyState();viewWebReqPage(cfg);return}
   if(cfg){
     try{await initOnline(cfg);return}
     catch(e){

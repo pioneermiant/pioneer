@@ -912,7 +912,7 @@ function moveSlot(oldD,oldS,newD,newS){
 const TABS=[
  ['home','الرئيسية',()=>true],
  ['requests','الطلبات',()=>can('requests')],
- ['webreq','طلبات الأونلاين',()=>can('requests')&&ONLINE],
+ ['webreq','طلبات الأونلاين',()=>can('requests')&&ONLINE&&wrAllowed()],
  ['reports','التقارير والكشف',()=>can('reports_all')||(can('reports_write')&&seeRes())||can('inspections')],
  ['clients','العيادات (العملاء)',()=>can('clients'),'العيادات والمخزن'],
  ['contracts','عقود الصيانة',()=>can('contracts')],
@@ -1019,7 +1019,7 @@ function render(){try{applyTheme(themeOf(ME))}catch(e){}try{applyLayout(layoutOf
   if(location.hash==='#dev-archive'){try{history.replaceState(null,'',location.pathname+location.search)}catch(e){}if(isDev(ME)){VIEW='archive';PARAM=null}}
   if(!allowed(VIEW,PARAM))VIEW='home';
   const badge={requests:can('requests')?S.requests.filter(r=>r.status==='new').length:0,hr:can('hr')?(S.hr||[]).filter(x=>x.status==='pending'&&x.uid!==ME.id).length:0,custody:can('custody')?(S.custody||[]).filter(x=>x.kind==='expense'&&x.status==='pending'&&x.uid!==ME.id).length:0,orders:(S.orders||[]).filter(o=>can('orders_manage')?o.status==='new':o.assignedTo===ME.id&&['assigned','preparing','out'].includes(o.status)).length};
-  badge.requests+=can('requests')?(S.webreq||[]).filter(x=>(x.status||'new')==='new').length:0;badge.hr=approvalItems().filter(a=>a.t!=='voucher'&&a.t!=='suppay').length;badge.treasury=can('treasury')?(S.vouchers||[]).filter(x=>x.status==='approved').length+approvalItems().filter(a=>a.t==='voucher'||a.t==='suppay').length:0;badge.custody=(can('custody')?(S.custody||[]).filter(x=>x.kind==='expense'&&x.status==='pending').length:0)+HOS().filter(h=>h.status==='pending'&&h.to===ME.id).length;
+  badge.requests+=can('requests')&&wrAllowed()?(S.webreq||[]).filter(x=>(x.status||'new')==='new').length:0;badge.hr=approvalItems().filter(a=>a.t!=='voucher'&&a.t!=='suppay').length;badge.treasury=can('treasury')?(S.vouchers||[]).filter(x=>x.status==='approved').length+approvalItems().filter(a=>a.t==='voucher'||a.t==='suppay').length:0;badge.custody=(can('custody')?(S.custody||[]).filter(x=>x.kind==='expense'&&x.status==='pending').length:0)+HOS().filter(h=>h.status==='pending'&&h.to===ME.id).length;
   const cur=tabOf(VIEW);
   $('#tabs').innerHTML=navTabs().map(([k,l,,sec,ic])=>`${sec?`<div class="navsec">${esc(sec)}</div>`:''}<button class="tab ${sameHub(cur,k)?'on':''}" data-go="${k}"><svg viewBox="0 0 24 24" aria-hidden="true">${ic||ICONS[k]||''}</svg><span>${l}</span>${badge[k]?`<span class="cnt">${badge[k]}</span>`:''}</button>`).join('')
     +`<button class="tab acct" data-act="acct"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4-6 8-6s7 2 8 6"/></svg><span>حسابي</span></button>`;
@@ -2835,7 +2835,7 @@ service cloud.firestore {
     match /meta/admin { allow read: if true; allow create: if signed() && !exists(/databases/$(database)/documents/meta/admin); }
     match /meta/webreq { allow read: if true; allow write: if (((can('settings'))) && wOK()) || isDev(); }
     match /webreq/{id} {
-      allow create: if exists(/databases/$(database)/documents/meta/webreq) && get(/databases/$(database)/documents/meta/webreq).data.get('on', false) == true && (!subOn() || subLive()) && wrOk(request.resource.data);
+      allow create: if exists(/databases/$(database)/documents/meta/webreq) && get(/databases/$(database)/documents/meta/webreq).data.get('on', false) == true && (!subOn() || subLive()) && (!exists(/databases/$(database)/documents/meta/sub) || get(/databases/$(database)/documents/meta/sub).data.get('webReq', false) == true) && wrOk(request.resource.data);
       allow read: if (((can('requests'))) && rOK()) || isDev();
       allow update, delete: if (((can('requests'))) && wOK()) || isDev();
     }
@@ -5699,6 +5699,7 @@ const WWR_DEF_CATS=[
 ];
 const WWR_ST={new:['جديد','p-warn'],talk:['اتكلمنا معاه','p-info'],done:['اتنفذ','p-ok'],cancel:['ملغي','p-bad']};
 const WWR_PREF=['في أقرب وقت','النهارده','بكرة','خلال الأسبوع ده'];
+const wrAllowed=()=>{const x=S&&S.sub;return !x||x.webReq===true};
 const webReqUrl=()=>location.origin+location.pathname.replace(/[^/]*$/,'')+PM_Q+'#req';
 let WWR_CFG=null,WWR_CFG_LOADED=false,WWR_TAB='list',WWR_F='new',WWR_FIRST=true;
 const WRS=()=>S.webreq||[];
@@ -5706,7 +5707,7 @@ const wrDate=x=>{try{const d=x.at&&x.at.toDate?x.at.toDate():x.at?new Date(x.at)
 const wrTime=x=>{try{return x.at&&x.at.toDate?x.at.toDate().getTime():x.at?Date.parse(x.at):0}catch(e){return 0}};
 function wrListen(L){WWR_FIRST=true;WWR_CFG_LOADED=false;if(!ONLINE||!can('requests'))return;
   L(FB.db.collection('webreq').orderBy('at','desc').limit(300),snap=>{
-    if(!WWR_FIRST)snap.docChanges().forEach(c=>{if(c.type==='added'&&!c.doc.metadata.hasPendingWrites&&(c.doc.data().status||'new')==='new')toast('🔔 طلب خدمة جديد أونلاين من '+(c.doc.data().name||''))});
+    if(!WWR_FIRST&&wrAllowed())snap.docChanges().forEach(c=>{if(c.type==='added'&&!c.doc.metadata.hasPendingWrites&&(c.doc.data().status||'new')==='new')toast('🔔 طلب خدمة جديد أونلاين من '+(c.doc.data().name||''))});
     WWR_FIRST=false;S.webreq=snap.docs.map(d=>({...d.data(),id:d.id}));liveRender()});
 }
 async function wrLoadCfg(force){if(WWR_CFG_LOADED&&!force)return WWR_CFG;try{const d=await FB.db.doc('meta/webreq').get();WWR_CFG=d.exists?d.data():null}catch(e){WWR_CFG=null}WWR_CFG_LOADED=true;return WWR_CFG}
@@ -6385,7 +6386,7 @@ let XR_PRE='';
 
 
 /* ---------- فحص التحديثات ---------- */
-const APP_VER='2026.11.03.3';
+const APP_VER='2026.11.03.4';
 async function checkUpdate(){try{if(location.protocol==='file:')return;const t=await (await fetch(location.pathname+'?_='+Date.now(),{cache:'no-store'})).text();const m=t.match(/const APP_VER='([^']+)'/);if(m&&m[1]!==APP_VER)showUpd(m[1])}catch(e){}}
 function showUpd(v){if(document.getElementById('updBar'))return;const b=document.createElement('div');b.id='updBar';b.style.cssText='position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:80;background:#1d2b45;color:#fff;padding:10px 16px;border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,.25);display:flex;gap:12px;align-items:center;font-weight:600;max-width:92vw';b.innerHTML='<span>🔄 فيه نسخة جديدة من السيستم</span><button type="button" style="background:#2b8fb8;color:#fff;border:0;border-radius:10px;padding:6px 14px;font:inherit;cursor:pointer">حدّث دلوقتي</button>';b.querySelector('button').onclick=()=>{location.replace(location.pathname+'?v='+encodeURIComponent(v)+location.hash)};document.body.appendChild(b)}
 setTimeout(checkUpdate,8000);setInterval(checkUpdate,5*60*1000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkUpdate()});

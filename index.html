@@ -397,7 +397,7 @@ async function loadState(){
   try{return JSON.parse(localStorage.getItem(LSK))}catch(e){return null}
 }
 let saveTimer=null;
-function save(){if(updOn()){subBlock('السيستم متوقف للتحديث — التعديل هيرجع بعد ما التحديث يخلص');return}if(subRO()){subBlock();return}if(ME&&isStaff())syncCatalog();try{audOffline()}catch(e){}if(ONLINE){persistOnline();return}clearTimeout(saveTimer);saveTimer=setTimeout(persistLocal,150)}
+function save(){if(updOn()){subBlock('السيستم متوقف للتحديث — التعديل هيرجع بعد ما التحديث يخلص');return}if(subRO()){subBlock();return}if(ME&&isStaff()){syncCatalog();try{syncWebCat()}catch(e){}}try{audOffline()}catch(e){}if(ONLINE){persistOnline();return}clearTimeout(saveTimer);saveTimer=setTimeout(persistLocal,150)}
 async function persistLocal(){
   try{const db=await idb();await new Promise((res,rej)=>{const t=db.transaction(ST,'readwrite');t.objectStore(ST).put(S,'state');t.oncomplete=res;t.onerror=()=>rej(t.error)})}
   catch(e){try{localStorage.setItem(LSK,JSON.stringify(S))}catch(err){if(!persistLocal.warned){persistLocal.warned=1;toast('المتصفح ده مش بيسمح بحفظ البيانات — اللي هتكتبه هيضيع لما تقفل الصفحة')}}}
@@ -471,7 +471,7 @@ const DEFAULT_SETTINGS={
     'توقيع العميل يفيد استلام الجهاز في حالة تشغيل جيدة.'
   ]
 };
-const COLS=['policies','users','clients','parts','reports','contracts','payments','requests','units','partReturns','returns','catalog','tests','offers','meetings'];
+const COLS=['policies','users','clients','parts','reports','contracts','payments','requests','units','partReturns','returns','catalog','tests','offers','meetings','webcat'];
 const PERM_COLS={capsnaps:['capital_view'],frret:['freon_collect','freon','freon_view','freon_buy','freon_fill','freon_empties','freon_sell','freon_ret','freon_send','freon_edit','accounts','capital_view'],stockcounts:['stock_count','stock_count_approve','accounts'],freon:['freon_collect','freon_buy','freon_fill','freon_empties','freon_sell','freon_ret','freon_send','freon_edit','capital_view','freon','freon_view','accounts'],suppliers:['freon_buy','capital_view','suppliers','accounts','devices','treasury','treasury_view','suppay_req','suppay_approve','ext_repair','freon','place_loc'],purchases:['freon_buy','capital_view','suppliers','accounts','devices','suppay_req','suppay_approve','treasury','treasury_view','ext_repair','freon'],supplierPayments:['capital_view','suppliers','accounts','suppay_req','suppay_approve','treasury','treasury_view'],sales:['capital_view','devices','ar','accounts','treasury','treasury_view'],rentals:['capital_view','devices','ar','accounts','part_rent'],stockDevices:['capital_view','devices','accounts'],partSales:['freon_sell','capital_view','part_sales','cons_sales','ar','accounts','orders_manage','orders_work','treasury','treasury_view','freon','ext_repair'],orders:['orders_manage','orders_work','ar','accounts'],testKeys:['tests'],attendance:['attendance','payroll_prep','payroll_approve','home_att'],salaries:['salary_set','payroll_prep','payroll_approve'],inspections:['inspections'],payroll:['capital_view','payroll_prep','payroll_approve','treasury','treasury_view'],treasury:['capital_view','treasury','treasury_view','accounts','treasury_cfg'],contractReqs:['contracts','clients']};
 const OWN_COLS={custody:['capital_view','custody','accounts','treasury','treasury_view'],comps:['extra_pay','payroll_prep','payroll_approve','hr'],handovers:['capital_view','handover_recv','accounts','treasury','custody'],notes:[],vouchers:['capital_view','vouchers_approve','accounts','treasury','treasury_view'],hr:['capital_view','hr','payroll_prep','payroll_approve','loans','custody','home_att'],evals:['evals'],punches:['hr','payroll_prep','payroll_approve','home_att'],payslips:['payroll_approve'],testAnswers:['tests'],empFiles:['emp_files']};
 const SPECIAL_COLS=['notifs','ratings','penalties','empDocs','bonuses','weekrep'];
@@ -1912,7 +1912,7 @@ function viewStock(){
   <div class="row between"><div class="row"><input id="sq" placeholder="بحث باسم القطعة أو الكود" value="${esc(SQ)}" style="max-width:260px"><select id="scf" style="width:auto"><option value="">كل الحالات</option>${Object.entries(CONDS).map(([k,[l]])=>`<option value="${k}" ${k===SCF?'selected':''}>${l}</option>`).join('')}</select>${(()=>{const T=[...new Set(SPARES().map(p=>p.ptype).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ar'));return T.length?`<select id="spt" style="width:auto"><option value="">كل الأنواع</option>${T.map(t=>`<option ${t===SPT?'selected':''}>${esc(t)}</option>`).join('')}</select>`:''})()}${(()=>{const B=[...new Set(SPARES().map(p=>p.brand).filter(Boolean))].sort();return B.length?`<select id="spb" style="width:auto"><option value="">كل الماركات</option>${B.map(t=>`<option ${t===SPB?'selected':''}>${esc(t)}</option>`).join('')}</select>`:''})()}</div><div class="row">${can('stock')?'<button class="btn" data-act="bcLabels" data-k="spare">🏷️ باركود</button>':''}${edit?'<button class="btn pri" data-act="addPart">+ صنف جديد</button>':''}</div></div>
   ${can('stock_edit')&&condGroups().length?`<div class="banner info row between"><span>فيه ${condGroups().length} قطعة متسجلة بكذا حالة بأكواد مختلفة — اربطهم علشان ياخدوا نفس الرقم وآخره حرف الحالة.</span><button class="btn sm pri" data-act="condMerge">اربطهم</button></div>`:''}
   <div class="muted small">كل صنف بياخد كود لوحده، وآخره حرف الحالة: N جديدة · U مستعملة · F مجددة · R إصلاح · D تالفة. دوس على الصورة تكبّرها، و"اتركب فين" بيوريك العيادات اللي اتركب عندها.</div>
-  ${list.length?`<div class="pgrid">${groupLeads(list.sort((a,b)=>a.name.localeCompare(b.name,'ar'))).map(p=>`<div class="pcard">${p.photo?`<img src="${p.photo}" data-act="showImg" data-src="pt:${p.id}" alt="" style="cursor:zoom-in">`:'<div class="noimg">⚙️</div>'}<div class="pbody">${p.ptype?`<span class="pill p-info" style="justify-self:start">${esc(p.ptype)}</span>`:''}<b>${esc(p.name)}</b>${(()=>{const multi=!isKit(p)&&catOf(p)==='spare'&&famBrands(p).length>1;const t=[multi?'':p.brand,p.model].filter(Boolean).join(' · ');return t?`<div class="small" style="font-weight:600;color:var(--accent)">${esc(t)}</div>`:''})()}<div class="muted small num">${esc(p.code||'')}${p.ref?' · '+esc(p.ref):''}</div>${condTable(p,edit,costs)}${kitCardLine(p)}
+  ${list.length?`<div class="pgrid">${groupLeads(list.sort((a,b)=>a.name.localeCompare(b.name,'ar'))).map(p=>`<div class="pcard">${p.photo?`<img src="${p.photo}" data-act="showImg" data-src="pt:${p.id}" alt="" style="cursor:zoom-in">`:'<div class="noimg">⚙️</div>'}<div class="pbody">${webPill(p)}${p.ptype?`<span class="pill p-info" style="justify-self:start">${esc(p.ptype)}</span>`:''}<b>${esc(p.name)}</b>${(()=>{const multi=!isKit(p)&&catOf(p)==='spare'&&famBrands(p).length>1;const t=[multi?'':p.brand,p.model].filter(Boolean).join(' · ');return t?`<div class="small" style="font-weight:600;color:var(--accent)">${esc(t)}</div>`:''})()}<div class="muted small num">${esc(p.code||'')}${p.ref?' · '+esc(p.ref):''}</div>${condTable(p,edit,costs)}${kitCardLine(p)}
     ${isKit(p)?`<div class="row between"><span class="num">${money(p.sell)}</span>${n(p.qty)<=n(p.min)?`<span class="pill p-bad">${n(p.qty)}</span>`:`<span class="pill p-ok">${n(p.qty)}</span>`}</div>
     ${costs?`<div class="muted small">الشراء: <span class="num">${money(p.buy)}</span></div>`:''}`:''}
     <div class="row" style="gap:4px">${isKit(p)?condPill(p.condition):''}${(isKit(p)||catOf(p)!=='spare')&&wLabel(p)?`<span class="pill p-info">ضمان ${wLabel(p)}</span>`:''}</div>
@@ -2827,12 +2827,13 @@ service cloud.firestore {
     function subOn() { return exists(/databases/$(database)/documents/meta/sub) && get(/databases/$(database)/documents/meta/sub).data.get('lockAt', null) != null; }
     function subLive() { return request.time < get(/databases/$(database)/documents/meta/sub).data.lockAt && get(/databases/$(database)/documents/meta/sub).data.get('stop', false) != true; }
     function noUpd() { return !exists(/databases/$(database)/documents/meta/sub) || get(/databases/$(database)/documents/meta/sub).data.get('upd', false) != true; }
-    function wrOk(d) { return d.keys().hasOnly(['name', 'phone', 'area', 'address', 'device', 'catId', 'catName', 'item', 'pref', 'notes', 'status', 'at']) && d.name is string && d.name.size() > 1 && d.name.size() <= 80 && d.phone is string && d.phone.size() >= 8 && d.phone.size() <= 20 && d.get('area', '') is string && d.get('area', '').size() <= 60 && d.get('address', '') is string && d.get('address', '').size() <= 200 && d.get('device', '') is string && d.get('device', '').size() <= 80 && d.catName is string && d.catName.size() <= 40 && d.get('item', '') is string && d.get('item', '').size() <= 60 && d.get('notes', '') is string && d.get('notes', '').size() <= 600 && d.status == 'new' && d.at == request.time; }
+    function wrOk(d) { return d.keys().hasOnly(['name', 'phone', 'area', 'address', 'device', 'catId', 'catName', 'item', 'pref', 'notes', 'status', 'at', 'items']) && d.get('items', []) is list && d.get('items', []).size() <= 30 && d.name is string && d.name.size() > 1 && d.name.size() <= 80 && d.phone is string && d.phone.size() >= 8 && d.phone.size() <= 20 && d.get('area', '') is string && d.get('area', '').size() <= 60 && d.get('address', '') is string && d.get('address', '').size() <= 200 && d.get('device', '') is string && d.get('device', '').size() <= 80 && d.catName is string && d.catName.size() <= 40 && d.get('item', '') is string && d.get('item', '').size() <= 60 && d.get('notes', '') is string && d.get('notes', '').size() <= 600 && d.status == 'new' && d.at == request.time; }
     function wOK() { return ((!subOn() || subLive()) && noUpd()) || isDev(); }
     function rOK() { return !subOn() || subLive() || (get(/databases/$(database)/documents/meta/sub).data.get('mode', 'read') != 'full' && get(/databases/$(database)/documents/meta/sub).data.get('stop', false) != true) || isDev(); }
 
     match /meta/sub { allow read: if signed(); allow write: if isDev(); }
     match /meta/admin { allow read: if true; allow create: if signed() && !exists(/databases/$(database)/documents/meta/admin); }
+    match /webcat/{id} { allow read: if true; allow write: if (((isStaff())) && wOK()) || isDev(); }
     match /meta/webreq { allow read: if true; allow write: if (((can('settings'))) && wOK()) || isDev(); }
     match /webreq/{id} {
       allow create: if exists(/databases/$(database)/documents/meta/webreq) && get(/databases/$(database)/documents/meta/webreq).data.get('on', false) == true && (!subOn() || subLive()) && (!exists(/databases/$(database)/documents/meta/sub) || get(/databases/$(database)/documents/meta/sub).data.get('webReq', false) == true) && wrOk(request.resource.data);
@@ -3345,6 +3346,16 @@ const CONS=()=>S.parts.filter(p=>catOf(p)==='cons');
 const CODE_RE=/^(SP|CN)-(\d+)(?:-[A-Z])?$/;
 function nextCode(cat){const pre=CAT_PREFIX[cat]||'SP';let mx=0;S.parts.forEach(p=>{const m=String(p.code||'').match(CODE_RE);if(m&&m[1]===pre)mx=Math.max(mx,+m[2])});return pre+'-'+pad(mx+1)}
 function autoCodes(){let ch=false;S.parts.forEach(p=>{const m=String(p.code||'').match(CODE_RE);if(m&&m[1]===CAT_PREFIX[catOf(p)])return;if(p.code&&!m&&!p.ref)p.ref=p.code;p.code=nextCode(catOf(p));ch=true});return ch}
+// قطع الغيار والمستهلكات اللي عليها "أونلاين" بتظهر في صفحة طلب الخدمة العامة (بالصور)
+const webPill=p=>(typeof wrAllowed==='function'&&wrAllowed()&&ONLINE&&can('stock_edit'))?`<button class="pill ${p.web?'p-ok':'p-mut'}" data-act="webTg" data-id="${p.id}" title="يظهر في صفحة طلب الخدمة أونلاين" style="border:0;cursor:pointer;justify-self:start">${p.web?'🌐 ظاهر أونلاين':'🌐 مخفي أونلاين'}</button>`:(p.web?'<span class="pill p-ok" style="justify-self:start">🌐 أونلاين</span>':'');
+function syncWebCat(){
+  if(!S||!ONLINE||!isStaff())return;if(!SYNCED.parts||!SYNCED.webcat)return;S.webcat=S.webcat||[];
+  const ok=typeof wrAllowed==='function'&&wrAllowed();
+  const want=new Map(ok?(S.parts||[]).filter(p=>p.web===true).map(p=>[p.id,{id:p.id,name:p.name||'',kind:p.cat==='cons'?'cons':'part',group:p.group||p.ptype||'',brand:p.brand||'',unit:p.unit||'',photo:(p.photo&&p.photo.length<400000)?p.photo:'',sell:p.hidePrice?0:n(p.sell),hp:!!p.hidePrice,avail:n(p.qty)>0,desc:(p.desc||'').slice(0,200)}]):[]);
+  const cur=new Map(S.webcat.map(x=>[x.id,x]));
+  for(const [id,x] of want){const o=cur.get(id);if(!o||JSON.stringify(o)!==JSON.stringify(x)){if(o)Object.assign(o,x);else S.webcat.push(x)}}
+  if(S.webcat.some(x=>!want.has(x.id)))S.webcat=S.webcat.filter(x=>want.has(x.id));
+}
 function syncCatalog(){
   if(!S||!Array.isArray(S.catalog)||(ONLINE&&!isStaff()))return;
   if(ONLINE&&(!SYNCED.parts||!SYNCED.catalog))return;
@@ -3367,7 +3378,7 @@ function viewCons(){
   ${list.length?`<div class="pgrid">${list.map(p=>`<div class="pcard">${p.photo?`<img src="${p.photo}" alt="">`:'<div class="noimg">📦</div>'}<div class="pbody"><b>${esc(p.name)}</b><div class="muted small num">${esc(p.code||'')}${p.group?' · '+esc(p.group):''}</div>
     <div class="row between"><span class="num">${money(p.sell)}${p.unit?` <span class="muted small">/ ${esc(p.unit)}</span>`:''}</span>${n(p.qty)<=n(p.min)?`<span class="pill p-bad">${n(p.qty)}</span>`:`<span class="pill p-ok">${n(p.qty)}</span>`}</div>
     ${costs?`<div class="muted small">الشراء: <span class="num">${money(p.buy)}</span></div>`:''}
-    <div>${p.shop===false?'<span class="pill p-mut">مخفي عن العيادات</span>':'<span class="pill p-info">ظاهر للعيادات</span>'}</div>
+    <div class="row" style="gap:6px;flex-wrap:wrap">${p.shop===false?'<span class="pill p-mut">مخفي عن العيادات</span>':'<span class="pill p-info">ظاهر للعيادات</span>'}${webPill(p)}</div>
     ${edit?`<div class="row"><button class="btn sm" data-act="restock" data-id="${p.id}">+ كمية</button><button class="btn sm ghost" data-act="editCons" data-id="${p.id}">تعديل</button></div>`:''}</div></div>`).join('')}</div>`:'<div class="panel"><div class="empty">لسه مفيش منتجات مستهلكات أو مستلزمات</div></div>'}`;
 }
 function openConsModal(id){
@@ -3657,9 +3668,10 @@ function viewHR2(){
 /* =====================================================================
    v9 — الأزرار الجديدة
    ===================================================================== */
-const NEED9={addCons:'stock_edit',editCons:'stock_edit',addEval:'evals',setBal:'leave_bal',ordCancel:'orders_manage',waRemind:'ar'};
+const NEED9={webTg:'stock_edit',addCons:'stock_edit',editCons:'stock_edit',addEval:'evals',setBal:'leave_bal',ordCancel:'orders_manage',waRemind:'ar'};
 const X9={
   bell:()=>openBell(),
+  webTg:(t,id)=>{const p=part(id);if(!p)return;p.web=!p.web;save();toast(p.web?'هيظهر في صفحة طلب الخدمة أونلاين'+(p.photo?'':' — ضيف له صورة علشان يبان أحلى'):'اتشال من صفحة طلب الخدمة');render()},
   addCons:()=>openConsModal(null),
   editCons:(t,id)=>openConsModal(id),
   sendOrder:()=>sendOrder(),
@@ -5726,6 +5738,7 @@ function viewWebReq(){
    <div class="row between" style="flex-wrap:wrap;gap:6px"><b>${esc(x.name||'')}</b><span class="row" style="gap:6px"><span class="pill ${st[1]}">${st[0]}</span><span class="muted small">${wrDate(x)}</span></span></div>
    <div><span class="pill p-info">${esc(x.catName||'')}</span>${x.item?` <b>${esc(x.item)}</b>`:''}${x.pref?` <span class="muted small">· ${esc(x.pref)}</span>`:''}</div>
    <div class="small"><span class="num">📞 ${esc(x.phone||'')}</span>${x.area?` · 📍 ${esc(x.area)}`:''}${x.address?` — ${esc(x.address)}`:''}</div>
+   ${(x.items||[]).length?`<div class="small" style="display:grid;gap:3px;background:var(--surface-2);border-radius:8px;padding:6px 9px">${x.items.map(i=>`<div class="row between"><span>${esc(i.name)}</span><b class="num">× ${n(i.qty)}</b></div>`).join('')}</div>`:''}
    ${x.device?`<div class="small">🔧 الجهاز: ${esc(x.device)}</div>`:''}${x.notes?`<div class="small" style="white-space:pre-wrap;background:var(--surface-2,#f4f6f8);border-radius:8px;padding:6px 9px">${esc(x.notes)}</div>`:''}
    ${x.staffNote?`<div class="small muted">ملاحظتك: ${esc(x.staffNote)}</div>`:''}${x.byName?`<div class="small muted">آخر تعديل: ${esc(x.byName)}</div>`:''}
    <div class="row" style="flex-wrap:wrap;gap:6px"><a class="btn sm" href="tel:${esc(x.phone||'')}">📞 اتصال</a><button class="btn sm" data-wr="wa" data-id="${x.id}">💬 واتساب</button>
@@ -5744,6 +5757,8 @@ function wrCfgView(){
    <label class="f">رقم واتساب الشركة (العميل يقدر يكلمك عليه بعد ما يبعت الطلب — اختياري)<input id="wr_wa" value="${esc(c.wa||'')}" inputmode="tel" placeholder="01xxxxxxxxx" maxlength="20"></label>
    <label class="f">رسالة ترحيب تظهر للعميل فوق (اختياري)<input id="wr_msg" value="${esc(c.msg||'')}" maxlength="160" placeholder="مثلاً: فريقنا جاهز يخدمك في أسرع وقت"></label>
    <label class="row" style="gap:8px"><input type="checkbox" id="wr_dev" style="width:auto" ${c.askDevice===false?'':'checked'}> اسأل العميل عن اسم الجهاز أو الموديل</label>
+   <label class="row" style="gap:8px"><input type="checkbox" id="wr_shop" style="width:auto" ${c.shop===false?'':'checked'}> اعرض «🛒 قطع غيار ومستهلكات» بالصور <span class="muted small">(${(S.parts||[]).filter(p=>p.web).length} صنف معلّم عليه «🌐 أونلاين» من المخزن)</span></label>
+   <div class="muted small">علشان صنف يظهر: روح المخزن ودوس على «🌐 مخفي أونلاين» على كارت الصنف يبقى «🌐 ظاهر أونلاين». ولو للصنف صورة هتظهر للعميل.</div>
    <div class="sec-title" style="margin:4px 0">الأقسام والخدمات اللي العميل هيختار منها</div>
    <div id="wr_cats" class="grid" style="gap:8px">${cats.map(catRow).join('')}</div>
    <div><button type="button" class="btn sm" data-wr="catadd">+ قسم جديد</button></div>
@@ -5751,16 +5766,35 @@ function wrCfgView(){
   <div class="panel grid" style="gap:10px"><h3 style="margin:0">🔗 اللينك والـ QR</h3>
    <div class="muted small">حط اللينك على صفحة الفيسبوك أو في الـ Bio، أو نزّل صورة الـ QR وانشرها ستوري على الواتساب أو اطبعها.</div>
    <div class="row" style="gap:6px"><input id="wr_url" readonly value="${esc(url)}" style="direction:ltr;text-align:left"><button class="btn sm" data-wr="copy">نسخ</button><a class="btn sm" href="${esc(url)}" target="_blank" rel="noopener">فتح</a></div>
-   <div class="row" style="gap:14px;flex-wrap:wrap;align-items:flex-start"><img id="wr_qr" alt="QR" style="width:170px;height:170px;border:1px solid var(--line);border-radius:10px;background:#fff;padding:6px">
-    <div class="grid" style="gap:6px"><button class="btn" data-wr="dlqr">⬇️ تنزيل الـ QR بس</button><button class="btn pri" data-wr="dlstory">⬇️ تنزيل صورة ستوري جاهزة</button><button class="btn" data-wr="share">📤 مشاركة اللينك</button></div></div>
+   <div class="row" style="gap:14px;flex-wrap:wrap;align-items:flex-start"><img id="wr_qr" alt="QR" style="width:200px;height:auto;aspect-ratio:640/860;border:1px solid var(--line);border-radius:14px;background:#fff;box-shadow:0 6px 18px rgba(0,0,0,.08);padding:6px">
+    <div class="grid" style="gap:6px"><button class="btn" data-wr="dlqr">⬇️ تنزيل صورة الـ QR</button><button class="btn pri" data-wr="dlstory">⬇️ تنزيل صورة ستوري جاهزة</button><button class="btn" data-wr="share">📤 مشاركة اللينك</button></div></div>
    ${c.on?'':'<div class="banner small">الصفحة لسه مقفولة — علّم «الصفحة شغالة» واضغط حفظ قبل ما تنشر اللينك.</div>'}</div>`;
 }
-function wrBind(){if(VIEW!=='webreq'||WWR_TAB!=='cfg')return;const img=$('#wr_qr');if(img)loadQR().then(()=>{const d=qrData(webReqUrl());if(d)img.src=d})}
+function wrBind(){if(VIEW!=='webreq'||WWR_TAB!=='cfg')return;const img=$('#wr_qr');if(img)loadQR().then(async()=>{if(!window.qrcode)return;const cv=await wrPoster();img.src=cv.toDataURL('image/png')})}
+// صورة QR مرتبة (زي بتاع العيادات): شريط فوق باسم الشركة، عنوان، الكود، وسطر تحت
+async function wrPoster(){
+  const W=640,H=860,cv=document.createElement('canvas');cv.width=W;cv.height=H;const g=cv.getContext('2d');
+  let col=getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()||'#1c2a44';try{const t=document.createElement('canvas').getContext('2d');t.fillStyle=col;const h=t.fillStyle;if(/^#[0-9a-f]{6}$/i.test(h)){const r=parseInt(h.slice(1,3),16),g2=parseInt(h.slice(3,5),16),b2=parseInt(h.slice(5,7),16);if((.299*r+.587*g2+.114*b2)/255>.62)col='#1c2a44'}}catch(e){}
+  const F='"Cairo","Tajawal","Segoe UI",Tahoma,sans-serif';try{await document.fonts?.load('800 36px Cairo')}catch(e){}
+  g.fillStyle='#fff';g.fillRect(0,0,W,H);g.fillStyle=col;g.fillRect(0,0,W,150);
+  g.direction='rtl';g.textAlign='center';
+  const logo=(S.settings||{}).logo||(S.settings||{}).appLogo||'';let x0=30,x1=W-30;
+  if(logo){try{const im=await new Promise((ok,no)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=no;i.src=logo});const h=72,w=Math.min(220,im.width*h/im.height),bx=W-34-w-20;g.fillStyle='#fff';g.beginPath();g.roundRect?g.roundRect(bx,39,w+20,h+12,16):g.rect(bx,39,w+20,h+12);g.fill();g.drawImage(im,bx+10,45,w,h);x1=bx-20}catch(e){}}
+  g.fillStyle='#fff';let fs=40;g.font=`800 ${fs}px ${F}`;while(fs>20&&g.measureText(BRAND()).width>x1-x0){fs-=2;g.font=`800 ${fs}px ${F}`}g.textBaseline='middle';g.fillText(BRAND(),(x0+x1)/2,82);g.textBaseline='alphabetic';
+  g.fillStyle='#1E2A3A';g.font=`800 36px ${F}`;g.fillText('اطلب خدمتك أونلاين',W/2,215);
+  g.fillStyle='#6B7480';g.font=`600 22px ${F}`;g.fillText('صيانة · قطع غيار · مستهلكات',W/2,252);
+  const qs=420,qx=(W-qs)/2,qy=285;g.strokeStyle='#E3E7EC';g.lineWidth=2;g.beginPath();g.roundRect?g.roundRect(qx-22,qy-22,qs+44,qs+44,26):g.rect(qx-22,qy-22,qs+44,qs+44);g.stroke();
+  g.drawImage(wrCanvasQR(webReqUrl(),qs),qx,qy,qs,qs);
+  g.fillStyle='#4A5563';g.font=`700 24px ${F}`;g.fillText('امسح الكود واختار الخدمة اللي محتاجها',W/2,770);
+  g.fillStyle=col;g.font=`700 22px ${F}`;const wa=(WWR_CFG||{}).wa;g.fillText(wa?'واتساب: '+wa:'وهنكلمك في أسرع وقت',W/2,815);
+  return cv;
+}
 function wrReadCats(){return $$('#wr_cats .wr-cat').map((el,i)=>({id:el.dataset.cid||('c'+Date.now().toString(36)+i),icon:(el.querySelector('.wr-ic').value||'').trim().slice(0,4)||'🛠️',name:el.querySelector('.wr-nm').value.trim().slice(0,40),items:el.querySelector('.wr-it').value.split('\n').map(s=>s.trim().slice(0,60)).filter(Boolean).slice(0,20)})).filter(k=>k.name).slice(0,12)}
 async function wrSaveCfg(){
-  const cats=wrReadCats();if(!cats.length){toast('لازم قسم واحد على الأقل');return}
+  const cats=wrReadCats();if(!cats.length&&!$('#wr_shop')?.checked){toast('لازم قسم واحد على الأقل')
+;return}
   const s=S.settings||{};let logo=s.logo||s.appLogo||'';if(logo.length>350000)logo='';
-  const d={on:$('#wr_on').checked,wa:normD($('#wr_wa').value).replace(/[^0-9+]/g,'').slice(0,20),msg:$('#wr_msg').value.trim().slice(0,160),askDevice:$('#wr_dev').checked,cats,name:BRAND(),logo,color:(s.color||s.brandColor||''),at:new Date().toISOString()};
+  const d={on:$('#wr_on').checked,wa:normD($('#wr_wa').value).replace(/[^0-9+]/g,'').slice(0,20),msg:$('#wr_msg').value.trim().slice(0,160),askDevice:$('#wr_dev').checked,shop:$('#wr_shop').checked,cats,name:BRAND(),logo,color:(s.color||s.brandColor||''),at:new Date().toISOString()};
   try{await FB.db.doc('meta/webreq').set(d);WWR_CFG=d;toast(d.on?'اتحفظ — الصفحة شغالة':'اتحفظ — الصفحة مقفولة');render()}catch(e){toast(fbErr(e))}
 }
 function wrCanvasQR(text,size){const q=qrcode(0,'M');q.addData(text);q.make();const n0=q.getModuleCount(),cv=document.createElement('canvas'),m=Math.floor(size/(n0+4));cv.width=cv.height=m*(n0+4);const g=cv.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,cv.width,cv.height);g.fillStyle='#0f172a';for(let r=0;r<n0;r++)for(let c=0;c<n0;c++)if(q.isDark(r,c))g.fillRect((c+2)*m,(r+2)*m,m,m);return cv}
@@ -5793,7 +5827,7 @@ document.addEventListener('click',async e=>{
   if(k==='save')return wrSaveCfg();
   if(k==='copy'){const u=webReqUrl();try{await navigator.clipboard.writeText(u);toast('اتنسخ اللينك')}catch(er){const i=$('#wr_url');i.select();document.execCommand('copy');toast('اتنسخ اللينك')}return}
   if(k==='share'){const u=webReqUrl();try{if(navigator.share){await navigator.share({title:BRAND(),text:'اطلب خدمتك من '+BRAND()+' أونلاين:',url:u});return}}catch(er){return}openWa('', 'اطلب خدمتك من '+BRAND()+' أونلاين من هنا:\n'+u);return}
-  if(k==='dlqr'){await loadQR();if(!window.qrcode)return toast('جرب تاني');wrDownload(wrCanvasQR(webReqUrl(),900),'QR-'+BRAND()+'.png');return}
+  if(k==='dlqr'){await loadQR();if(!window.qrcode)return toast('جرب تاني');wrDownload(await wrPoster(),'QR-'+BRAND()+'.png');return}
   if(k==='dlstory')return wrStory();
   if(!x)return;
   const upd=async p=>{try{await FB.db.collection('webreq').doc(x.id).update({...p,by:ME.id,byName:ME.name||''})}catch(er){toast(fbErr(er))}};
@@ -5811,17 +5845,18 @@ async function viewWebReqPage(cfg){
   const m=$('#main');m.className='narrow';m.innerHTML='<div class="panel"><div class="empty">بيحمّل…</div></div>';
   try{if(!cfg)throw 0;for(const f of ['app','firestore'])await loadScript(`https://www.gstatic.com/firebasejs/${FB_VER}/firebase-${f}-compat.js`);
     const app=firebase.apps.find(a=>a.name==='webreq')||firebase.initializeApp(cfg,'webreq');WRP.db=app.firestore();
-    const d=await WRP.db.doc('meta/webreq').get();WRP.cfg=d.exists?d.data():null}catch(e){WRP.cfg=null}
+    const d=await WRP.db.doc('meta/webreq').get();WRP.cfg=d.exists?d.data():null;
+    WRP.shop=[];if(WRP.cfg&&WRP.cfg.shop!==false){try{WRP.shop=(await WRP.db.collection('webcat').get()).docs.map(x=>({...x.data(),id:x.id})).sort((a,b)=>(a.kind||'').localeCompare(b.kind||'')||(a.name||'').localeCompare(b.name||'','ar'))}catch(e){WRP.shop=[]}}}catch(e){WRP.cfg=null}
   const c=WRP.cfg;
   if(c&&c.name){try{document.title='طلب خدمة — '+c.name;const bn=document.querySelector('.brand-name,#brandName');if(bn)bn.textContent=c.name;const bl=document.querySelector('.brand-logo');if(bl&&c.logo){bl.hidden=false;bl.src=c.logo}}catch(e){}}
-  if(!c||!c.on||!(c.cats||[]).length){m.innerHTML=`<div class="panel grid" style="max-width:520px;margin:30px auto;text-align:center"><div style="font-size:2.4rem">🕒</div><h2>الصفحة دي مش متاحة دلوقتي</h2><div class="muted">${c&&c.wa?`تقدر تكلمنا على واتساب: <a href="https://wa.me/${waPhone(c.wa)}" target="_blank" rel="noopener" class="num">${esc(c.wa)}</a>`:'جرب تاني بعدين.'}</div></div>`;return}
+  if(!c||!c.on||(!(c.cats||[]).length&&!(WRP.shop||[]).length)){m.innerHTML=`<div class="panel grid" style="max-width:520px;margin:30px auto;text-align:center"><div style="font-size:2.4rem">🕒</div><h2>الصفحة دي مش متاحة دلوقتي</h2><div class="muted">${c&&c.wa?`تقدر تكلمنا على واتساب: <a href="https://wa.me/${waPhone(c.wa)}" target="_blank" rel="noopener" class="num">${esc(c.wa)}</a>`:'جرب تاني بعدين.'}</div></div>`;return}
   WRP.t0=Date.now();wrpRender();
 }
 function wrpRender(){const c=WRP.cfg,m=$('#main');const cats=c.cats||[];
   const top=`<div style="text-align:center;margin-bottom:6px">${c.logo?`<img src="${c.logo}" alt="" style="max-height:70px;max-width:200px;object-fit:contain">`:''}<h2 style="margin:6px 0 2px">${esc(c.name||'')}</h2><div class="muted">${esc(c.msg||'اطلب الخدمة اللي محتاجها وهنكلمك في أسرع وقت')}</div></div>`;
-  const steps=`<div class="row" style="justify-content:center;gap:6px;margin:6px 0 4px">${[1,2,3].map(i=>`<span style="width:${WRP.step===i?28:10}px;height:10px;border-radius:99px;background:${WRP.step>=i?'var(--accent,#0f6cbd)':'var(--line,#dde3ea)'};transition:.2s"></span>`).join('')}</div>`;
+  const stN=WRP.step===6?2:WRP.step;const steps=`<div class="row" style="justify-content:center;gap:6px;margin:6px 0 4px">${[1,2,3].map(i=>`<span style="width:${stN===i?28:10}px;height:10px;border-radius:99px;background:${stN>=i?'var(--accent,#0f6cbd)':'var(--line,#dde3ea)'};transition:.2s"></span>`).join('')}</div>`;
   let body='';
-  if(WRP.step===1)body=`<h3 style="margin:4px 0">محتاج إيه؟</h3><div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">${cats.map(k=>`<button class="btn" data-wrp="cat" data-id="${esc(k.id)}" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:18px 10px;height:auto;border-radius:14px"><span style="font-size:2rem">${esc(k.icon||'🛠️')}</span><b>${esc(k.name)}</b></button>`).join('')}</div>`;
+  if(WRP.step===1)body=`<h3 style="margin:4px 0">محتاج إيه؟</h3><div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">${(WRP.shop||[]).length?`<button class="btn" data-wrp="shop" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:18px 10px;height:auto;border-radius:14px"><span style="font-size:2rem">🛒</span><b>قطع غيار ومستهلكات</b></button>`:''}${cats.map(k=>`<button class="btn" data-wrp="cat" data-id="${esc(k.id)}" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:18px 10px;height:auto;border-radius:14px"><span style="font-size:2rem">${esc(k.icon||'🛠️')}</span><b>${esc(k.name)}</b></button>`).join('')}</div>`;
   else if(WRP.step===2){const k=WRP.cat;body=`<h3 style="margin:4px 0">${esc(k.icon||'')} ${esc(k.name)} — اختار الخدمة</h3><div class="grid" style="gap:8px">${(k.items||[]).map((it,i)=>`<button class="btn" data-wrp="item" data-i="${i}" style="justify-content:flex-start;padding:14px;border-radius:12px;text-align:start">${esc(it)}</button>`).join('')}<button class="btn ghost" data-wrp="item" data-i="-1" style="justify-content:flex-start;padding:14px;border-radius:12px">حاجة تانية (هكتبها في الملاحظات)</button></div><div><button class="btn ghost sm" data-wrp="back">→ رجوع</button></div>`}
   else if(WRP.step===3)body=`<h3 style="margin:4px 0">بياناتك</h3><div class="muted small">${esc(WRP.cat.name)}${WRP.item?' — '+esc(WRP.item):''}</div>
    <label class="f">الاسم (أو اسم العيادة / المكان)<input id="wp_name" maxlength="80" autocomplete="name"></label>
@@ -5833,14 +5868,28 @@ function wrpRender(){const c=WRP.cfg,m=$('#main');const cats=c.cats||[];
    <label class="f">تفاصيل أكتر (اختياري)<textarea id="wp_notes" rows="3" maxlength="600" placeholder="اكتب المشكلة باختصار"></textarea></label>
    <div style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap" aria-hidden="true"><label>Website<input id="wp_web" tabindex="-1" autocomplete="off"></label></div>
    <div class="row" style="gap:8px"><button class="btn pri" data-wrp="send" style="flex:1;padding:13px">إرسال الطلب ✔</button><button class="btn ghost" data-wrp="back">→ رجوع</button></div>`;
+  else if(WRP.step===6){const F=WRP.sf||'',L=(WRP.shop||[]).filter(x=>!F||x.kind===F),C=WRP.cart||{},kinds=new Set((WRP.shop||[]).map(x=>x.kind));
+    body=`<div class="row between" style="gap:8px;flex-wrap:wrap"><h3 style="margin:4px 0">🛒 قطع غيار ومستهلكات</h3><button class="btn ghost sm" data-wrp="back">→ رجوع</button></div>
+     ${kinds.size>1?`<div class="seg" style="flex-wrap:wrap">${[['','الكل'],['part','قطع غيار'],['cons','مستهلكات']].map(([k,l])=>`<button data-wrp="sf" data-k="${k}" class="${F===k?'on':''}">${l}</button>`).join('')}</div>`:''}
+     <div class="muted small">اختار الكمية من كل صنف، وبعدين كمّل واكتب بياناتك.</div>
+     <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">${L.map(x=>{const q=C[x.id]||0;return `<div style="border:1.5px solid ${q?'var(--accent)':'var(--line)'};border-radius:14px;overflow:hidden;background:var(--surface);display:flex;flex-direction:column">
+      ${x.photo?`<img src="${x.photo}" alt="" style="width:100%;aspect-ratio:1/1;object-fit:contain;background:#fff">`:`<div style="aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;font-size:2.6rem;background:var(--surface-2)">${x.kind==='cons'?'📦':'⚙️'}</div>`}
+      <div style="padding:8px 10px;display:grid;gap:4px;flex:1"><b style="font-size:.92rem;line-height:1.35">${esc(x.name)}</b>${x.group||x.brand?`<span class="muted small">${esc([x.brand,x.group].filter(Boolean).join(' · '))}</span>`:''}
+       ${!x.hp&&x.sell>0?`<span class="num small" style="font-weight:700">${money(x.sell)}${x.unit?` <span class="muted">/ ${esc(x.unit)}</span>`:''}</span>`:''}${x.avail?'':'<span class="pill p-warn" style="justify-self:start">بيتطلب (مش متوفر حالياً)</span>'}
+       <div class="row" style="gap:6px;margin-top:auto;justify-content:center"><button class="btn sm" data-wrp="q" data-id="${esc(x.id)}" data-d="-1" ${q?'':'disabled'} aria-label="أقل">−</button><b class="num" style="min-width:26px;text-align:center">${q}</b><button class="btn sm ${q?'pri':''}" data-wrp="q" data-id="${esc(x.id)}" data-d="1" aria-label="أكتر">+</button></div></div></div>`}).join('')||'<div class="empty">مفيش أصناف هنا</div>'}</div>
+     ${(()=>{const n0=Object.values(C).filter(Boolean).length;return `<div style="position:sticky;bottom:8px;z-index:3"><button class="btn pri" data-wrp="shopNext" ${n0?'':'disabled'} style="width:100%;padding:13px;box-shadow:0 6px 18px rgba(0,0,0,.15)">${n0?`${n0} صنف — كمّل ✔`:'اختار صنف واحد على الأقل'}</button></div>`})()}`}
   else if(WRP.step===4)body=`<div style="text-align:center" class="grid"><div style="font-size:3rem">✅</div><h2 style="margin:0">طلبك وصل</h2><div class="muted">شكراً ${esc(WRP.sentName||'')} — هنكلمك على رقمك في أقرب وقت.</div>${c.wa?`<a class="btn pri" style="text-decoration:none" target="_blank" rel="noopener" href="https://wa.me/${waPhone(c.wa)}?text=${encodeURIComponent('أهلاً، بعت طلب '+(WRP.cat?.name||'')+(WRP.item?' - '+WRP.item:'')+' من الموقع باسم '+(WRP.sentName||''))}">💬 كلمنا على واتساب</a>`:''}<button class="btn ghost" data-wrp="again">طلب تاني</button></div>`;
-  m.innerHTML=`<div class="panel grid" style="max-width:560px;width:100%;box-sizing:border-box;margin:14px auto;gap:12px">${top}${WRP.step<4?steps:''}${body}</div><div class="muted small" style="text-align:center;margin-bottom:20px">${esc(c.name||'')}</div>`;
+  m.innerHTML=`<div class="panel grid" style="max-width:560px;width:100%;box-sizing:border-box;margin:14px auto;gap:12px">${top}${WRP.step<4||WRP.step===6?steps:''}${body}</div><div class="muted small" style="text-align:center;margin-bottom:20px">${esc(c.name||'')}</div>`;
 }
 document.addEventListener('click',async e=>{const b=e.target.closest('[data-wrp]');if(!b||!WRP.cfg)return;const k=b.dataset.wrp;
   if(k==='cat'){WRP.cat=(WRP.cfg.cats||[]).find(x=>x.id===b.dataset.id);if(!WRP.cat)return;WRP.step=(WRP.cat.items||[]).length?2:3;WRP.item='';wrpRender();scrollTo(0,0);return}
   if(k==='item'){const i=+b.dataset.i;WRP.item=i>=0?(WRP.cat.items||[])[i]||'':'';WRP.step=3;wrpRender();scrollTo(0,0);return}
-  if(k==='back'){WRP.step=WRP.step===3&&(WRP.cat?.items||[]).length?2:1;wrpRender();return}
-  if(k==='again'){WRP.step=1;WRP.cat=null;WRP.item='';WRP.t0=Date.now();wrpRender();return}
+  if(k==='back'){WRP.step=WRP.step===3&&WRP.cat?.id==='shop'?6:WRP.step===3&&(WRP.cat?.items||[]).length?2:1;wrpRender();return}
+  if(k==='shop'){WRP.cart=WRP.cart||{};WRP.step=6;wrpRender();scrollTo(0,0);return}
+  if(k==='sf'){WRP.sf=b.dataset.k||'';wrpRender();return}
+  if(k==='q'){WRP.cart=WRP.cart||{};const id=b.dataset.id,v=Math.max(0,Math.min(999,(WRP.cart[id]||0)+(+b.dataset.d)));if(v)WRP.cart[id]=v;else delete WRP.cart[id];const y=scrollY;wrpRender();scrollTo(0,y);return}
+  if(k==='shopNext'){const L=Object.entries(WRP.cart||{}).filter(([,q])=>q>0);if(!L.length)return;WRP.cat={id:'shop',icon:'🛒',name:'قطع غيار ومستهلكات',items:[]};WRP.item=L.map(([id,q])=>((WRP.shop||[]).find(x=>x.id===id)?.name||'')+' × '+q).join('، ').slice(0,60);WRP.step=3;wrpRender();scrollTo(0,0);return}
+  if(k==='again'){WRP.step=1;WRP.cat=null;WRP.item='';WRP.cart={};WRP.t0=Date.now();wrpRender();return}
   if(k==='send'){
     const v=id=>($(id)?.value||'').trim();const name=v('#wp_name'),phone=normD(v('#wp_phone')).replace(/[^0-9+]/g,'');
     if(name.length<2){toast('اكتب اسمك');return}if(phone.length<8||phone.length>20){toast('اكتب رقم موبايل صحيح');return}if(!v('#wp_area')){toast('اكتب المنطقة');return}
@@ -5848,7 +5897,7 @@ document.addEventListener('click',async e=>{const b=e.target.closest('[data-wrp]
     const dk='pm-wr-'+new Date().toISOString().slice(0,10);let nn=0;try{nn=+localStorage.getItem(dk)||0}catch(er){}
     if(nn>=3){toast('بعت طلبات كتير النهارده — لو محتاج حاجة كلمنا على واتساب');return}
     b.disabled=true;b.textContent='بيبعت…';
-    const d={name:name.slice(0,80),phone:phone.slice(0,20),area:v('#wp_area').slice(0,60),address:v('#wp_addr').slice(0,200),device:v('#wp_dev').slice(0,80),catId:String(WRP.cat.id).slice(0,40),catName:String(WRP.cat.name).slice(0,40),item:(WRP.item||'').slice(0,60),pref:v('#wp_pref').slice(0,30),notes:v('#wp_notes').slice(0,600),status:'new',at:firebase.firestore.FieldValue.serverTimestamp()};
+    const d={name:name.slice(0,80),phone:phone.slice(0,20),area:v('#wp_area').slice(0,60),address:v('#wp_addr').slice(0,200),device:v('#wp_dev').slice(0,80),catId:String(WRP.cat.id).slice(0,40),catName:String(WRP.cat.name).slice(0,40),item:(WRP.item||'').slice(0,60),...(WRP.cat.id==='shop'?{items:Object.entries(WRP.cart||{}).filter(([,q])=>q>0).slice(0,30).map(([id,q])=>({id:String(id).slice(0,40),name:String((WRP.shop||[]).find(x=>x.id===id)?.name||'').slice(0,80),qty:Math.min(999,q)}))}:{}),pref:v('#wp_pref').slice(0,30),notes:v('#wp_notes').slice(0,600),status:'new',at:firebase.firestore.FieldValue.serverTimestamp()};
     try{await Promise.race([WRP.db.collection('webreq').add(d),new Promise((_,j)=>setTimeout(()=>j({code:'timeout'}),15000))]);try{localStorage.setItem(dk,String(nn+1))}catch(er){}WRP.sentName=name;WRP.step=4;wrpRender();scrollTo(0,0)}
     catch(er){b.disabled=false;b.textContent='إرسال الطلب ✔';toast(er?.code==='timeout'?'النت بطيء — جرب تاني':'مقدرتش أبعت الطلب — جرب تاني أو كلمنا على واتساب')}
   }
@@ -6386,7 +6435,7 @@ let XR_PRE='';
 
 
 /* ---------- فحص التحديثات ---------- */
-const APP_VER='2026.11.03.4';
+const APP_VER='2026.11.04.1';
 async function checkUpdate(){try{if(location.protocol==='file:')return;const t=await (await fetch(location.pathname+'?_='+Date.now(),{cache:'no-store'})).text();const m=t.match(/const APP_VER='([^']+)'/);if(m&&m[1]!==APP_VER)showUpd(m[1])}catch(e){}}
 function showUpd(v){if(document.getElementById('updBar'))return;const b=document.createElement('div');b.id='updBar';b.style.cssText='position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:80;background:#1d2b45;color:#fff;padding:10px 16px;border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,.25);display:flex;gap:12px;align-items:center;font-weight:600;max-width:92vw';b.innerHTML='<span>🔄 فيه نسخة جديدة من السيستم</span><button type="button" style="background:#2b8fb8;color:#fff;border:0;border-radius:10px;padding:6px 14px;font:inherit;cursor:pointer">حدّث دلوقتي</button>';b.querySelector('button').onclick=()=>{location.replace(location.pathname+'?v='+encodeURIComponent(v)+location.hash)};document.body.appendChild(b)}
 setTimeout(checkUpdate,8000);setInterval(checkUpdate,5*60*1000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkUpdate()});

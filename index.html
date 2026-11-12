@@ -426,7 +426,21 @@ function addDays(s,k){const d=new Date(s+'T12:00:00');d.setDate(d.getDate()+k);r
 const fd=s=>s?s.split('-').reverse().join('/'):'—';
 const daysTo=s=>Math.round((new Date(s+'T12:00:00')-new Date(today()+'T12:00:00'))/864e5);
 const pad=v=>v==null||v===''?'مؤقت':String(v).padStart(4,'0');
-function toast(m){const t=document.createElement('div');t.className='toast';t.textContent=m;document.body.appendChild(t);setTimeout(()=>t.remove(),3200)}
+/* متابعة الاستخدام والأخطاء — بتوصل لوحة Beam Care (للشركات اللي مشتركة في Beam Care بس) */
+const BC_API='https://firestore.googleapis.com/v1/projects/beamcare-clinic/databases/(default)/documents/',BC_KEY='AIzaSyBF42mXPiwrPm4QKd55YtZVUtmZcbr3s_0';
+const bcTid=()=>{try{return (S&&S.sub&&S.sub.tid)||PM_CO||''}catch(e){return ''}};
+const bcF=o=>({fields:Object.fromEntries(Object.entries(o).map(([k,v])=>[k,k==='at'?{timestampValue:v}:{stringValue:String(v)}]))});
+function bcPing(){try{const t=bcTid();if(!t||PM_DEMO||!ME)return;const k='bc-ping-'+t+'-'+ME.id,d=today();if(localStorage.getItem(k)===d)return;localStorage.setItem(k,d);
+  const o={product:'maint',at:new Date().toISOString(),day:d,user:String(ME.name||ME.username||'').slice(0,70),v:APP_VER};
+  fetch(BC_API+'usage/m-'+encodeURIComponent(t)+'?key='+BC_KEY+Object.keys(o).map(f=>'&updateMask.fieldPaths='+f).join(''),{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(bcF(o))}).catch(()=>{})}catch(e){}}
+const BC_ERR={n:0,seen:new Set()};
+function bcErr(msg,src){try{msg=String(msg||'').slice(0,500);const t=bcTid();if(!t||PM_DEMO||!msg||BC_ERR.n>=5||BC_ERR.seen.has(msg))return;
+  if(/ResizeObserver|Script error\.?$|extension|NetworkError|Failed to fetch|Load failed|offline|unavailable/i.test(msg))return;BC_ERR.n++;BC_ERR.seen.add(msg);
+  const o={app:'maint',tenant:t,user:String(ME?.name||'').slice(0,70),msg,src:String(src||'').slice(0,280),page:String(typeof VIEW!=='undefined'?VIEW:'').slice(0,70),ua:navigator.userAgent.slice(0,280),at:new Date().toISOString(),v:APP_VER};
+  fetch(BC_API+'errlog?key='+BC_KEY,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(bcF(o))}).catch(()=>{})}catch(e){}}
+window.addEventListener('error',e=>bcErr(e.message,(e.filename||'').split('/').pop()+':'+(e.lineno||'')));
+window.addEventListener('unhandledrejection',e=>{const r=e.reason;bcErr(r?.message||r?.code||String(r),r?.stack?String(r.stack).split('\n')[1]:'')});
+function toast(m){if(/^مقدرتش|^مشكلة مزامنة|permission/.test(String(m)))bcErr('رسالة للمستخدم: '+m,'toast');const t=document.createElement('div');t.className='toast';t.textContent=m;document.body.appendChild(t);setTimeout(()=>t.remove(),3200)}
 function nowH(){const d=new Date();return d.getHours()+d.getMinutes()/60}
 function fmtH(h){const hh=((Math.floor(h)+11)%12)+1;return hh+(h<12?' ص':' م')}
 function dayName(d){return new Date(d+'T12:00:00').toLocaleDateString('ar-EG',{weekday:'long'})}
@@ -479,7 +493,7 @@ const DEFAULT_SETTINGS={
   ]
 };
 const COLS=['policies','users','clients','parts','reports','contracts','payments','requests','units','partReturns','returns','catalog','tests','offers','meetings','webcat'];
-const PERM_COLS={capsnaps:['capital_view'],frret:['freon_collect','freon','freon_view','freon_buy','freon_fill','freon_empties','freon_sell','freon_ret','freon_send','freon_edit','accounts','capital_view'],stockcounts:['stock_count','stock_count_approve','accounts'],freon:['freon_collect','freon_buy','freon_fill','freon_empties','freon_sell','freon_ret','freon_send','freon_edit','capital_view','freon','freon_view','accounts'],suppliers:['freon_buy','capital_view','suppliers','accounts','devices','treasury','treasury_view','suppay_req','suppay_approve','ext_repair','freon','place_loc'],purchases:['freon_buy','capital_view','suppliers','accounts','devices','suppay_req','suppay_approve','treasury','treasury_view','ext_repair','freon'],supplierPayments:['capital_view','suppliers','accounts','suppay_req','suppay_approve','treasury','treasury_view'],sales:['capital_view','devices','ar','accounts','treasury','treasury_view'],rentals:['capital_view','devices','ar','accounts','part_rent'],stockDevices:['capital_view','devices','accounts'],partSales:['freon_sell','capital_view','part_sales','cons_sales','ar','accounts','orders_manage','orders_work','treasury','treasury_view','freon','ext_repair'],orders:['orders_manage','orders_work','ar','accounts'],testKeys:['tests'],attendance:['attendance','payroll_prep','payroll_approve','home_att'],salaries:['salary_set','payroll_prep','payroll_approve'],inspections:['inspections'],payroll:['capital_view','payroll_prep','payroll_approve','treasury','treasury_view'],treasury:['capital_view','treasury','treasury_view','accounts','treasury_cfg'],contractReqs:['contracts','clients']};
+const PERM_COLS={quotes:['quotes'],capsnaps:['capital_view'],frret:['freon_collect','freon','freon_view','freon_buy','freon_fill','freon_empties','freon_sell','freon_ret','freon_send','freon_edit','accounts','capital_view'],stockcounts:['stock_count','stock_count_approve','accounts'],freon:['freon_collect','freon_buy','freon_fill','freon_empties','freon_sell','freon_ret','freon_send','freon_edit','capital_view','freon','freon_view','accounts'],suppliers:['freon_buy','capital_view','suppliers','accounts','devices','treasury','treasury_view','suppay_req','suppay_approve','ext_repair','freon','place_loc'],purchases:['freon_buy','capital_view','suppliers','accounts','devices','suppay_req','suppay_approve','treasury','treasury_view','ext_repair','freon'],supplierPayments:['capital_view','suppliers','accounts','suppay_req','suppay_approve','treasury','treasury_view'],sales:['capital_view','devices','ar','accounts','treasury','treasury_view'],rentals:['capital_view','devices','ar','accounts','part_rent'],stockDevices:['capital_view','devices','accounts'],partSales:['freon_sell','capital_view','part_sales','cons_sales','ar','accounts','orders_manage','orders_work','treasury','treasury_view','freon','ext_repair'],orders:['orders_manage','orders_work','ar','accounts'],testKeys:['tests'],attendance:['attendance','payroll_prep','payroll_approve','home_att'],salaries:['salary_set','payroll_prep','payroll_approve'],inspections:['inspections'],payroll:['capital_view','payroll_prep','payroll_approve','treasury','treasury_view'],treasury:['capital_view','treasury','treasury_view','accounts','treasury_cfg'],contractReqs:['contracts','clients']};
 const OWN_COLS={custody:['capital_view','custody','accounts','treasury','treasury_view'],comps:['extra_pay','payroll_prep','payroll_approve','hr'],handovers:['capital_view','handover_recv','accounts','treasury','custody'],notes:[],vouchers:['capital_view','vouchers_approve','accounts','treasury','treasury_view'],hr:['capital_view','hr','payroll_prep','payroll_approve','loans','custody','home_att'],evals:['evals'],punches:['hr','payroll_prep','payroll_approve','home_att'],payslips:['payroll_approve'],testAnswers:['tests'],empFiles:['emp_files']};
 const SPECIAL_COLS=['notifs','ratings','penalties','empDocs','bonuses','weekrep'];
 const ALL_COLS=[...COLS,...Object.keys(PERM_COLS),...Object.keys(OWN_COLS),...SPECIAL_COLS,'secrets','audit','verify','archive'];
@@ -579,7 +593,7 @@ const UNIT_ST={in_stock:['في المخزن','p-ok'],with_emp:['مع الموظ�
 const UNIT_PREFIX={client:'OLD',repair:'REP',manual:'U',return:'RT'};
 const unitById=id=>(S.units||[]).find(u=>u.id===id);
 const unitCost=u=>n(n(u.cost)+(u.repairs||[]).reduce((a,r)=>a+n(r.cost),0));
-async function newUnits(list){const out=[];for(const u of list){const no=await takeCounter('unit');Object.assign(u,{id:u.id||uid(),code:(UNIT_PREFIX[u.source]||'U')+'-'+pad(no),createdAt:u.createdAt||today(),repairs:u.repairs||[],status:u.status||'in_stock',condition:u.condition||'used'});S.units.push(u);out.push(u)}return out}
+async function newUnits(list){const out=[];for(const u of list){const no=await takeCounter('unit');Object.assign(u,{id:u.id||uid(),code:(UNIT_PREFIX[u.source]||'U')+'-'+(no==null?'T'+Date.now().toString(36).slice(-4).toUpperCase()+Math.random().toString(36).slice(2,4).toUpperCase():pad(no)),createdAt:u.createdAt||today(),repairs:u.repairs||[],status:u.status||'in_stock',condition:u.condition||'used'});S.units.push(u);out.push(u)}return out}
 const numPP=v=>{const x=parseFloat(String(v??'').replace(/[^\d.]/g,''));return isNaN(x)?null:x};
 function latestPP(serial){let best=null;if(!serial)return null;S.reports.forEach(r=>{if(r.device?.serial===serial){const v=numPP(r.pp);if(v!=null&&(best==null||v>best))best=v}});return best}
 const wLabel=l=>[n(l.wMonths)?`${n(l.wMonths)} شهر`:'',n(l.wPulses)?`${n(l.wPulses).toLocaleString('en-US')} نبضة`:''].filter(Boolean).join(' / ');
@@ -680,6 +694,7 @@ const PERMS=[
  ['orders_work','تجهيز وتوصيل طلبات المستهلكات','المستهلكات'],
  ['shop_clients','يحدد مين من العملاء يشوف صفحة المنتجات','المستهلكات'],
  ['offers','عمل عروض على المنتجات للعيادات','المستهلكات'],
+ ['quotes','عمل عروض أسعار وبعتها للعملاء على الواتساب','المستهلكات'],
  ['meetings','تحديد مواعيد الاجتماعات','الموظفين'],
  ['assign','تكليف موظف بمأمورية أو مهندس بزيارة صيانة (الإدارة العليا)','الموظفين'],
  ['assign_mission','تكليف أي موظف بمأمورية — ما عدا مهندسين الصيانة (لمديري الإدارات)','الموظفين'],
@@ -793,15 +808,22 @@ async function initOnline(cfg){
   FB={auth:firebase.auth(),db};
   try{await Promise.race([FB.db.enablePersistence({synchronizeTabs:true}),new Promise(r=>setTimeout(r,2500))])}catch(e){}
   ONLINE=true;CFG=cfg;S=emptyState();
-  try{const a=await Promise.race([FB.db.doc('meta/admin').get(),new Promise((_,j)=>setTimeout(()=>j({code:'timeout'}),12000))]);NEEDS_SETUP=!a.exists;window.META_ADMIN=a.exists?(a.data()||{}).uid||'':''}catch(e){NEEDS_SETUP=false;if(e?.code==='timeout')toast('الاتصال بطيء — لو الصفحة فضلت فاضية جرب واي فاي');else toast(fbErr(e))}
+  const MK='pm-meta-admin:'+cfg.projectId;
+  if(NET_OFF){NEEDS_SETUP=false;try{window.META_ADMIN=localStorage.getItem(MK)||''}catch(e){window.META_ADMIN=''}}
+  else try{const a=await Promise.race([FB.db.doc('meta/admin').get(),new Promise((_,j)=>setTimeout(()=>j({code:'timeout'}),12000))]);NEEDS_SETUP=!a.exists;window.META_ADMIN=a.exists?(a.data()||{}).uid||'':'';try{localStorage.setItem(MK,window.META_ADMIN)}catch(e){}}catch(e){NEEDS_SETUP=false;if(e?.code==='timeout')toast('الاتصال بطيء — لو الصفحة فضلت فاضية جرب واي فاي');else toast(fbErr(e))}
   BOOTED=true;
   FB.auth.onAuthStateChanged(async u=>{
     stopListeners();
     if(!u){ME=null;VIEW='home';render();return}
     try{
-      const d=await FB.db.doc('users/'+u.uid).get();
-      if(!d.exists||d.data().active===false){toast('الحساب ده موقوف أو مش متسجل في السيستم');await FB.auth.signOut();return}
-      ME={...d.data(),id:u.uid};NEEDS_SETUP=false;VIEW='home';
+      const ref=FB.db.doc('users/'+u.uid),UK='pm-me:'+cfg.projectId+':'+u.uid;
+      let d=null,ud=null;
+      if(!NET_OFF){try{d=await Promise.race([ref.get(),new Promise((_,j)=>setTimeout(()=>j('t'),9000))])}catch(e){d=null}}
+      if(!d){try{d=await ref.get({source:'cache'})}catch(e){d=null}}
+      if(d&&d.exists)ud=d.data();else if(!d){try{ud=JSON.parse(localStorage.getItem(UK)||'null')}catch(e){}}
+      if(!ud||ud.active===false){if(!d&&!ud){toast('محتاج إنترنت أول مرة تدخل من الجهاز ده');render();return}toast('الحساب ده موقوف أو مش متسجل في السيستم');await FB.auth.signOut();return}
+      try{const c={...ud};delete c.hash;localStorage.setItem(UK,JSON.stringify(c))}catch(e){}
+      ME={...ud,id:u.uid};NEEDS_SETUP=false;VIEW='home';setTimeout(bcPing,4000);
       startListeners();render();
     }catch(e){toast(fbErr(e));render()}
   });
@@ -875,6 +897,11 @@ async function takeReportNo(){
 }
 async function takeCounter(name,seed=1){
   if(!ONLINE){const k='next_'+name;const x=S.settings[k]||seed;S.settings[k]=x+1;return x}
+  // من غير نت: الرقم بيبقى «مؤقت» ويتحدد لوحده أول ما النت يرجع (syncPendingNos)
+  if(NET_OFF)return null;
+  try{return await Promise.race([takeCounterTx(name,seed),new Promise((_,j)=>setTimeout(()=>j('t'),8000))])}catch(e){return null}
+}
+async function takeCounterTx(name,seed){
   const ref=FB.db.doc('meta/counter');
   return FB.db.runTransaction(async tx=>{const d=await tx.get(ref);const nx=(d.exists&&d.data()[name])||seed;tx.set(ref,{[name]:nx+1},{merge:true});return nx});
 }
@@ -930,6 +957,7 @@ const TABS=[
  ['orders','طلبات المستهلكات',()=>can('orders_manage')||can('orders_work')],
  ['freon','الفريون',()=>can('freon_view')||frAny()],
  ['offers','العروض',()=>can('offers')],
+ ['quotes','عروض الأسعار',()=>can('quotes')],
  ['devices','الأجهزة',()=>can('devices')],
  ['suppliers','الموردين',()=>can('suppliers')],
  ['ar','الآجل والتحصيل',()=>can('ar')],
@@ -956,7 +984,7 @@ const TABS=[
  ['me','حسابي',()=>!!ME&&!isClinic()],
  ['import','استيراد من Excel',()=>can('settings')||isDev(ME)]
 ];
-const SUBVIEW={new:'reports',insp:'reports',branch:'clients',inspf:'reports',inspv:'reports',test:'tests',tgrade:'tests',empf:'emps',devh:'clients',perfu:'perf',view:'reports',edit:'reports',client:'clients',dev:'devices',sdev:'devices',supplier:'suppliers',cust:'custody',psale:'psales'};
+const SUBVIEW={quote:'quotes',new:'reports',insp:'reports',branch:'clients',inspf:'reports',inspv:'reports',test:'tests',tgrade:'tests',empf:'emps',devh:'clients',perfu:'perf',view:'reports',edit:'reports',client:'clients',dev:'devices',sdev:'devices',supplier:'suppliers',cust:'custody',psale:'psales'};
 const tabOf=v=>SUBVIEW[v]||v;
 function allowed(v,p){if(v==='archive')return isDev(ME);if(v==='new')return can('reports_write');if(v==='insp'||v==='inspf'||v==='inspv')return can('inspections');if(v==='empf')return (can('emp_files')&&inSc(p))||p===ME?.id;if(v==='test')return isStaff();if(v==='tgrade')return can('tests');if(v==='view')return can('reports_write')||can('reports_all');if(v==='edit')return can('reports_write')||can('reports_all');const t=TABS.find(x=>x[0]===tabOf(v));return !t||t[2]()}
 const ICONS={
@@ -988,6 +1016,7 @@ const ICONS={
  emps:'<rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="11" r="2.2"/><path d="M5.5 16.5c.6-1.8 2-2.7 3.5-2.7s2.9.9 3.5 2.7M14 10h4M14 13h4"/>',
  payroll:'<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.6"/><path d="M6 12h.01M18 12h.01"/>',
  offers:'<path d="M3 12V4h8l10 10-8 8z"/><circle cx="7.5" cy="8.5" r="1.5"/>',
+ quotes:'<path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5M9 12h7M9 16h7"/>',
  meetings:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/><circle cx="12" cy="15" r="2"/>',
  hr:'<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M8 2v4M16 2v4M3 10h18M8 15l2 2 4-4"/>',
  import:'<path d="M12 3v12M7 10l5 5 5-5"/><path d="M4 17v3h16v-3"/>',
@@ -1041,7 +1070,7 @@ function render(){if(PM_DEMO&&S){const ts=trialSub();if(ts){S.sub=ts;(S.users||[
     +'';
   document.body.classList.remove('nonav');setTimeout(()=>{try{const a=document.querySelector('#tabs .tab.on');const t=$('#tabs');if(a&&t&&t.scrollWidth>t.clientWidth+4){const r=a.getBoundingClientRect(),q=t.getBoundingClientRect();if(r.left<q.left||r.right>q.right)t.scrollLeft+=(r.left+r.width/2)-(q.left+q.width/2)}}catch(e){}},30);
   const banner=(PM_DEMO?`<div class="banner info row between no-print" style="gap:10px;flex-wrap:wrap"><span>🧪 <b>دي نسخة تجربة من Beam Care Maintenance</b> — البيانات وهمية ومحفوظة على جهازك بس. جرّب براحتك.${PM_TRIAL_END?` <b>${PM_TRIAL_PLAN?.n?`باكدج ${esc(PM_TRIAL_PLAN.n)} · `:''}فاضل ${Math.max(0,Math.ceil((PM_TRIAL_END-Date.now())/864e5))} يوم على التجربة.</b>`:''}</span><span class="row" style="gap:6px">${PM_DEMO_WA?`<a class="btn sm pri" target="_blank" rel="noopener" href="https://wa.me/${PM_DEMO_WA}?text=${encodeURIComponent('أهلاً، جربت نسخة التجربة من Beam Care Maintenance وعايز أعرف تفاصيل الاشتراك')}">💬 عايز أشترك</a>`:''}<button class="btn sm" data-act="demoReset">ابدأ التجربة من جديد</button></span></div>`:'')+(S.demo&&isAdmin()&&!PM_DEMO?`<div class="banner row between no-print"><span>دي بيانات تجريبية. فيه مهندس (karim)، ومحاسب (amr)، ومدير المستهلكات (nader)، ومندوب توصيل (sayed)، وعيادة (skinline) — كلهم بكلمة سر 123456 علشان تجرب شاشاتهم.</span><button class="btn sm" data-act="clearDemo">امسح البيانات التجريبية وابدأ</button></div>`:PM_DEMO&&isAdmin()?`<div class="banner row between no-print"><span>تقدر تدخل بحسابات تانية علشان تشوف كل شاشة: مهندس (karim)، محاسب (amr)، مستهلكات (nader)، مندوب (sayed)، عيادة (skinline) — كلهم بكلمة سر 123456، والمدير admin بكلمة سر 123456.</span></div>`:'');
-  const V={import:viewImport,me:viewMe,webreqcfg:viewWebReqCfg,webreq:viewWebReq,mysub:viewMySub,devices:viewDevices,dev:()=>viewDev(PARAM),sdev:()=>viewSdev(PARAM),suppliers:viewSuppliers,supplier:()=>viewSupplier(PARAM),home:viewHome,requests:viewRequests,new:()=>viewForm(null),edit:()=>viewForm(PARAM),reports:viewReports,view:()=>viewReport(PARAM),clients:viewClients,client:()=>viewClient(PARAM),contracts:viewContracts,stock:viewStock,psales:viewPartSales,psale:()=>viewPartSale(PARAM),ar:viewAR,accounts:viewAccounts,capital:viewCapital,custody:viewCustody,cust:()=>viewCustodyOf(PARAM),hr:viewHR2,devh:()=>viewDevHistory(PARAM),orders:viewOrders,perf:viewPerf,perfu:()=>viewPerfUser(PARAM),tests:viewTests,test:()=>viewTakeTest(PARAM),tgrade:()=>viewGrade(PARAM),emps:viewEmps,payroll:viewPayroll,offers:viewOffers,meetings:viewMeetings,policy:()=>viewPolicy(),branch:()=>viewBranch(PARAM),insp:()=>viewInsp(),inspf:()=>viewInspForm(PARAM),inspv:()=>viewInspView(PARAM),treasury:()=>viewTreasury(),freon:()=>frStrip(can('stock')?`<div class="row between"><h2>المخزن</h2>${stockTabs()}</div>`+viewFreon():viewFreon()),weekly:()=>viewWeekly(),analytics:()=>viewAnalytics(),ledger:()=>viewLedger(),audit:()=>viewAudit(),archive:()=>viewArchive(),empf:()=>viewEmpFile(PARAM),users:viewUsers,settings:()=>(can('nav_order')?navOrderPanel():'')+(can('settings')?viewSettings():'')};
+  const V={import:viewImport,me:viewMe,webreqcfg:viewWebReqCfg,webreq:viewWebReq,mysub:viewMySub,devices:viewDevices,dev:()=>viewDev(PARAM),sdev:()=>viewSdev(PARAM),suppliers:viewSuppliers,supplier:()=>viewSupplier(PARAM),home:viewHome,requests:viewRequests,new:()=>viewForm(null),edit:()=>viewForm(PARAM),reports:viewReports,view:()=>viewReport(PARAM),clients:viewClients,client:()=>viewClient(PARAM),contracts:viewContracts,stock:viewStock,psales:viewPartSales,psale:()=>viewPartSale(PARAM),ar:viewAR,accounts:viewAccounts,capital:viewCapital,custody:viewCustody,cust:()=>viewCustodyOf(PARAM),hr:viewHR2,devh:()=>viewDevHistory(PARAM),orders:viewOrders,perf:viewPerf,perfu:()=>viewPerfUser(PARAM),tests:viewTests,test:()=>viewTakeTest(PARAM),tgrade:()=>viewGrade(PARAM),emps:viewEmps,payroll:viewPayroll,offers:viewOffers,quotes:viewQuotes,quote:()=>viewQuote(PARAM),meetings:viewMeetings,policy:()=>viewPolicy(),branch:()=>viewBranch(PARAM),insp:()=>viewInsp(),inspf:()=>viewInspForm(PARAM),inspv:()=>viewInspView(PARAM),treasury:()=>viewTreasury(),freon:()=>frStrip(can('stock')?`<div class="row between"><h2>المخزن</h2>${stockTabs()}</div>`+viewFreon():viewFreon()),weekly:()=>viewWeekly(),analytics:()=>viewAnalytics(),ledger:()=>viewLedger(),audit:()=>viewAudit(),archive:()=>viewArchive(),empf:()=>viewEmpFile(PARAM),users:viewUsers,settings:()=>(can('nav_order')?navOrderPanel():'')+(can('settings')?viewSettings():'')};
   m.innerHTML=subBanner()+banner+hubBar(VIEW)+(V[VIEW]||viewHome)();
   if(VIEW==='new'||VIEW==='edit')initForm();
   if(VIEW==='webreq'||VIEW==='webreqcfg')wrBind();
@@ -2960,6 +2989,7 @@ service cloud.firestore {
     match /policies/{id} { allow read: if (((isStaff())) && rOK()) || isDev(); allow write: if (((can('policy_edit'))) && wOK()) || isDev(); }
     match /comps/{id} { allow read: if (((can('extra_pay') || can('payroll_prep') || can('payroll_approve') || can('hr') || mineDoc())) && rOK()) || isDev(); allow write: if (((can('extra_pay'))) && wOK()) || isDev(); }
     match /treasury/{id} { allow read: if (((can('treasury') || can('treasury_view') || can('accounts') || can('treasury_cfg') || can('capital_view'))) && rOK()) || isDev(); allow create, update: if (((can('treasury') || (can('treasury_cfg') && id == 'cfg') || (can('capital_move') && request.resource.data.get('cap', false) == true))) && wOK()) || isDev(); allow delete: if (((can('treasury') || (can('capital_move') && resource.data.get('cap', false) == true))) && wOK()) || isDev(); }
+    match /quotes/{id} { allow read: if (((can('quotes'))) && rOK()) || isDev(); allow write: if (((can('quotes'))) && wOK()) || isDev(); }
     match /capsnaps/{id} { allow read: if (((can('capital_view'))) && rOK()) || isDev(); allow write: if (((can('capital_view'))) && wOK()) || isDev(); }
     match /frret/{id} { allow read: if (((can('freon_collect') || can('freon_buy') || can('freon_fill') || can('freon_empties') || can('freon_sell') || can('freon_ret') || can('freon_send') || can('freon_edit') || can('freon') || can('freon_view') || can('accounts') || can('capital_view'))) && rOK()) || isDev(); allow write: if (((can('freon') || can('freon_ret') || can('freon_send') || can('freon_edit') || can('freon_collect'))) && wOK()) || isDev(); }
     match /vouchers/{id} {
@@ -5706,8 +5736,18 @@ function backupBanner(){if(!isDev(ME))return '';const lb=S.settings.lastBackup;c
 /* ---------- 4) الشغل من غير نت ---------- */
 let NET_OFF=!navigator.onLine;
 addEventListener('offline',()=>{NET_OFF=true;netBar()});addEventListener('online',()=>{NET_OFF=false;netBar();setTimeout(syncPendingNos,1500)});
+// فواتير البيع وعروض الأسعار اللي اتعملت من غير نت بتاخد رقم «مؤقت» — هنا بتاخد رقمها الحقيقي
+async function syncPendingDocs(){
+  const J=[];(S.partSales||[]).forEach(x=>{if(x.no==null||x.no==='')J.push([x,psKind(x)==='cons'?'psale_cons':'psale','r'])});
+  QTS().forEach(x=>{if(x.no==null||x.no==='')J.push([x,'quote'])});
+  const got=[],taken={};for(const [x,c] of J){const mx=Math.max(taken[c]||0,(c==='quote'?S.quotes:(S.partSales||[]).filter(y=>(psKind(y)==='cons'?'psale_cons':'psale')===c)).reduce((a,y)=>Math.max(a,n(y.no)),0));
+    try{const no=await Promise.race([takeCounterTx(c,mx+1),new Promise((_,j)=>setTimeout(()=>j('t'),8000))]);taken[c]=no;got.push([c==='quote'?'quotes':'partSales',x.id,no])}catch(e){break}}
+  // بنحط الأرقام على النسخة الحالية من البيانات (ممكن تكون اتحدثت من السيرفر واحنا بناخد الأرقام)
+  let k=0;got.forEach(([col,id,no])=>{const x=(S[col]||[]).find(y=>y.id===id);if(x&&(x.no==null||x.no==='')){x.no=no;k++}});
+  if(k){save();toast(`اتحدد رقم ${k} فاتورة/عرض اتعملوا من غير نت`);render()}
+}
 function netBar(){let b=document.getElementById('netBar');if(!NET_OFF){if(b)b.remove();return}if(!b){b=document.createElement('div');b.id='netBar';b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:70;background:#a96a08;color:#fff;text-align:center;padding:6px 10px;font-weight:600;font-size:.9rem';document.body.appendChild(b)}b.textContent='📴 إنت من غير نت — اللي بتسجله بيتحفظ على الموبايل وهيترفع لوحده أول ما النت يرجع'}
-async function syncPendingNos(){if(!ONLINE||NET_OFF||!ME)return;const L=S.reports.filter(r=>r.pendingNo&&r.by===ME.id);for(const r of L){try{const no=await Promise.race([takeReportNo(),new Promise((_,j)=>setTimeout(()=>j('t'),8000))]);r.no=no;r.pendingNo=false;writeVerify('r',r)}catch(e){return}}if(L.length){save();toast(`اتحدد رقم ${L.length} تقرير اتعملوا من غير نت`);render()}}
+async function syncPendingNos(){if(!ONLINE||NET_OFF||!ME)return;await syncPendingDocs();const L=S.reports.filter(r=>r.pendingNo&&r.by===ME.id);for(const r of L){try{const no=await Promise.race([takeReportNo(),new Promise((_,j)=>setTimeout(()=>j('t'),8000))]);r.no=no;r.pendingNo=false;writeVerify('r',r)}catch(e){return}}if(L.length){save();toast(`اتحدد رقم ${L.length} تقرير اتعملوا من غير نت`);render()}}
 setTimeout(()=>{netBar();syncPendingNos()},4000);
 
 /* ---------- 7) QR التحقق ---------- */
@@ -6467,7 +6507,7 @@ let XR_PRE='';
 
 
 /* ---------- فحص التحديثات ---------- */
-const APP_VER='2026.11.08.2';
+const APP_VER='2026.11.12.1';
 async function checkUpdate(){try{if(location.protocol==='file:')return;const t=await (await fetch(location.pathname+'?_='+Date.now(),{cache:'no-store'})).text();const m=t.match(/const APP_VER='([^']+)'/);if(m&&m[1]!==APP_VER)showUpd(m[1])}catch(e){}}
 function showUpd(v){if(document.getElementById('updBar'))return;const b=document.createElement('div');b.id='updBar';b.style.cssText='position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:80;background:#1d2b45;color:#fff;padding:10px 16px;border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,.25);display:flex;gap:12px;align-items:center;font-weight:600;max-width:92vw';b.innerHTML='<span>🔄 فيه نسخة جديدة من السيستم</span><button type="button" style="background:#2b8fb8;color:#fff;border:0;border-radius:10px;padding:6px 14px;font:inherit;cursor:pointer">حدّث دلوقتي</button>';b.querySelector('button').onclick=()=>{location.replace(location.pathname+'?v='+encodeURIComponent(v)+location.hash)};document.body.appendChild(b)}
 setTimeout(checkUpdate,8000);setInterval(checkUpdate,5*60*1000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkUpdate()});
@@ -6580,7 +6620,7 @@ function frSell(id){const E=FRS().filter(c=>c.status==='empty');if(!E.length){to
     const ids=$$('.fs-c:checked').map(x=>x.value);if(!ids.length){toast('اختار أسطوانة واحدة على الأقل');return false}
     const p=n($('#fs_p').value);if(p<=0){toast('اكتب السعر');return false}const bt=$('#fs_bt').value;const cl=bt==='client'?client($('#fs_c').value):null;const sp=bt==='sup'?S.suppliers.find(x=>x.id===$('#fs_s').value):null;
     const buyer=cl?cName(cl):sp?sp.name:$('#fs_n').value.trim();if(!buyer){toast('اكتب اسم المشتري');return false}
-    const d=$('#fs_d').value||today(),tm=$('#fs_t').value;let no;try{no=await takeSaleNo('cons')}catch(e){toast('محتاج إنترنت');return false}const sid=uid();const C=ids.map(i=>FRS().find(c=>c.id===i)).filter(Boolean);const tot=n(p*C.length);
+    const d=$('#fs_d').value||today(),tm=$('#fs_t').value;let no;try{no=await takeSaleNo('cons')}catch(e){no=null}const sid=uid();const C=ids.map(i=>FRS().find(c=>c.id===i)).filter(Boolean);const tot=n(p*C.length);
     const groups={};C.forEach(c=>{const k=+n(c.size);(groups[k]=groups[k]||[]).push(c)});
     S.partSales.push({id:sid,no,kind:'cons',date:d,clientId:cl?.id||'',branch:'',address:'',buyer,phone:$('#fs_ph').value.trim()||cl?.phone||sp?.phone||'',lines:Object.entries(groups).map(([k,L])=>({partId:'',name:`أسطوانة فريون فاضية ${k} كيلو (${L.map(c=>c.code).join('، ')})`,qty:L.length,price:p,cost:0,wMonths:0,wPulses:0})),discount:0,total:tot,term:tm,paid:tm==='cash'?tot:0,due:tm==='credit'?addDays(d,30):'',method:$('#fs_m').value,notes:'بيع أسطوانات فريون فاضية',by:ME.id});
     C.forEach(c=>{c.status='sold';c.sold={date:d,buyer,price:p,saleId:sid}});save();toast(`اتباع ${C.length} أسطوانة فاضية بـ ${money(tot)} واتعملت فاتورة`);render();
@@ -6928,7 +6968,7 @@ const HUBS=[
  {id:'fin',label:'إدارة المحاسبة',icon:'accounts',items:[['accounts','ملخص الحسابات'],['treasury','الخزينة'],['ar','الآجل والتحصيل'],['capital','رأس المال'],['ledger','القيود والقوائم'],['weekly','التقارير الدورية']]},
  {id:'staffh',label:'الموارد البشرية',icon:'perf',items:[['hr','الحضور والإجازات'],['custody','العهدة والمصاريف'],['emps','ملفات الموظفين'],['payroll','المرتبات والمكافآت'],['perf','الأداء والتقييم'],['tests','الاختبارات'],['meetings','الاجتماعات'],['policy','سياسة العمل']]},
  {id:'seth',label:'الإعدادات',icon:'settings',items:[['settings','الإعدادات العامة'],['users','المستخدمين'],['webreqcfg','طلب الخدمة أونلاين'],['mysub','الاشتراك والباكدج'],['import','استيراد من Excel'],['me','حسابي']],lead:'settings'},
- {id:'salesh',label:'فواتير البيع والعروض',icon:'psales',items:[['psales','فواتير البيع'],['offers','العروض']]},
+ {id:'salesh',label:'فواتير البيع والعروض',icon:'psales',items:[['psales','فواتير البيع'],['quotes','عروض الأسعار'],['offers','العروض']]},
  {id:'sysh',label:'السجل والأرشيف',icon:'audit',items:[['audit','سجل التعديلات'],['archive','الأرشيف والنسخ']]},
  {id:'stockh',label:'المخزن',icon:'stock',items:[['stock','المخزن'],['freon','الفريون']],nobar:true,lead:'stock'}
 ];
@@ -7806,7 +7846,107 @@ Object.assign(X9,{dsRefresh:()=>dsFullRefresh()});
 /* =====================================================================
    v53 — الاشتراك: بيتكتب من لوحة Beam Care بس (مفيش أي صفحة مطوّر هنا)
    ===================================================================== */
-const SUB_MODS=[['freon','الفريون',['freon']],['sales','المبيعات والمستهلكات والعروض',['psales','orders','offers']],['devices','بيع وإيجار الأجهزة',['devices']],['contracts','عقود الصيانة',['contracts']],['suppliers','الموردين والمشتريات',['suppliers']],['finance','الحسابات والخزينة ورأس المال والآجل',['ar','accounts','capital','treasury','ledger']],['hr','الحضور والإجازات',['hr']],['payroll','المرتبات والمكافآت',['payroll']],['staff','إدارة الموظفين',['custody','meetings','perf','tests','policy','emps']],['weekly','التقارير الدورية',['weekly']],['analytics','التحليلات',['analytics']],['gs','النسخ لجوجل شيت',[]]];
+/* =====================================================================
+   عروض الأسعار — أصناف من المخزن بأسعارها، تتبعت لأي عميل (حتى لو مش متسجل) كصورة على الواتساب
+   ===================================================================== */
+const QTS=()=>(S.quotes||[]).filter(q=>!q.deleted);
+const qLines=q=>q.lines||[];
+const qHasQty=q=>qLines(q).some(l=>n(l.qty)>0);
+const qAllQty=q=>qLines(q).length>0&&qLines(q).every(l=>n(l.qty)>0);
+const qTotal=q=>qLines(q).reduce((a,l)=>a+(n(l.qty)>0?n(l.qty):0)*n(l.price),0);
+const qWho=q=>{const c=q.clientId?client(q.clientId):null;return {name:q.name||(c?cName(c):''),phone:q.phone||c?.phone||''}};
+const qParts=()=>S.parts.filter(p=>!p.deleted&&!p.archived&&p.name).sort((a,b)=>a.name.localeCompare(b.name,'ar'));
+function quoteHTML(q){
+  const s=S.settings,NV='#1d2b45',SD='#2b8fb8',MU='#4a5565',LN='#d9e0e8',TX='#0f1722',BG='#f1f5f9';
+  const lg=brandLogo(),w=qWho(q),qty=qHasQty(q),ph=q.photos!==false&&qLines(q).some(l=>part(l.partId)?.photo);
+  const logo=lg?`<img src="${lg}" style="height:56px;max-width:210px;object-fit:contain" alt="">`:`<div style="font-size:26px;font-weight:800;color:${NV}">${esc(s.company||BRAND())}</div>`;
+  const kv=(k,v)=>v?`<div style="display:flex;gap:6px;margin-top:3px"><span style="color:${MU};min-width:84px">${k}</span><b style="color:${TX}">${v}</b></div>`:'';
+  const card=(t,body)=>`<div style="flex:1;background:${BG};border:1px solid ${LN};border-radius:12px;padding:14px 18px"><div style="font-size:13px;color:${SD};font-weight:700;margin-bottom:6px">${t}</div>${body}</div>`;
+  const H=[['#','center','36px'],...(ph?[['','center','64px']]:[]),['الصنف','right',''],...(qty?[['الكمية','center','64px']]:[]),['السعر','center','110px'],...(qty?[['الإجمالي','center','110px']]:[])];
+  const td=(i,x,st)=>`<td style="padding:10px;border-bottom:1px solid ${LN};${st||''}">${x}</td>`;
+  return `<div dir="rtl" style="width:794px;background:#fff;color:${TX};font-family:Tahoma,'Segoe UI',Arial,sans-serif;font-size:15px;line-height:1.65;box-sizing:border-box">
+  <div style="height:8px;background:linear-gradient(90deg,${NV} 0 70%,${SD} 70% 100%)"></div>
+  <div style="padding:26px 36px 30px">
+   <div style="display:flex;justify-content:space-between;align-items:center">
+    <div><div style="font-size:34px;font-weight:800;color:${NV};line-height:1.1">عرض أسعار</div><div style="color:${SD};font-size:15px;font-weight:700;margin-top:4px">${esc(s.company||BRAND())}</div></div>
+    <div style="text-align:left">${logo}${s.phone?`<div style="font-size:14px;color:${MU};margin-top:4px;font-family:Arial;font-weight:700">${esc(s.phone)}</div>`:''}</div>
+   </div>
+   <div style="display:flex;gap:12px;margin-top:20px">
+    ${card('مقدَّم إلى',`<div style="font-size:17px;font-weight:800">${esc(w.name||'السادة العملاء')}</div>${kv('التليفون',w.phone?`<span style="font-family:Arial">${esc(w.phone)}</span>`:'')}`)}
+    ${card('تفاصيل العرض',`${kv('رقم العرض',`<span style="font-family:Arial;color:${NV}">#${pad(q.no)}</span>`)}${kv('التاريخ',fd(q.date))}${q.until?kv('ساري حتى',fd(q.until)):''}`)}
+   </div>
+   <table style="width:100%;border-collapse:separate;border-spacing:0;margin-top:22px;font-size:15px">
+    <thead><tr style="background:${NV};color:#fff">${H.map(([h,a,wd],i,A)=>`<th style="padding:12px 10px;text-align:${a};font-weight:700;${wd?'width:'+wd+';':''}${i===0?'border-radius:0 10px 10px 0;':''}${i===A.length-1?'border-radius:10px 0 0 10px;':''}">${h}</th>`).join('')}</tr></thead>
+    <tbody>${qLines(q).map((l,i)=>{const p=part(l.partId);return `<tr style="background:${i%2?BG:'#fff'}">${td(i,i+1,`text-align:center;color:${MU}`)}${ph?td(i,p?.photo?`<img src="${p.photo}" style="width:52px;height:52px;object-fit:cover;border-radius:8px;border:1px solid ${LN};display:block;margin:auto" alt="">`:'','padding:6px'):''}${td(i,`<b>${esc(l.name)}</b>${l.desc?`<div style="color:${MU};font-size:12.5px">${esc(l.desc)}</div>`:''}`)}${qty?td(i,n(l.qty)>0?l.qty:'—','text-align:center;font-family:Arial'):''}${td(i,`<b style="color:${NV}">${money(l.price)}</b>`,'text-align:center')}${qty?td(i,n(l.qty)>0?money(n(l.qty)*n(l.price)):'—','text-align:center;font-weight:700'):''}</tr>`}).join('')}</tbody>
+   </table>
+   ${qAllQty(q)&&qTotal(q)>0?`<div style="display:flex;justify-content:flex-start;margin-top:14px"><div style="background:${NV};color:#fff;border-radius:12px;padding:10px 22px;font-size:17px;font-weight:800">الإجمالي: ${money(qTotal(q))}</div></div>`:''}
+   ${q.note?`<div style="margin-top:18px;background:${BG};border:1px solid ${LN};border-radius:12px;padding:12px 18px"><div style="font-size:13px;color:${SD};font-weight:700">ملاحظات</div><div style="white-space:pre-wrap">${esc(q.note)}</div></div>`:''}
+   <div style="margin-top:22px;padding-top:12px;border-top:1px solid ${LN};display:flex;justify-content:space-between;color:${MU};font-size:13px"><span>${esc(s.company||BRAND())}${s.address?' — '+esc(s.address):''}</span><span style="font-family:Arial">${esc(s.phone||'')}</span></div>
+  </div></div>`;
+}
+function viewQuotes(){
+  const L=[...QTS()].sort((a,b)=>(b.date||'').localeCompare(a.date||'')||n(b.no)-n(a.no));
+  return `<div class="row between"><h2>عروض الأسعار</h2><button class="btn pri" data-act="qNew">+ عرض أسعار جديد</button></div>
+  <div class="muted small">اختار الأصناف من المخزن (بتنزل بأسعار البيع وتقدر تعدّلها)، وابعت العرض لأي عميل على الواتساب كصورة عليها لوجو الشركة — حتى لو العميل مش متسجل عندك.</div>
+  <div class="panel">${L.length?`<div class="tbl-wrap"><table class="t"><thead><tr><th>رقم</th><th>التاريخ</th><th>العميل</th><th>الأصناف</th><th></th></tr></thead><tbody>${L.map(q=>{const w=qWho(q);return `<tr><td class="num">#${pad(q.no)}</td><td>${fd(q.date)}</td><td><b>${esc(w.name||'—')}</b>${w.phone?`<div class="muted small num" dir="ltr">${esc(w.phone)}</div>`:''}</td><td>${qLines(q).length} صنف${q.sentAt?` <span class="pill p-ok">اتبعت</span>`:''}</td><td><button class="btn sm" data-go="quote" data-p="${q.id}">فتح</button> <button class="btn sm pri" data-act="qSend" data-id="${q.id}">📤 واتساب</button></td></tr>`}).join('')}</tbody></table></div>`:'<div class="empty">لسه مفيش عروض أسعار — دوس «+ عرض أسعار جديد»</div>'}</div>`;
+}
+function viewQuote(id){
+  const q=QTS().find(x=>x.id===id);if(!q)return '<div class="empty">العرض مش موجود</div>';
+  return `<div class="row between no-print"><h2>عرض أسعار #${pad(q.no)}</h2><div class="row" style="gap:6px"><button class="btn" data-go="quotes">رجوع</button><button class="btn" data-act="qEdit" data-id="${id}">✏️ تعديل</button><button class="btn" data-act="qCopy" data-id="${id}">📋 نسخة لعميل تاني</button><button class="btn pri" data-act="qSend" data-id="${id}">📤 ابعت على الواتساب</button><button class="btn danger" data-act="qDel" data-id="${id}">حذف</button></div></div>
+  <div class="sheet-wrap"><div style="width:794px">${quoteHTML(q)}</div></div>`;
+}
+function openQuote(id,copyOf){
+  const src=id?QTS().find(x=>x.id===id):copyOf?QTS().find(x=>x.id===copyOf):null;
+  const q=src?JSON.parse(JSON.stringify(src)):{lines:[],photos:true,note:''};if(copyOf){q.clientId='';q.name='';q.phone=''}
+  let lines=qLines(q).map(l=>({...l}));const P=qParts();const cls=CL().sort((a,b)=>cName(a).localeCompare(cName(b),'ar'));
+  modal(`<h3>${id?'تعديل عرض أسعار':'عرض أسعار جديد'}</h3>
+   <div class="grid g2">
+    <label class="f span2">العميل<select id="q_cl"><option value="">— عميل مش متسجل (اكتب اسمه ورقمه) —</option>${cls.map(c=>`<option value="${c.id}" ${q.clientId===c.id?'selected':''}>${esc(cName(c))}${c.name&&c.clinic?' — '+esc(c.name):''}</option>`).join('')}</select></label>
+    <label class="f">الاسم<input id="q_nm" value="${esc(q.name||'')}" placeholder="اسم العميل أو العيادة"></label>
+    <label class="f">رقم الواتساب<input id="q_ph" dir="ltr" inputmode="tel" value="${esc(q.phone||'')}" placeholder="01xxxxxxxxx"></label>
+    <label class="f">التاريخ<input type="date" id="q_d" value="${id?q.date:today()}"></label>
+    <label class="f">ساري حتى (اختياري)<input type="date" id="q_u" value="${id?(q.until||''):addDays(today(),14)}"></label>
+   </div>
+   <div class="sec-title">الأصناف</div>
+   <div class="row" style="gap:6px;flex-wrap:wrap"><input id="q_s" placeholder="🔍 دوّر على صنف من المخزن واضغط عليه" style="flex:1;min-width:200px"><button type="button" class="btn sm" id="q_allc">+ كل المستهلكات</button><button type="button" class="btn sm" id="q_alls">+ كل قطع الغيار</button></div>
+   <div id="q_res" class="grid" style="gap:4px;max-height:170px;overflow:auto"></div>
+   <div id="q_ls" class="grid" style="gap:6px"></div>
+   <label class="row" style="gap:6px"><input type="checkbox" id="q_ph2" ${q.photos!==false?'checked':''} style="width:auto"> اعرض صور الأصناف في العرض (لو ليها صور في المخزن)</label>
+   <label class="f">ملاحظات / شروط (اختياري)<textarea id="q_n" rows="2" placeholder="مثلاً: الأسعار شاملة التوصيل — الدفع كاش">${esc(q.note||'')}</textarea></label>`,async()=>{
+    syncL();if(!lines.length){toast('اختار صنف واحد على الأقل');return false}
+    if(lines.some(l=>!(n(l.price)>0))){toast('فيه صنف من غير سعر — اكتب السعر');return false}
+    const cid=$('#q_cl').value;const d={clientId:cid,name:$('#q_nm').value.trim(),phone:$('#q_ph').value.trim(),date:$('#q_d').value||today(),until:$('#q_u').value||'',note:$('#q_n').value.trim(),photos:$('#q_ph2').checked,lines,by:ME.id};
+    let qid=id;
+    if(id){Object.assign(QTS().find(x=>x.id===id),d,{editedAt:new Date().toISOString()})}
+    else{const mx=(S.quotes||[]).reduce((a,x)=>Math.max(a,n(x.no)),0);const no=await takeCounter('quote',mx+1);qid=uid();(S.quotes=S.quotes||[]).push({id:qid,no,createdAt:new Date().toISOString(),...d})}
+    save();toast('اتحفظ عرض الأسعار ✓');go('quote',qid);if(!id&&(d.phone||d.clientId))setTimeout(()=>sendQuote(qid),300);
+  });
+  const draw=()=>{$('#q_ls').innerHTML=lines.length?lines.map((l,i)=>`<div class="row q-l" data-i="${i}" style="gap:6px;flex-wrap:nowrap;border:1px solid var(--line);border-radius:10px;padding:6px 8px"><b style="flex:1;min-width:0">${esc(l.name)}</b><input class="q-q" type="number" min="0" step="any" value="${l.qty||''}" placeholder="كمية" title="الكمية (اختياري)" style="width:70px"><input class="q-p" type="number" min="0" step="any" value="${l.price||''}" placeholder="السعر" style="width:100px"><button type="button" class="btn sm q-x" title="شيل">✕</button></div>`).join(''):'<div class="muted small">لسه ما اخترتش أصناف</div>';
+    $$('.q-x').forEach(b=>b.onclick=()=>{syncL();lines.splice(+b.closest('.q-l').dataset.i,1);draw()})};
+  const syncL=()=>$$('.q-l').forEach(r=>{const l=lines[+r.dataset.i];if(!l)return;l.qty=n(r.querySelector('.q-q').value)||'';l.price=n(r.querySelector('.q-p').value)});
+  const add=p=>{if(lines.some(l=>l.partId===p.id))return;lines.push({partId:p.id,name:p.name,price:n(p.sell),qty:''})};
+  const res=()=>{const s=$('#q_s').value.trim().toLowerCase();const L=(s?P.filter(p=>(p.name+' '+(p.code||'')+' '+(p.brand||'')).toLowerCase().includes(s)):[]).slice(0,30);
+    $('#q_res').innerHTML=L.map(p=>`<button type="button" class="btn sm q-add" data-id="${p.id}" style="justify-content:space-between;display:flex"><span>${esc(p.name)}${catOf(p)==='cons'?' <span class="muted small">مستهلكات</span>':''}</span><span class="num">${p.sell?money(p.sell):'من غير سعر'}</span></button>`).join('')||(s?'<div class="muted small">مفيش صنف بالاسم ده في المخزن</div>':'');
+    $$('.q-add').forEach(b=>b.onclick=()=>{syncL();add(part(b.dataset.id));draw();$('#q_s').value='';res();$('#q_s').focus()})};
+  $('#q_s').oninput=res;$('#q_s').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();const b=$('.q-add');if(b)b.click()}};
+  $('#q_allc').onclick=()=>{syncL();P.filter(p=>catOf(p)==='cons').forEach(add);draw()};
+  $('#q_alls').onclick=()=>{syncL();P.filter(p=>catOf(p)==='spare').forEach(add);draw()};
+  $('#q_cl').onchange=()=>{const c=client($('#q_cl').value);if(c){$('#q_nm').value=cName(c);$('#q_ph').value=c.phone||''}};
+  draw();
+}
+async function sendQuote(id){
+  const q=QTS().find(x=>x.id===id);if(!q)return;const w=qWho(q);
+  const txt=`${BRAND()} — عرض أسعار رقم ${pad(q.no)}${w.name?'\nمقدَّم إلى: '+w.name:''}\nالتاريخ: ${fd(q.date)}${q.until?'\nساري حتى: '+fd(q.until):''}\n${qLines(q).map(l=>`• ${l.name}${n(l.qty)>0?' × '+l.qty:''} — ${money(l.price)}`).join('\n')}${qAllQty(q)&&qTotal(q)>0?'\nالإجمالي: '+money(qTotal(q)):''}${q.note?'\n'+q.note:''}`;
+  let blob=null;try{blob=await htmlBlob(quoteHTML(q))}catch(e){}
+  const fn=`عرض-أسعار-${pad(q.no)}.png`;let done=false;
+  if(blob&&!IN_ART()){const f=new File([blob],fn,{type:'image/png'});try{if(navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],text:txt});done=true}}catch(e){if(e?.name==='AbortError')return}}
+  if(!done){if(blob)await download(blob,fn);openWa(w.phone,txt)}
+  q.sentAt=new Date().toISOString();save();
+}
+Object.assign(NEED9,{qNew:'quotes',qEdit:'quotes',qCopy:'quotes',qSend:'quotes',qDel:'quotes'});
+Object.assign(X9,{qNew:()=>openQuote(null),qEdit:(t,id)=>openQuote(id),qCopy:(t,id)=>openQuote(null,id),qSend:(t,id)=>sendQuote(id),
+  qDel:(t,id)=>confirmBox('حذف عرض الأسعار ده؟',()=>{S.quotes=(S.quotes||[]).filter(x=>x.id!==id);save();go('quotes')})});
+const SUB_MODS=[['freon','الفريون',['freon']],['sales','المبيعات والمستهلكات والعروض',['psales','orders','offers']],['quotes','عروض الأسعار',['quotes']],['devices','بيع وإيجار الأجهزة',['devices']],['contracts','عقود الصيانة',['contracts']],['suppliers','الموردين والمشتريات',['suppliers']],['finance','الحسابات والخزينة ورأس المال والآجل',['ar','accounts','capital','treasury','ledger']],['hr','الحضور والإجازات',['hr']],['payroll','المرتبات والمكافآت',['payroll']],['staff','إدارة الموظفين',['custody','meetings','perf','tests','policy','emps']],['weekly','التقارير الدورية',['weekly']],['analytics','التحليلات',['analytics']],['gs','النسخ لجوجل شيت',[]]];
 const SUB_TAB={};SUB_MODS.forEach(([k,,tabs])=>tabs.forEach(t=>SUB_TAB[t]=k));
 const BC_NAME='Beam Care Maintenance';
 const BC_LOGO='data:image/svg+xml;utf8,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="220" height="220" viewBox="0 0 220 220"><rect width="220" height="220" rx="52" fill="#2F6F68"/><path d="M110 40 L122 98 L180 110 L122 122 L110 180 L98 122 L40 110 L98 98 Z" fill="#DDA86E"/></svg>');

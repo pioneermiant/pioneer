@@ -8071,11 +8071,11 @@ async function pmCoFetch(){try{const r=await fetch('https://firestore.googleapis
   const o={};['apiKey','authDomain','projectId','storageBucket','messagingSenderId','appId'].forEach(k=>{if(f[k]?.stringValue)o[k]=f[k].stringValue});return o.apiKey&&o.projectId?o:false}catch(e){return null}}
 /* دخول المطوّر من لوحة Beam Care بزرار واحد (بيوصل بـ postMessage من اللوحة بس، مش في الرابط) */
 (function(){if(location.hash!=='#bc-login'||!window.opener)return;
-  const ORIG='https://beamcare.github.io';let done=false;
+  const OK_ORIG=o=>/^https:\/\/beamcare\.github\.io$/.test(o)||/^https:\/\/beamcare(-[a-z0-9-]+)?\.pages\.dev$/.test(o);let done=false;
   try{history.replaceState(null,'',location.pathname+location.search)}catch(x){}
-  const ping=setInterval(()=>{if(done)return clearInterval(ping);try{window.opener.postMessage({type:'pm-ready'},ORIG)}catch(e){}},400);
+  const ping=setInterval(()=>{if(done)return clearInterval(ping);try{window.opener.postMessage({type:'pm-ready'},'*')}catch(e){}},400);
   setTimeout(()=>clearInterval(ping),30000);
-  window.addEventListener('message',async e=>{if(e.origin!==ORIG||done||!e.data||e.data.type!=='bc-login')return;done=true;clearInterval(ping);
+  window.addEventListener('message',async e=>{if(!OK_ORIG(e.origin)||done||!e.data||e.data.type!=='bc-login')return;done=true;clearInterval(ping);
     for(let i=0;i<150&&!(FB&&FB.auth);i++)await new Promise(r=>setTimeout(r,100));
     if(!(FB&&FB.auth)){toast('مقدرتش أدخل — جرب تاني');return}
     try{const cur=FB.auth.currentUser;

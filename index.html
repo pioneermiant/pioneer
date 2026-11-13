@@ -431,6 +431,7 @@ const BC_API='https://firestore.googleapis.com/v1/projects/beamcare-clinic/datab
 const bcTid=()=>{try{return (S&&S.sub&&S.sub.tid)||PM_CO||''}catch(e){return ''}};
 const bcF=o=>({fields:Object.fromEntries(Object.entries(o).map(([k,v])=>[k,k==='at'?{timestampValue:v}:{stringValue:String(v)}]))});
 function bcPing(){try{const t=bcTid();if(!t||PM_DEMO||!ME)return;const k='bc-ping-'+t+'-'+ME.id,d=today();if(localStorage.getItem(k)===d)return;localStorage.setItem(k,d);
+  if(ONLINE&&(isOwnerU(ME)||can('requests')))FB.db.doc('meta/webreq').set({tid:t},{merge:true}).catch(()=>{});
   const o={product:'maint',at:new Date().toISOString(),day:d,user:String(ME.name||ME.username||'').slice(0,70),v:APP_VER};
   fetch(BC_API+'usage/m-'+encodeURIComponent(t)+'?key='+BC_KEY+Object.keys(o).map(f=>'&updateMask.fieldPaths='+f).join(''),{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(bcF(o))}).catch(()=>{})}catch(e){}}
 const BC_ERR={n:0,seen:new Set()};
@@ -453,6 +454,7 @@ const VISIT_ALL={...VISIT,periodic:'زيارة دورية'};
 const visitLabel=v=>VISIT_ALL[v]||'';
 const WORK=['صيانة','فحص','تركيب','إصلاح'];
 const CTYPE={contract:'عقد صيانة سنوي',visit:'بالزيارة'};
+const roleT=u=>(u?.jobTitle||'').trim()||((u?.main||isOwnerU(u))?'':(ROLE[u?.role]||''));
 const ROLE={admin:'مدير عام',exec:'مدير تنفيذي',manager:'مدير إدارة',engineer:'مهندس صيانة',accountant:'موظف حسابات',cons_staff:'موظف مستهلكات',courier:'مندوب شحن',staff:'موظف',clinic:'عيادة'};
 const RKIND={fault:'عطل في الجهاز',visit:'طلب زيارة صيانة'};
 const RSTATUS={new:['جديد – مستني تحديد مهندس','p-warn'],assigned:['متحدد مهندس','p-info'],done:['اتعملت الزيارة','p-ok'],cancelled:['اتلغى','p-mut']};
@@ -823,7 +825,7 @@ async function initOnline(cfg){
       if(d&&d.exists)ud=d.data();else if(!d){try{ud=JSON.parse(localStorage.getItem(UK)||'null')}catch(e){}}
       if(!ud||ud.active===false){if(!d&&!ud){toast('محتاج إنترنت أول مرة تدخل من الجهاز ده');render();return}toast('الحساب ده موقوف أو مش متسجل في السيستم');await FB.auth.signOut();return}
       try{const c={...ud};delete c.hash;localStorage.setItem(UK,JSON.stringify(c))}catch(e){}
-      ME={...ud,id:u.uid};NEEDS_SETUP=false;VIEW='home';setTimeout(bcPing,4000);
+      ME={...ud,id:u.uid};NEEDS_SETUP=false;VIEW='home';setTimeout(bcPing,4000);setTimeout(bcBeat,5000);bcPushUrl().then(u=>{if(u&&VIEW==='home')render()});
       startListeners();render();
     }catch(e){toast(fbErr(e));render()}
   });
@@ -1056,7 +1058,7 @@ function render(){if(PM_DEMO&&S){const ts=trialSub();if(ts){S.sub=ts;(S.users||[
   if(ONLINE?NEEDS_SETUP:!S.users.some(u=>u.role==='admin')){$('#tabs').innerHTML='';document.body.classList.add('nonav');$('#brandSub').innerHTML='نظام الصيانة '+modeTag;m.classList.add('narrow');m.innerHTML=viewSetup();return}
   if(PM_TRIAL_OVER()){$('#tabs').innerHTML='';document.body.classList.add('nonav');m.classList.add('narrow');m.innerHTML=`<div class="panel grid" style="margin-top:24px;text-align:center;gap:12px"><div style="font-size:48px">⏳</div><h2 style="margin:0">التجربة المجانية خلصت</h2><div class="muted">نتمنى يكون السيستم عجبك 🙏 علشان تكمّل وتشتغل ببياناتك الحقيقية، كلّمنا ونفعّلك الاشتراك.</div>${PM_DEMO_WA?`<a class="btn pri" style="justify-content:center" target="_blank" rel="noopener" href="https://wa.me/${PM_DEMO_WA}?text=${encodeURIComponent('السلام عليكم، جربت Beam Care Maintenance وعايز أشترك')}">💬 كلّمنا على الواتساب</a>`:''}<a class="btn" style="justify-content:center" href="https://beamcare.github.io/join/?t=maint">شوف الباكدجات</a></div>`;return}
   if(!ME){$('#tabs').innerHTML='';document.body.classList.add('nonav');$('#brandSub').innerHTML='نظام الصيانة '+modeTag;m.classList.add('narrow');m.innerHTML=viewLogin();return}
-  $('#brandSub').innerHTML=`<button class="me-av" data-act="acct" title="حسابي" aria-label="حسابي">${avHTML(ME,32)}</button> ${esc(ME.name)} · ${ROLE[ME.role]||''} ${modeTag} ${bellBtn()}`+(isClinic()||updOn()||subLockFull()?` <button class="hbtn" data-act="myPass">كلمة السر</button> <button class="hbtn" data-act="logout">خروج</button>`:'');
+  $('#brandSub').innerHTML=`<button class="me-av" data-act="acct" title="حسابي" aria-label="حسابي">${avHTML(ME,32)}</button> ${esc(ME.name)}${roleT(ME)?' · '+esc(roleT(ME)):''} ${modeTag} ${bellBtn()}${qrBtn()}`+(isClinic()||updOn()||subLockFull()?` <button class="hbtn" data-act="myPass">كلمة السر</button> <button class="hbtn" data-act="logout">خروج</button>`:'');
   if(updOn()){$('#tabs').innerHTML='';document.body.classList.add('nonav');m.classList.add('narrow');m.innerHTML=updScreen();return}
   if(subLockFull()){$('#tabs').innerHTML='';document.body.classList.add('nonav');m.classList.add('narrow');m.innerHTML=subLockScreen();return}
   setTimeout(pushDeviceNotifs,50);
@@ -1279,7 +1281,8 @@ function viewHomeEng(){
   const todayO=ord.filter(r=>r.date<=t),next=ord.filter(r=>r.date>t);
   const last=[...my].sort((a,b)=>b.date.localeCompare(a.date)||b.no-a.no).slice(0,6);
   const cu=custOf(ME.id);const myHr=(S.hr||[]).filter(x=>x.uid===ME.id&&x.decidedAt&&daysTo((x.decidedAt||'').slice(0,10))>=-3);
-  return `<div class="row between"><h2>أهلاً ${esc(ME.name)}</h2><div class="row">${can('reports_write')?'<button class="btn" data-go="new">+ تقرير من غير طلب</button>':''}<button class="btn" data-act="addExp">+ مصروف</button><button class="btn" data-act="hrMission">+ مأمورية</button></div></div>
+  const pushCard=BC_PUSH_URL&&pushSupported()&&!pushIsOn()&&bcTid()&&!PM_DEMO&&!isClinic()&&(can('requests')||isOwnerU(ME))?`<div class="panel row between" style="gap:10px;flex-wrap:wrap;border:1.5px solid var(--accent,#2b8fb8)"><span style="flex:1;min-width:200px">🔔 <b>شغّل الإشعارات على الموبايل ده</b> — يوصلك إشعار أول ما عميل يبعت طلب أونلاين، حتى لو السيستم مقفول</span><button class="btn pri" data-act="pushOn">شغّل الإشعارات</button></div>`:'';
+  return pushCard+`<div class="row between"><h2>أهلاً ${esc(ME.name)}</h2><div class="row">${can('reports_write')?'<button class="btn" data-go="new">+ تقرير من غير طلب</button>':''}<button class="btn" data-act="addExp">+ مصروف</button><button class="btn" data-act="hrMission">+ مأمورية</button></div></div>
   ${(S.bonuses||[]).filter(x=>x.uid===ME.id&&x.status==='approved'&&daysTo((x.decidedAt||x.createdAt||'').slice(0,10))>=-5).map(x=>`<div class="banner info">🎉 اتصرفلك ${esc(x.type)} <b>${money(x.amount)}</b>${x.reason?' — '+esc(x.reason):''} — هتنزل في مرتب ${monthName((x.month||'')+'-01')}</div>`).join('')}
   ${(S.payslips||[]).filter(x=>x.uid===ME.id&&daysTo((x.publishedAt||'').slice(0,10))>=-5).map(x=>`<div class="banner info row between"><span>💰 مرتب ${monthName(x.month+'-01')} نزل — الصافي <b>${money(x.net)}</b></span><button class="btn sm" data-act="mySlip" data-id="${x.id}">التفاصيل</button></div>`).join('')}
   ${(S.penalties||[]).filter(x=>x.uid===ME.id&&x.status==='approved'&&daysTo((x.decidedAt||x.createdAt||'').slice(0,10))>=-7).map(x=>`<div class="banner">اتسجل عليك جزاء: <b>${esc(x.type)}</b> — ${esc(x.reason)}</div>`).join('')}
@@ -1937,12 +1940,25 @@ function openContractModal(clientId,kid,renew){
 let SQ='',STAB='items',MV={part:'',client:'',from:'',to:''};
 let SCF='';
 function stockTabs(){const atR=(S.units||[]).filter(u=>u.status==='at_repair').length;return `<div class="seg" style="flex-wrap:wrap"><button data-stab="items" class="${VIEW==='stock'&&STAB==='items'?'on':''}">قطع الغيار</button><button data-stab="cons" class="${VIEW==='stock'&&STAB==='cons'?'on':''}">المستهلكات والمستلزمات</button>${can('freon')||can('freon_view')?`<button data-go="freon" class="${VIEW==='freon'?'on':''}">الفريون</button>`:''}${can('client_parts')?'':'<!--'}<button data-stab="cp" class="${VIEW==='stock'&&STAB==='cp'?'on':''}">قطع العملاء${(()=>{const k=(S.units||[]).filter(u=>['pulled','ready_client'].includes(u.status)).length;return k?` <span class="cnt">${k}</span>`:''})()}</button>${can('client_parts')?'':'-->'}${can('ext_repair')?'':'<!--'}<button data-stab="xr" class="${VIEW==='stock'&&STAB==='xr'?'on':''}">التصليح بره${atR?` <span class="cnt">${atR}</span>`:''}</button>${can('ext_repair')?'':'-->'}${can('stock_count')||can('stock_count_approve')?`<button data-stab="count" class="${VIEW==='stock'&&STAB==='count'?'on':''}">📋 الجرد${SCS().filter(c=>c.status==='review').length&&can('stock_count_approve')?` <span class="cnt">${SCS().filter(c=>c.status==='review').length}</span>`:''}</button>`:''}<button data-stab="moves" class="${VIEW==='stock'&&STAB==='moves'?'on':''}">القطع اتركبت فين</button><button data-stab="warr" class="${VIEW==='stock'&&STAB==='warr'?'on':''}">الضمانات</button></div>`}
+/* الصرف الداخلي: مستهلك تشغيلي (بيتخصم من الأرباح) أو هالك (بيتسجل لوحده) */
+function useOut(id){const p=part(id);if(!p)return;
+  modal(`<h3>📤 صرف داخلي: ${esc(p.name)}</h3><div class="muted small">الرصيد: ${n(p.qty)}</div>
+   <div class="seg" id="uo_k"><button type="button" class="on" data-k="use">🧴 مستهلك تشغيلي</button><button type="button" data-k="waste">🗑️ هالك (باظ / انتهى)</button></div>
+   <div class="muted small">المستهلك التشغيلي تمنه بيتخصم من أرباح الشهر. الهالك بيتسجل لوحده علشان تعرف بتخسر كام.</div>
+   <div class="grid g2"><label class="f">الكمية<input type="number" min="0.01" step="any" id="uo_q" value="1"></label><label class="f">التاريخ<input type="date" id="uo_d" value="${today()}"></label>
+   <label class="f span2">اتصرف على (جهاز / مكان / عربية — اختياري)<input id="uo_on"></label><label class="f span2">ملاحظة<input id="uo_n"></label></div>`,()=>{
+    const q=n($('#uo_q').value);if(q<=0){toast('اكتب الكمية');return false}if(q>n(p.qty)){toast('الكمية أكبر من الرصيد');return false}
+    const k=$('#uo_k .on')?.dataset.k||'use';p.qty=n(p.qty)-q;p.useLog=[...(p.useLog||[]),{k,q,cost:n(p.buy??p.cost),date:$('#uo_d').value,on:$('#uo_on').value.trim(),note:$('#uo_n').value.trim(),by:ME.id}].slice(-300);
+    save();toast(k==='waste'?'اتسجل هالك':'اتسجل صرف تشغيلي');render()});
+  $('#uo_k').onclick=e=>{const b=e.target.closest('button');if(!b)return;$$('#uo_k button').forEach(x=>x.classList.toggle('on',x===b))}}
+function useSummary(m){m=m||today().slice(0,7);let use=0,waste=0;const by={};S.parts.forEach(p=>(p.useLog||[]).forEach(x=>{if(!String(x.date||'').startsWith(m))return;const v=n(x.q)*n(x.cost);if(x.k==='waste')waste+=v;else{use+=v;by[p.name]=(by[p.name]||0)+v}}));return {use,waste,by}}
 function viewStock(){
   const q=SQ.trim().toLowerCase();const costs=can('stock_costs'),edit=can('stock_edit');
   const inS=(S.units||[]).filter(u=>u.status==='in_stock').length,atR=(S.units||[]).filter(u=>u.status==='at_repair').length;
   const tabs=stockTabs();
   const head=`<div class="row between"><h2>المخزن</h2>${tabs}</div>`;
   if(STAB==='cons')return head+viewCons();
+  const useSum=useSummary();
   if((STAB==='units'||STAB==='xr')&&can('ext_repair'))return head+viewExtRepair();
   if(STAB==='cp'&&can('client_parts'))return head+viewClientParts();
   if(STAB==='count'&&(can('stock_count')||can('stock_count_approve')))return head+viewStockCount();
@@ -1952,6 +1968,7 @@ function viewStock(){
   const val=SPARES().reduce((a,p)=>a+n(p.qty)*n(p.buy),0),uval=(S.units||[]).filter(u=>u.status==='in_stock').reduce((a,u)=>a+unitCost(u),0);
   const sold={};S.reports.forEach(r=>r.parts.forEach(p=>{if(!p.unitId)sold[p.partId]=(sold[p.partId]||0)+p.qty}));
   return head+`
+  ${costs&&(useSum.use||useSum.waste)?`<div class="banner info row between" style="flex-wrap:wrap;gap:8px"><span>🧴 الصرف الداخلي الشهر ده: مستهلك تشغيلي <b class="num">${money(useSum.use)}</b> · هالك <b class="num" style="color:var(--bad)">${money(useSum.waste)}</b></span><span class="muted small">بيتخصم من أرباح الشهر</span></div>`:''}
   ${costs?`<div class="grid g3"><div class="panel kpi"><span>عدد الأصناف</span><b>${SPARES().length}</b></div><div class="panel kpi"><span>قيمة الأصناف (بسعر الشراء)</span><b>${money(val)}</b></div><div class="panel kpi"><span>تحت الحد الأدنى</span><b>${SPARES().filter(p=>n(p.qty)<=n(p.min)).length}</b></div></div>`:''}
   <div class="row between"><div class="row"><input id="sq" placeholder="بحث باسم القطعة أو الكود" value="${esc(SQ)}" style="max-width:260px"><select id="scf" style="width:auto"><option value="">كل الحالات</option>${Object.entries(CONDS).map(([k,[l]])=>`<option value="${k}" ${k===SCF?'selected':''}>${l}</option>`).join('')}</select>${(()=>{const T=[...new Set(SPARES().map(p=>p.ptype).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ar'));return T.length?`<select id="spt" style="width:auto"><option value="">كل الأنواع</option>${T.map(t=>`<option ${t===SPT?'selected':''}>${esc(t)}</option>`).join('')}</select>`:''})()}${(()=>{const B=[...new Set(SPARES().map(p=>p.brand).filter(Boolean))].sort();return B.length?`<select id="spb" style="width:auto"><option value="">كل الماركات</option>${B.map(t=>`<option ${t===SPB?'selected':''}>${esc(t)}</option>`).join('')}</select>`:''})()}</div><div class="row">${can('stock')?'<button class="btn" data-act="bcLabels" data-k="spare">🏷️ باركود</button>':''}${edit?'<button class="btn pri" data-act="addPart">+ صنف جديد</button>':''}</div></div>
   ${can('stock_edit')&&condGroups().length?`<div class="banner info row between"><span>فيه ${condGroups().length} قطعة متسجلة بكذا حالة بأكواد مختلفة — اربطهم علشان ياخدوا نفس الرقم وآخره حرف الحالة.</span><button class="btn sm pri" data-act="condMerge">اربطهم</button></div>`:''}
@@ -1962,7 +1979,7 @@ function viewStock(){
     <div class="row" style="gap:4px">${isKit(p)?condPill(p.condition):''}${(isKit(p)||catOf(p)!=='spare')&&wLabel(p)?`<span class="pill p-info">ضمان ${wLabel(p)}</span>`:''}</div>
     ${sold[p.id]?`<div class="small"><a href="#" data-act="mvPart" data-id="${p.id}">اتركب ${sold[p.id]} ← فين؟</a></div>`:''}
     ${rq[p.id]?`<div class="small"><a href="#" data-act="partRents" data-id="${p.id}">🔑 مؤجّر ${rq[p.id]} ← عند مين؟</a></div>`:''}
-    ${edit?`<div class="row"><button class="btn sm" data-act="restock" data-id="${p.id}">+ كمية</button>${can('part_rent')?`<button class="btn sm" data-act="rentPart" data-id="${p.id}">🔑 تأجير</button>`:''}<button class="btn sm ghost" data-act="editPart" data-id="${p.id}">تعديل</button></div>`:''}</div></div>`).join('')}</div>`:'<div class="panel"><div class="empty">مفيش أصناف بالفلتر ده</div></div>'}`;
+    ${edit?`<div class="row"><button class="btn sm" data-act="restock" data-id="${p.id}">+ كمية</button><button class="btn sm" data-act="useOut" data-id="${p.id}" title="صرف داخلي: مستهلك تشغيلي أو هالك">📤 صرف داخلي</button>${can('part_rent')?`<button class="btn sm" data-act="rentPart" data-id="${p.id}">🔑 تأجير</button>`:''}<button class="btn sm ghost" data-act="editPart" data-id="${p.id}">تعديل</button></div>`:''}</div></div>`).join('')}</div>`:'<div class="panel"><div class="empty">مفيش أصناف بالفلتر ده</div></div>'}`;
 }
 let UF='in_stock';
 function unitSrc(u){if(u.source==='client'){const r=S.reports.find(x=>x.id===u.srcReportId);const c=client(u.srcClientId);return `قديمة من ${esc(c?.name||'عميل')}${u.srcBranch?' – '+esc(u.srcBranch):''}${r?` <a href="#" data-view="${r.id}" class="num">#${pad(r.no)}</a>`:''}`}if(u.source==='repair')return 'اتصلحت بره';if(u.source==='return')return 'مرتجع';return esc(u.srcNote||'إضافة يدوي')}
@@ -2361,6 +2378,8 @@ function openPartSale(kind){
   $('#ps_bn').addEventListener('change',()=>{const b=buyers.find(x=>x[0]===$('#ps_bn').value);if(b&&!$('#ps_bp').value)$('#ps_bp').value=b[1]});
   calc();
 }
+// أرقام الدفع (فودافون كاش / إنستاباي) تحت الفاتورة وعرض السعر
+function payLineHTML(MU,LN){const s=S.settings;if(!s.payVf&&!s.payInsta)return '';return `<div style="margin-top:16px;border:1px dashed ${LN};border-radius:12px;padding:10px 16px;color:${MU};font-size:14px;display:flex;gap:18px;flex-wrap:wrap"><b>للدفع بالتحويل:</b>${s.payVf?`<span>فودافون كاش <b dir="ltr" style="font-family:Arial;color:#0f1722">${esc(s.payVf)}</b></span>`:''}${s.payInsta?`<span>إنستاباي <b dir="ltr" style="font-family:Arial;color:#0f1722">${esc(s.payInsta)}</b></span>`:''}</div>`}
 function invoiceHTML(x){
   const s=S.settings,b=buyerOf(x),NV='#1d2b45',SD='#2b8fb8',MU='#4a5565',LN='#d9e0e8',TX='#0f1722',BG='#f1f5f9';
   const lg=brandLogo();
@@ -2395,6 +2414,7 @@ function invoiceHTML(x){
      ${paid>0.009&&bal>0.009?row('المدفوع',money(paid),'padding:8px 0 0'):''}${bal>0.009?row('المتبقي',`<b style="color:#b1243f">${money(bal)}</b>`,'padding:4px 0 0;font-weight:700;color:#b1243f'):''}
     </div>
    </div>
+   ${payLineHTML(MU,LN)}
    <div style="display:flex;align-items:center;gap:14px;margin-top:26px;padding-top:16px;border-top:1px solid ${LN}">
     ${qr?`<img src="${qr}" style="width:78px;height:78px" alt="">`:''}
     <div style="flex:1;font-size:13px;color:${MU}">امسح الكود بكاميرا الموبايل للتأكد إن الفاتورة أصلية من ${esc(BRAND())}.</div>
@@ -2803,7 +2823,8 @@ function openCollect(type,id,sub){
    <label class="f">التاريخ<input type="date" id="pa_d" value="${today()}"></label>
    <label class="f">الطريقة<select id="pa_m">${S.settings.methods.map(m=>`<option>${esc(m)}</option>`).join('')}</select></label>
    ${sched?'':`<label class="f">ميعاد تحصيل الباقي (لو جزئي)<input type="date" id="pa_due" value="${addDays(today(),30)}"></label>`}</div>
-   <div class="row"><div class="photos" id="pa_box"></div><label class="btn">📷 صوّر الإيصال<input type="file" id="pa_photo" accept="image/*" capture="environment" hidden></label></div>
+   ${S.settings.payVf||S.settings.payInsta?`<div class="muted small">للتحويل: ${S.settings.payVf?'فودافون كاش <b class="num" dir="ltr">'+esc(S.settings.payVf)+'</b>':''}${S.settings.payVf&&S.settings.payInsta?' · ':''}${S.settings.payInsta?'إنستاباي <b class="num" dir="ltr">'+esc(S.settings.payInsta)+'</b>':''}</div>`:''}
+   <div class="row"><div class="photos" id="pa_box"></div><label class="btn">📷 صوّر الإيصال<input type="file" id="pa_photo" accept="image/*" capture="environment" hidden></label><label class="btn">📎 صورة التحويل (إنستاباي / فودافون كاش)<input type="file" id="pa_photo2" accept="image/*" hidden></label></div>
    <label class="row" style="gap:6px"><input type="checkbox" id="pa_ok" style="width:auto"> <b>أقر إني (${esc(ME.name)}) استلمت المبلغ ده</b></label>`,()=>{
     const a=Math.min(bal,n($('#pa_a').value));if(a<=0){toast('اكتب المبلغ');return false}
     if(!$('#pa_ok').checked){toast('علّم على إنك استلمت المبلغ');return false}
@@ -2811,7 +2832,8 @@ function openCollect(type,id,sub){
     if(!sched&&bal-a>0.009)x.due=$('#pa_due').value;
     save();toast('اتسجل التحصيل');render();
   });
-  $('#pa_photo').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{receipt=await compress(f,900,.6);$('#pa_box').innerHTML=`<figure><img src="${receipt}" alt="الإيصال"></figure>`;$('#pa_ok').checked=true}catch(_){toast('معرفتش أقرا الصورة')}};
+  const onPh=async e=>{const f=e.target.files[0];if(!f)return;try{receipt=await compress(f,900,.6);$('#pa_box').innerHTML=`<figure><img src="${receipt}" alt="الإيصال"></figure>`;$('#pa_ok').checked=true}catch(_){toast('معرفتش أقرا الصورة')}};
+  $('#pa_photo').onchange=onPh;$('#pa_photo2').onchange=onPh;
 }
 function openRedue(type,id){
   const x=type==='report'?S.reports.find(r=>r.id===id):S.contracts.find(k=>k.id===id);
@@ -3013,14 +3035,31 @@ service cloud.firestore {
   }
 }
 `;
+/* تحميل كل بيانات الشركة في ملف Excel (شيت لكل نوع، بالعربي) — صلاحيتها من Beam Care */
+const XP_SHEETS={clients:'العملاء',parts:'المخزن',reports:'تقارير الصيانة',requests:'طلبات الصيانة',contracts:'العقود',payments:'التحصيلات',partSales:'فواتير البيع',quotes:'عروض الأسعار',purchases:'المشتريات',suppliers:'الموردين',supplierPayments:'سداد الموردين',expenses:'المصروفات',units:'الأجهزة والوحدات',orders:'طلبات المستهلكات',freon:'الفريون',users:'المستخدمين',payslips:'المرتبات',vouchers:'الأذونات',custody:'العهد',stockMoves:'حركة المخزن'};
+const XP_COLS={name:'الاسم',clinic:'العيادة',phone:'التليفون',address:'العنوان',date:'التاريخ',no:'الرقم',amount:'المبلغ',total:'الإجمالي',paid:'المدفوع',method:'طريقة الدفع',note:'ملاحظة',notes:'ملاحظات',qty:'الكمية',cost:'التكلفة',sell:'سعر البيع',code:'الكود',brand:'الماركة',model:'الموديل',serial:'السيريال',status:'الحالة',start:'البداية',end:'النهاية',due:'ميعاد التحصيل',branch:'الفرع',clientId:'العميل',engineer:'المهندس',by:'بواسطة',kind:'النوع',cat:'القسم',unit:'الوحدة',username:'اسم الدخول',role:'الدور',jobTitle:'المسمى',month:'الشهر',net:'الصافي',base:'الأساسي',desc:'الوصف',title:'العنوان',supplierId:'المورد',lines:'الأصناف',visits:'الزيارات',price:'السعر',discount:'الخصم',buyer:'المشتري',type:'النوع',branches:'الفروع',devices:'الأجهزة',createdAt:'اتسجل',updatedAt:'آخر تعديل',email:'الإيميل',city:'المدينة',area:'المنطقة',partId:'القطعة',min:'الحد الأدنى',location:'المكان',warranty:'الضمان',items:'الأصناف',parts:'القطع',description:'الوصف',slot:'الميعاد',urgent:'مستعجل',active:'شغال'};
+const XP_SKIP=/^(hash|photo|photos|receipt|sig|signature|img|image|payPhoto|logo|avatar|pw|pass|perms|_.*)$/;
+const xpCell=(k,v,x)=>{if(v==null)return '';if(k==='clientId')return client(v)?.name||v;if(k==='supplierId')return (S.suppliers||[]).find(z=>z.id===v)?.name||v;if(k==='engineer'||k==='by')return (S.users||[]).find(u=>u.id===v)?.name||v;if(k==='role')return ROLE[v]||v;if(Array.isArray(v))return v.map(i=>typeof i==='object'?(i.name||i.desc||i.title||'')+(i.qty?' × '+i.qty:''):String(i)).filter(Boolean).join('، ');if(typeof v==='object')return v.toDate?fdt(v.toDate()):'';if(typeof v==='boolean')return v?'أيوه':'لأ';return v};
+async function exportAll(){
+  if(!isOwnerU(ME)&&!isDev(ME))return;try{await loadXLSX()}catch(e){toast('مقدرتش أحمّل أداة الإكسيل — اتأكد من النت');return}
+  const wb=XLSX.utils.book_new(),sum=[['البيان','العدد']];
+  for(const [k,title] of Object.entries(XP_SHEETS)){const L=(S[k]||[]).filter(x=>x&&typeof x==='object'&&!x.deleted);if(!L.length)continue;
+    const keys=[...new Set(L.flatMap(x=>Object.keys(x)))].filter(c=>!XP_SKIP.test(c)&&c!=='id').sort((a,b)=>(XP_COLS[b]?1:0)-(XP_COLS[a]?1:0));
+    const rows=[keys.map(c=>XP_COLS[c]||c),...L.map(x=>keys.map(c=>xpCell(c,x[c],x)))];
+    const ws=XLSX.utils.aoa_to_sheet(rows);ws['!views']=[{RTL:true}];ws['!cols']=keys.map(()=>({wch:16}));XLSX.utils.book_append_sheet(wb,ws,title.slice(0,31));sum.push([title,L.length])}
+  const sm=XLSX.utils.aoa_to_sheet([[S.settings.company||BRAND()],['تاريخ التحميل',new Date().toLocaleString('ar-EG')],[],...sum]);sm['!views']=[{RTL:true}];sm['!cols']=[{wch:26},{wch:20}];
+  XLSX.utils.book_append_sheet(wb,sm,'الملخص');wb.SheetNames.unshift(wb.SheetNames.pop());wb.Workbook={Views:[{RTL:true}]};
+  const out=XLSX.write(wb,{bookType:'xlsx',type:'array'});await download(new Blob([out],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),`بيانات-${S.settings.company||BRAND()}-${today()}.xlsx`);toast('اتحمّل الملف ✓')}
 function viewSettings(){
   const s=S.settings;
-  return `<h2>الإعدادات</h2>
+  return `<div class="row between"><h2>الإعدادات</h2>${(isOwnerU(ME)||isDev(ME))&&subMod('export')?'<button class="btn" data-act="exportAll">⬇️ تحميل كل بياناتي (Excel)</button>':''}</div>
   <form id="sf" class="grid">
   <div class="panel grid g2"><h3 style="grid-column:1/-1;margin:0">اسم الشركة واللوجو</h3><div class="muted small" style="grid-column:1/-1">بيظهروا في السيستم كله: القايمة، وشاشة الدخول، واسم الأبلكيشن وأيقونته على الموبايل، والتقارير والفواتير.</div>
     <label class="f">اسم الشركة<input id="s_company" value="${esc(s.company)}"></label>
     <label class="f">السطر التاني<input id="s_sub" value="${esc(s.sub)}"></label>
     <label class="f">تليفون الشركة (بيظهر للعيادات وفي التقرير)<input id="s_phone" value="${esc(s.phone)}"></label>
+    <label class="f">رقم فودافون كاش (بيظهر في الفواتير وعروض الأسعار — اختياري)<input id="s_vf" dir="ltr" value="${esc(s.payVf||'')}" placeholder="010xxxxxxxx"></label>
+    <label class="f">إنستاباي (رقم أو اسم المستخدم — اختياري)<input id="s_insta" dir="ltr" value="${esc(s.payInsta||'')}" placeholder="name@instapay"></label>
     <div class="grid" style="gap:6px"><span class="muted" style="font-size:.85rem">لوجو التقارير والفواتير (اختياري)</span><div class="row">${s.logo?`<img src="${s.logo}" style="height:44px;border:1px solid var(--line);border-radius:6px;padding:2px;background:#fff" alt="اللوجو">`:''}<label class="btn">اختار صورة اللوجو<input type="file" id="s_logo" accept="image/*" hidden></label>${s.logo?'<button type="button" class="btn ghost" id="s_logo_del">إزالة</button>':''}</div></div>
     ${!subWL()?'<div class="banner info small">السيستم ظاهر دلوقتي باسم Beam Care Maintenance. ظهور السيستم والأبلكيشن باسم شركتك ولوجوها ميزة إضافية — كلّم Beam Care لتفعيلها. (اسم الشركة ولوجو التقارير بيظهروا عادي في التقارير والفواتير.)</div>':''}
     <div class="grid" style="gap:6px;${subWL()?'':'display:none'}"><span class="muted" style="font-size:.85rem">لوجو السيستم — القايمة وأيقونة الأبلكيشن (اختياري${PM_HOME()?'، لو فاضي بيفضل لوجو Pioneer الأصلي':'، لو فاضي بياخد لوجو التقارير'})</span><div class="row">${s.appLogo?`<img src="${s.appLogo}" style="height:44px;border:1px solid var(--line);border-radius:6px;padding:2px;background:#fff" alt="لوجو السيستم">`:''}<label class="btn">اختار صورة<input type="file" id="s_alogo" accept="image/*" hidden></label>${s.appLogo?'<button type="button" class="btn ghost" id="s_alogo_del">إزالة</button>':''}</div></div>
@@ -3088,7 +3127,7 @@ function bindSettings(){
   if(ONLINE)FB.db.doc('meta/counter').get().then(d=>{if(d.exists&&$('#s_no'))$('#s_no').value=d.data().next}).catch(()=>{});
   f.onsubmit=e=>{e.preventDefault();const s=S.settings;
     const ws=Math.max(0,Math.min(23,parseInt($('#s_ws').value)||12)),we=Math.max(ws+1,Math.min(24,parseInt($('#s_we').value)||20));
-    Object.assign(s,{company:$('#s_company').value.trim()||BRAND(),sub:$('#s_sub').value.trim(),phone:$('#s_phone').value.trim(),visitFee:n($('#s_fee').value),deliveryFee:n($('#s_dfee').value),contractVisitFee:n($('#s_cfee').value),showPrices:$('#s_prices').checked,chains:readChainsSettings(),leaveBal:n($('#s_lbal').value),punchRadius:Math.max(50,n($('#s_rad').value)||300),...($('#s_theme')?{theme:$('#s_theme').value}:{}),...($('#s_layout')?{layout:$('#s_layout').value}:{}),officeLoc:parseLoc($('#s_oloc')?.value)||null,officeRadius:Math.max(20,n($('#s_orad').value)||100),officePunch:$('#s_opm').value,punchNeedMission:$('#s_pneed').checked,autoWa:$('#s_awa').checked,vatRate:Math.max(0,n($('#s_vat')?.value)),vatIncluded:$('#s_vati')?.value!=='0',
+    Object.assign(s,{company:$('#s_company').value.trim()||BRAND(),sub:$('#s_sub').value.trim(),phone:$('#s_phone').value.trim(),payVf:($('#s_vf')?.value||'').trim(),payInsta:($('#s_insta')?.value||'').trim(),visitFee:n($('#s_fee').value),deliveryFee:n($('#s_dfee').value),contractVisitFee:n($('#s_cfee').value),showPrices:$('#s_prices').checked,chains:readChainsSettings(),leaveBal:n($('#s_lbal').value),punchRadius:Math.max(50,n($('#s_rad').value)||300),...($('#s_theme')?{theme:$('#s_theme').value}:{}),...($('#s_layout')?{layout:$('#s_layout').value}:{}),officeLoc:parseLoc($('#s_oloc')?.value)||null,officeRadius:Math.max(20,n($('#s_orad').value)||100),officePunch:$('#s_opm').value,punchNeedMission:$('#s_pneed').checked,autoWa:$('#s_awa').checked,vatRate:Math.max(0,n($('#s_vat')?.value)),vatIncluded:$('#s_vati')?.value!=='0',
       workStart:ws,workEnd:we,slotHours:Math.max(.5,n($('#s_sh').value)||2),crews:Math.max(1,parseInt($('#s_crews').value)||1),offDays:$$('.s_off').filter(x=>x.checked).map(x=>+x.value),
       methods:$('#s_methods').value.split('\n').map(x=>x.trim()).filter(Boolean),terms:$('#s_terms').value.split('\n').map(x=>x.trim()).filter(Boolean)});
     const no=Math.max(1,parseInt($('#s_no').value)||1);
@@ -3161,7 +3200,12 @@ document.addEventListener('click',e=>{
   switch(a){
     case 'logout':try{closeModal(true)}catch(e){}CTAB='req';if(ONLINE){const pf=dsPref();dsStop();dsClear(pf).finally(()=>FB.auth.signOut())}else{ME=null;setSession(null);VIEW='home';render()}break;
     case 'myPass':openMyPass();break;
-    case 'acct':infoModal(`<div class="grid" style="gap:14px"><div class="row" style="gap:12px">${avHTML(ME,56)}<div><b style="font-size:1.1rem">${esc(ME.name)}</b><div class="muted small">${esc(ROLE[ME.role]||'')}${ME.main?' · 👑 صاحب الحساب':''}</div></div></div>
+    case 'sysQr':sysQr();break;
+    case 'exportAll':exportAll();break;
+    case 'useOut':useOut(id);break;
+    case 'sysQrShare':sysQrShare();break;
+    case 'pushOn':pushOn();break;
+    case 'acct':infoModal(`<div class="grid" style="gap:14px"><div class="row" style="gap:12px">${avHTML(ME,56)}<div><b style="font-size:1.1rem">${esc(ME.name)}</b><div class="muted small">${esc(roleT(ME))}${ME.main?' · 👑 صاحب الحساب':''}</div></div></div>
       <label class="btn" style="justify-content:flex-start;cursor:pointer">📷 ${ME.photo?'غيّر صورتك':'حط صورتك'}<input type="file" accept="image/*" hidden onchange="avPick(this)"></label>
       ${isClinic()?'':`<button class="btn" data-go="me" style="justify-content:flex-start">👤 صفحة حسابي</button>`}
       <button class="btn" data-act="myPass" style="justify-content:flex-start">🔑 تغيير كلمة السر</button>
@@ -3320,6 +3364,33 @@ function allNotifs(){
   return st.concat(derivedNotifs()).map(x=>({...x,unread:x.stored?x.ts>(seen.last||0):!(seen.keys||[]).includes(x.key)})).sort((a,b)=>(b.unread-a.unread)||(b.ts-a.ts)).slice(0,60);
 }
 const unreadCount=()=>allNotifs().filter(x=>x.unread).length;
+function qrBtn(){return (isOwnerU(ME)||can('users'))&&!isClinic()?` <button class="hbtn" data-act="sysQr" title="QR السيستم للموظفين الجداد">📱 QR</button>`:''}
+function sysLink(){return location.origin+location.pathname+(PM_CO?'?c='+encodeURIComponent(PM_CO):'')}
+async function sysQr(){await loadQR();const link=sysLink(),img=qrData(link);
+  infoModal(`<h3>📱 QR السيستم</h3><div class="muted small">الموظف الجديد يفتح كاميرا الموبايل ويعمل سكان، السيستم هيفتح عنده على طول. يدخل باليوزر وكلمة السر اللي إديتهاله، ويقدر يثبّت الأبلكيشن على موبايله.</div>
+  <div style="display:flex;justify-content:center;margin:12px 0">${img?`<img src="${img}" alt="QR" style="width:240px;height:240px;image-rendering:pixelated;background:#fff;padding:10px;border-radius:12px">`:'<div class="muted">مقدرتش أعمل الـ QR — استخدم اللينك</div>'}</div>
+  <div class="muted small num" dir="ltr" style="text-align:center;word-break:break-all">${esc(link)}</div>
+  <div class="row" style="justify-content:center;gap:8px;margin-top:10px"><button class="btn" data-act="sysQrShare">📤 ابعته / احفظه</button><button class="btn" onclick="navigator.clipboard&&navigator.clipboard.writeText('${esc(link)}').then(()=>toast('اتنسخ ✓'))">نسخ اللينك</button></div>`)}
+async function sysQrShare(){try{const cv=wrCanvasQR(sysLink(),600);const blob=await new Promise(r=>cv.toBlob(r,'image/png'));const f=new File([blob],'qr-system.png',{type:'image/png'});if(!IN_ART()&&navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],text:'ادخل على السيستم من هنا: '+sysLink()});return}await download(blob,'qr-system.png')}catch(e){if(e?.name!=='AbortError')toast('مقدرتش')}}
+/* إشعارات الموبايل لما ييجي طلب جديد من عميل (عن طريق سيرفر الإشعارات بتاع Beam Care) */
+const BC_VAPID='BLVZwt4S0_JXsCy-a_ss0N0TpE0A5TfUY24Z4TwRkc_cWwlP8m7ilXuKEYcqY_gR-qec8gBXMlV_DB1-zPrJL-s';let BC_PUSH_URL=null;
+async function bcPushUrl(){if(BC_PUSH_URL!==null)return BC_PUSH_URL;try{const r=await fetch(BC_API+'pub/push?key='+BC_KEY);const j=await r.json();BC_PUSH_URL=(j.fields?.url?.stringValue||'').replace(/\/+$/,'')}catch(e){BC_PUSH_URL=''}return BC_PUSH_URL}
+async function bcNotify(kind,tt){try{const t=tt||bcTid();const u=await bcPushUrl();if(!t||!u)return;await fetch(u+'/notify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({t:'m-'+t,kind}),keepalive:true})}catch(e){}}
+const pushSupported=()=>'serviceWorker' in navigator&&'PushManager' in window&&'Notification' in window;
+const pushIsOn=()=>{try{return Notification.permission==='granted'&&localStorage.getItem('pm-push-'+bcTid())==='1'}catch(e){return false}};
+async function pushOn(){if(!pushSupported())return toast(/iPhone|iPad/.test(navigator.userAgent)?'على الآيفون: ثبّت السيستم على الشاشة الرئيسية الأول وافتحه منها':'الموبايل ده مش بيدعم الإشعارات');
+  const t=bcTid(),u=await bcPushUrl();if(!t||!u)return toast('الإشعارات لسه ما اتفعلتش من Beam Care');
+  try{const perm=await Notification.requestPermission();if(perm!=='granted')return toast('لازم توافق على الإشعارات');const reg=await navigator.serviceWorker.ready;
+    const key=Uint8Array.from(atob(BC_VAPID.replace(/-/g,'+').replace(/_/g,'/')),c=>c.charCodeAt(0));const sub=(await reg.pushManager.getSubscription())||await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:key});
+    const r=await fetch(u+'/sub',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({t:'m-'+t,uid:ME.id,sub:sub.toJSON()})});if(!r.ok)throw new Error('السيرفر رفض');
+    const c=await caches.open('bc-meta');await c.put('/__bc_meta',new Response(JSON.stringify({t:'m-'+t,url:u,home:sysLink()})));
+    try{localStorage.setItem('pm-push-'+t,'1')}catch(e){}await fetch(u+'/notify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({t:'m-'+t,kind:'test'})}).catch(()=>{});toast('الإشعارات اشتغلت على الموبايل ده ✓');render()}
+  catch(e){console.error(e);toast('مقدرتش أشغّل الإشعارات: '+(e.message||e))}}
+/* نبضة كل دقيقتين: لوحة Beam Care بتعرف مين شغال دلوقتي */
+let BC_BEAT=0;function bcBeat(){try{const t=bcTid();if(!t||PM_DEMO||!ME||document.hidden||Date.now()-BC_BEAT<110000)return;BC_BEAT=Date.now();
+  const body={fields:{users:{mapValue:{fields:{[ME.id]:{mapValue:{fields:{n:{stringValue:String(ME.name||'').slice(0,70)},d:{stringValue:today()},t:{timestampValue:new Date().toISOString()}}}}}}}}};
+  fetch(BC_API+'usage/m-'+encodeURIComponent(t)+'?key='+BC_KEY+'&updateMask.fieldPaths='+encodeURIComponent('users.`'+ME.id+'`'),{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}).catch(()=>{})}catch(e){}}
+setInterval(bcBeat,120000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)bcBeat()});
 function bellBtn(){const k=unreadCount();return `<button class="hbtn bell" data-act="bell" title="التنبيهات">🔔${k?`<span class="cnt">${k}</span>`:''}</button>`}
 function openBell(){
   const L=allNotifs();
@@ -3427,7 +3498,7 @@ function viewCons(){
     <div class="row between"><span class="num">${money(p.sell)}${p.unit?` <span class="muted small">/ ${esc(p.unit)}</span>`:''}</span>${n(p.qty)<=n(p.min)?`<span class="pill p-bad">${n(p.qty)}</span>`:`<span class="pill p-ok">${n(p.qty)}</span>`}</div>
     ${costs?`<div class="muted small">الشراء: <span class="num">${money(p.buy)}</span></div>`:''}
     <div class="row" style="gap:6px;flex-wrap:wrap">${p.shop===false?'<span class="pill p-mut">مخفي عن العيادات</span>':'<span class="pill p-info">ظاهر للعيادات</span>'}${webPill(p)}</div>
-    ${edit?`<div class="row"><button class="btn sm" data-act="restock" data-id="${p.id}">+ كمية</button><button class="btn sm ghost" data-act="editCons" data-id="${p.id}">تعديل</button></div>`:''}</div></div>`).join('')}</div>`:'<div class="panel"><div class="empty">لسه مفيش منتجات مستهلكات أو مستلزمات</div></div>'}`;
+    ${edit?`<div class="row"><button class="btn sm" data-act="restock" data-id="${p.id}">+ كمية</button><button class="btn sm" data-act="useOut" data-id="${p.id}" title="صرف داخلي: مستهلك تشغيلي أو هالك">📤 صرف داخلي</button><button class="btn sm ghost" data-act="editCons" data-id="${p.id}">تعديل</button></div>`:''}</div></div>`).join('')}</div>`:'<div class="panel"><div class="empty">لسه مفيش منتجات مستهلكات أو مستلزمات</div></div>'}`;
 }
 function openConsModal(id){
   const p=id?part(id):{name:'',cat:'cons',group:'',unit:'',buy:'',sell:'',qty:0,min:1,shop:true,photo:'',desc:'',ref:''};
@@ -5970,7 +6041,7 @@ document.addEventListener('click',async e=>{const b=e.target.closest('[data-wrp]
     if(nn>=3){toast('بعت طلبات كتير النهارده — لو محتاج حاجة كلمنا على واتساب');return}
     b.disabled=true;b.textContent='بيبعت…';
     const d={name:name.slice(0,80),phone:phone.slice(0,20),area:v('#wp_area').slice(0,60),address:v('#wp_addr').slice(0,200),device:v('#wp_dev').slice(0,80),catId:String(WRP.cat.id).slice(0,40),catName:String(WRP.cat.name).slice(0,40),item:(WRP.item||'').slice(0,60),...(WRP.cat.id==='shop'?{items:Object.entries(WRP.cart||{}).filter(([,q])=>q>0).slice(0,30).map(([id,q])=>({id:String(id).slice(0,40),name:String((WRP.shop||[]).find(x=>x.id===id)?.name||'').slice(0,80),qty:Math.min(999,q)}))}:{}),pref:v('#wp_pref').slice(0,30),notes:v('#wp_notes').slice(0,600),status:'new',at:firebase.firestore.FieldValue.serverTimestamp()};
-    try{await Promise.race([WRP.db.collection('webreq').add(d),new Promise((_,j)=>setTimeout(()=>j({code:'timeout'}),15000))]);try{localStorage.setItem(dk,String(nn+1))}catch(er){}WRP.sentName=name;WRP.step=4;wrpRender();scrollTo(0,0)}
+    try{await Promise.race([WRP.db.collection('webreq').add(d),new Promise((_,j)=>setTimeout(()=>j({code:'timeout'}),15000))]);bcNotify('webreq',WRP.cfg?.tid||PM_CO);try{localStorage.setItem(dk,String(nn+1))}catch(er){}WRP.sentName=name;WRP.step=4;wrpRender();scrollTo(0,0)}
     catch(er){b.disabled=false;b.textContent='إرسال الطلب ✔';toast(er?.code==='timeout'?'النت بطيء — جرب تاني':'مقدرتش أبعت الطلب — جرب تاني أو كلمنا على واتساب')}
   }
 });
@@ -6507,7 +6578,7 @@ let XR_PRE='';
 
 
 /* ---------- فحص التحديثات ---------- */
-const APP_VER='2026.11.12.1';
+const APP_VER='2026.11.13.1';
 async function checkUpdate(){try{if(location.protocol==='file:')return;const t=await (await fetch(location.pathname+'?_='+Date.now(),{cache:'no-store'})).text();const m=t.match(/const APP_VER='([^']+)'/);if(m&&m[1]!==APP_VER)showUpd(m[1])}catch(e){}}
 function showUpd(v){if(document.getElementById('updBar'))return;const b=document.createElement('div');b.id='updBar';b.style.cssText='position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:80;background:#1d2b45;color:#fff;padding:10px 16px;border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,.25);display:flex;gap:12px;align-items:center;font-weight:600;max-width:92vw';b.innerHTML='<span>🔄 فيه نسخة جديدة من السيستم</span><button type="button" style="background:#2b8fb8;color:#fff;border:0;border-radius:10px;padding:6px 14px;font:inherit;cursor:pointer">حدّث دلوقتي</button>';b.querySelector('button').onclick=()=>{location.replace(location.pathname+'?v='+encodeURIComponent(v)+location.hash)};document.body.appendChild(b)}
 setTimeout(checkUpdate,8000);setInterval(checkUpdate,5*60*1000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkUpdate()});
@@ -7441,7 +7512,7 @@ async function avPick(inp){const f=inp.files&&inp.files[0];if(!f)return;if(!/^im
 async function avClear(){try{if(ONLINE)await FB.db.doc('users/'+ME.id).update({photo:firebase.firestore.FieldValue.delete()});else{const u=S.users.find(x=>x.id===ME.id);if(u)delete u.photo;save()}delete ME.photo;toast('اتشالت الصورة');render()}catch(e){toast('مقدرتش')}}
 function viewMe(){
   return `<div class="panel grid" style="gap:16px;max-width:620px">
-   <div class="row" style="gap:16px;flex-wrap:nowrap">${avHTML(ME,84)}<div style="min-width:0"><h2 style="margin:0">${esc(ME.name)}</h2><div class="muted">${esc(ROLE[ME.role]||'')}${ME.jobTitle?' · '+esc(ME.jobTitle):''}</div><div class="muted small num" dir="ltr" style="text-align:right">${esc(ME.username||'')}</div></div></div>
+   <div class="row" style="gap:16px;flex-wrap:nowrap">${avHTML(ME,84)}<div style="min-width:0"><h2 style="margin:0">${esc(ME.name)}</h2><div class="muted">${esc(roleT(ME))}</div><div class="muted small num" dir="ltr" style="text-align:right">${esc(ME.username||'')}</div></div></div>
    <div class="row" style="gap:8px;flex-wrap:wrap"><label class="btn pri" style="cursor:pointer">📷 ${ME.photo?'غيّر صورتك':'حط صورتك'}<input type="file" accept="image/*" hidden onchange="avPick(this)"></label>${ME.photo?'<button class="btn ghost" onclick="avClear()">شيل الصورة</button>':''}</div>
    <div class="muted small">صورتك بتظهر في الدايرة اللي فوق جنب اسمك، وزمايلك بيشوفوها.</div>
    <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn" data-act="myPass">🔑 تغيير كلمة السر</button><button class="btn danger" data-act="logout">↩ تسجيل الخروج</button></div></div>`}
@@ -7881,6 +7952,7 @@ function quoteHTML(q){
    </table>
    ${qAllQty(q)&&qTotal(q)>0?`<div style="display:flex;justify-content:flex-start;margin-top:14px"><div style="background:${NV};color:#fff;border-radius:12px;padding:10px 22px;font-size:17px;font-weight:800">الإجمالي: ${money(qTotal(q))}</div></div>`:''}
    ${q.note?`<div style="margin-top:18px;background:${BG};border:1px solid ${LN};border-radius:12px;padding:12px 18px"><div style="font-size:13px;color:${SD};font-weight:700">ملاحظات</div><div style="white-space:pre-wrap">${esc(q.note)}</div></div>`:''}
+   ${payLineHTML(MU,LN)}
    <div style="margin-top:22px;padding-top:12px;border-top:1px solid ${LN};display:flex;justify-content:space-between;color:${MU};font-size:13px"><span>${esc(s.company||BRAND())}${s.address?' — '+esc(s.address):''}</span><span style="font-family:Arial">${esc(s.phone||'')}</span></div>
   </div></div>`;
 }
@@ -7946,7 +8018,7 @@ async function sendQuote(id){
 Object.assign(NEED9,{qNew:'quotes',qEdit:'quotes',qCopy:'quotes',qSend:'quotes',qDel:'quotes'});
 Object.assign(X9,{qNew:()=>openQuote(null),qEdit:(t,id)=>openQuote(id),qCopy:(t,id)=>openQuote(null,id),qSend:(t,id)=>sendQuote(id),
   qDel:(t,id)=>confirmBox('حذف عرض الأسعار ده؟',()=>{S.quotes=(S.quotes||[]).filter(x=>x.id!==id);save();go('quotes')})});
-const SUB_MODS=[['freon','الفريون',['freon']],['sales','المبيعات والمستهلكات والعروض',['psales','orders','offers']],['quotes','عروض الأسعار',['quotes']],['devices','بيع وإيجار الأجهزة',['devices']],['contracts','عقود الصيانة',['contracts']],['suppliers','الموردين والمشتريات',['suppliers']],['finance','الحسابات والخزينة ورأس المال والآجل',['ar','accounts','capital','treasury','ledger']],['hr','الحضور والإجازات',['hr']],['payroll','المرتبات والمكافآت',['payroll']],['staff','إدارة الموظفين',['custody','meetings','perf','tests','policy','emps']],['weekly','التقارير الدورية',['weekly']],['analytics','التحليلات',['analytics']],['gs','النسخ لجوجل شيت',[]]];
+const SUB_MODS=[['export','تحميل كل البيانات Excel',[]],['freon','الفريون',['freon']],['sales','المبيعات والمستهلكات والعروض',['psales','orders','offers']],['quotes','عروض الأسعار',['quotes']],['devices','بيع وإيجار الأجهزة',['devices']],['contracts','عقود الصيانة',['contracts']],['suppliers','الموردين والمشتريات',['suppliers']],['finance','الحسابات والخزينة ورأس المال والآجل',['ar','accounts','capital','treasury','ledger']],['hr','الحضور والإجازات',['hr']],['payroll','المرتبات والمكافآت',['payroll']],['staff','إدارة الموظفين',['custody','meetings','perf','tests','policy','emps']],['weekly','التقارير الدورية',['weekly']],['analytics','التحليلات',['analytics']],['gs','النسخ لجوجل شيت',[]]];
 const SUB_TAB={};SUB_MODS.forEach(([k,,tabs])=>tabs.forEach(t=>SUB_TAB[t]=k));
 const BC_NAME='Beam Care Maintenance';
 const BC_LOGO='data:image/svg+xml;utf8,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="220" height="220" viewBox="0 0 220 220"><rect width="220" height="220" rx="52" fill="#2F6F68"/><path d="M110 40 L122 98 L180 110 L122 122 L110 180 L98 122 L40 110 L98 98 Z" fill="#DDA86E"/></svg>');

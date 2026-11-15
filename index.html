@@ -495,7 +495,7 @@ const DEFAULT_SETTINGS={
   ]
 };
 const COLS=['policies','users','clients','parts','reports','contracts','payments','requests','units','partReturns','returns','catalog','tests','offers','meetings','webcat'];
-const PERM_COLS={quotes:['quotes'],capsnaps:['capital_view'],frret:['freon_collect','freon','freon_view','freon_buy','freon_fill','freon_empties','freon_sell','freon_ret','freon_send','freon_edit','accounts','capital_view'],stockcounts:['stock_count','stock_count_approve','accounts'],freon:['freon_collect','freon_buy','freon_fill','freon_empties','freon_sell','freon_ret','freon_send','freon_edit','capital_view','freon','freon_view','accounts'],suppliers:['freon_buy','capital_view','suppliers','accounts','devices','treasury','treasury_view','suppay_req','suppay_approve','ext_repair','freon','place_loc'],purchases:['freon_buy','capital_view','suppliers','accounts','devices','suppay_req','suppay_approve','treasury','treasury_view','ext_repair','freon'],supplierPayments:['capital_view','suppliers','accounts','suppay_req','suppay_approve','treasury','treasury_view'],sales:['capital_view','devices','ar','accounts','treasury','treasury_view'],rentals:['capital_view','devices','ar','accounts','part_rent'],stockDevices:['capital_view','devices','accounts'],partSales:['freon_sell','capital_view','part_sales','cons_sales','ar','accounts','orders_manage','orders_work','treasury','treasury_view','freon','ext_repair'],orders:['orders_manage','orders_work','ar','accounts'],testKeys:['tests'],attendance:['attendance','payroll_prep','payroll_approve','home_att'],salaries:['salary_set','payroll_prep','payroll_approve'],inspections:['inspections'],payroll:['capital_view','payroll_prep','payroll_approve','treasury','treasury_view'],treasury:['capital_view','treasury','treasury_view','accounts','treasury_cfg'],contractReqs:['contracts','clients']};
+const PERM_COLS={quotes:['quotes'],pricelists:['pricelists'],plorders:['pricelists'],capsnaps:['capital_view'],frret:['freon_collect','freon','freon_view','freon_buy','freon_fill','freon_empties','freon_sell','freon_ret','freon_send','freon_edit','accounts','capital_view'],stockcounts:['stock_count','stock_count_approve','accounts'],freon:['freon_collect','freon_buy','freon_fill','freon_empties','freon_sell','freon_ret','freon_send','freon_edit','capital_view','freon','freon_view','accounts'],suppliers:['freon_buy','capital_view','suppliers','accounts','devices','treasury','treasury_view','suppay_req','suppay_approve','ext_repair','freon','place_loc'],purchases:['freon_buy','capital_view','suppliers','accounts','devices','suppay_req','suppay_approve','treasury','treasury_view','ext_repair','freon'],supplierPayments:['capital_view','suppliers','accounts','suppay_req','suppay_approve','treasury','treasury_view'],sales:['capital_view','devices','ar','accounts','treasury','treasury_view'],rentals:['capital_view','devices','ar','accounts','part_rent'],stockDevices:['capital_view','devices','accounts'],partSales:['freon_sell','capital_view','part_sales','cons_sales','ar','accounts','orders_manage','orders_work','treasury','treasury_view','freon','ext_repair'],orders:['orders_manage','orders_work','ar','accounts'],testKeys:['tests'],attendance:['attendance','payroll_prep','payroll_approve','home_att'],salaries:['salary_set','payroll_prep','payroll_approve'],inspections:['inspections'],payroll:['capital_view','payroll_prep','payroll_approve','treasury','treasury_view'],treasury:['capital_view','treasury','treasury_view','accounts','treasury_cfg'],contractReqs:['contracts','clients']};
 const OWN_COLS={custody:['capital_view','custody','accounts','treasury','treasury_view'],comps:['extra_pay','payroll_prep','payroll_approve','hr'],handovers:['capital_view','handover_recv','accounts','treasury','custody'],notes:[],vouchers:['capital_view','vouchers_approve','accounts','treasury','treasury_view'],hr:['capital_view','hr','payroll_prep','payroll_approve','loans','custody','home_att'],evals:['evals'],punches:['hr','payroll_prep','payroll_approve','home_att'],payslips:['payroll_approve'],testAnswers:['tests'],empFiles:['emp_files']};
 const SPECIAL_COLS=['notifs','ratings','penalties','empDocs','bonuses','weekrep'];
 const ALL_COLS=[...COLS,...Object.keys(PERM_COLS),...Object.keys(OWN_COLS),...SPECIAL_COLS,'secrets','audit','verify','archive'];
@@ -697,6 +697,7 @@ const PERMS=[
  ['shop_clients','يحدد مين من العملاء يشوف صفحة المنتجات','المستهلكات'],
  ['offers','عمل عروض على المنتجات للعيادات','المستهلكات'],
  ['quotes','عمل عروض أسعار وبعتها للعملاء على الواتساب','المستهلكات'],
+ ['pricelists','قوائم الأسعار للعملاء (لينك يطلبوا منه) واستلام طلباتها','المستهلكات'],
  ['meetings','تحديد مواعيد الاجتماعات','الموظفين'],
  ['assign','تكليف موظف بمأمورية أو مهندس بزيارة صيانة (الإدارة العليا)','الموظفين'],
  ['assign_mission','تكليف أي موظف بمأمورية — ما عدا مهندسين الصيانة (لمديري الإدارات)','الموظفين'],
@@ -960,6 +961,7 @@ const TABS=[
  ['freon','الفريون',()=>can('freon_view')||frAny()],
  ['offers','العروض',()=>can('offers')],
  ['quotes','عروض الأسعار',()=>can('quotes')],
+ ['pricelists','قوائم الأسعار',()=>can('pricelists')],
  ['devices','الأجهزة',()=>can('devices')],
  ['suppliers','الموردين',()=>can('suppliers')],
  ['ar','الآجل والتحصيل',()=>can('ar')],
@@ -986,7 +988,7 @@ const TABS=[
  ['me','حسابي',()=>!!ME&&!isClinic()],
  ['import','استيراد من Excel',()=>can('settings')||isDev(ME)]
 ];
-const SUBVIEW={quote:'quotes',new:'reports',insp:'reports',branch:'clients',inspf:'reports',inspv:'reports',test:'tests',tgrade:'tests',empf:'emps',devh:'clients',perfu:'perf',view:'reports',edit:'reports',client:'clients',dev:'devices',sdev:'devices',supplier:'suppliers',cust:'custody',psale:'psales'};
+const SUBVIEW={quote:'quotes',plord:'pricelists',new:'reports',insp:'reports',branch:'clients',inspf:'reports',inspv:'reports',test:'tests',tgrade:'tests',empf:'emps',devh:'clients',perfu:'perf',view:'reports',edit:'reports',client:'clients',dev:'devices',sdev:'devices',supplier:'suppliers',cust:'custody',psale:'psales'};
 const tabOf=v=>SUBVIEW[v]||v;
 function allowed(v,p){if(v==='archive')return isDev(ME);if(v==='new')return can('reports_write');if(v==='insp'||v==='inspf'||v==='inspv')return can('inspections');if(v==='empf')return (can('emp_files')&&inSc(p))||p===ME?.id;if(v==='test')return isStaff();if(v==='tgrade')return can('tests');if(v==='view')return can('reports_write')||can('reports_all');if(v==='edit')return can('reports_write')||can('reports_all');const t=TABS.find(x=>x[0]===tabOf(v));return !t||t[2]()}
 const ICONS={
@@ -1019,6 +1021,7 @@ const ICONS={
  payroll:'<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.6"/><path d="M6 12h.01M18 12h.01"/>',
  offers:'<path d="M3 12V4h8l10 10-8 8z"/><circle cx="7.5" cy="8.5" r="1.5"/>',
  quotes:'<path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5M9 12h7M9 16h7"/>',
+ pricelists:'<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/><circle cx="17" cy="16" r="1.2"/>',
  meetings:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/><circle cx="12" cy="15" r="2"/>',
  hr:'<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M8 2v4M16 2v4M3 10h18M8 15l2 2 4-4"/>',
  import:'<path d="M12 3v12M7 10l5 5 5-5"/><path d="M4 17v3h16v-3"/>',
@@ -1050,6 +1053,7 @@ async function migrateReturns(){
 }
 function render(){if(PM_DEMO&&S){const ts=trialSub();if(ts){S.sub=ts;(S.users||[]).forEach(u=>{if(u.owner){delete u.owner;u.main=true}});if(ME&&ME.owner){delete ME.owner;ME.main=true}}}try{applyTheme(themeOf(ME))}catch(e){}try{applyLayout(layoutOf(ME))}catch(e){}try{const ic=S?.sub?.icons||'';document.body.classList.remove('ico-filled','ico-duotone','ico-circle','ico-square');if(ic&&ic!=='outline')document.body.classList.add('ico-'+ic);if(ME&&S?.sub?.look){const k='pm-look:'+PM_BKEY,old=localStorage.getItem(k);if(old!==S.sub.look){localStorage.setItem(k,S.sub.look);if(old)setTimeout(()=>toast('🎉 شكل جديد للسيستم — '+(S.sub.lookName||'')),400)}}}catch(e){}
   if(location.hash==='#req'){if(!window.WRP_SHOWN){window.WRP_SHOWN=1;viewWebReqPage(getFbConfig())}return}
+  if(/^#pl=[A-Za-z0-9_-]{4,40}$/.test(location.hash)){if(!window.PLP_SHOWN){window.PLP_SHOWN=1;viewPlPage(getFbConfig(),location.hash.slice(4))}return}
   if(location.hash.startsWith('#v=')){if(window.VER_SHOWN!==location.hash){window.VER_SHOWN=location.hash;viewVerifyPage(location.hash.slice(3))}return}
   if(isStaff()){backfill();try{if(!ONLINE||(SYNCED.requests&&SYNCED.contracts))autoPlanVisits()}catch(e){}}
   brandApply();
@@ -1072,7 +1076,7 @@ function render(){if(PM_DEMO&&S){const ts=trialSub();if(ts){S.sub=ts;(S.users||[
     +'';
   document.body.classList.remove('nonav');setTimeout(()=>{try{const a=document.querySelector('#tabs .tab.on');const t=$('#tabs');if(a&&t&&t.scrollWidth>t.clientWidth+4){const r=a.getBoundingClientRect(),q=t.getBoundingClientRect();if(r.left<q.left||r.right>q.right)t.scrollLeft+=(r.left+r.width/2)-(q.left+q.width/2)}}catch(e){}},30);
   const banner=(PM_DEMO?`<div class="banner info row between no-print" style="gap:10px;flex-wrap:wrap"><span>🧪 <b>دي نسخة تجربة من Beam Care Maintenance</b> — البيانات وهمية ومحفوظة على جهازك بس. جرّب براحتك.${PM_TRIAL_END?` <b>${PM_TRIAL_PLAN?.n?`باكدج ${esc(PM_TRIAL_PLAN.n)} · `:''}فاضل ${Math.max(0,Math.ceil((PM_TRIAL_END-Date.now())/864e5))} يوم على التجربة.</b>`:''}</span><span class="row" style="gap:6px">${PM_DEMO_WA?`<a class="btn sm pri" target="_blank" rel="noopener" href="https://wa.me/${PM_DEMO_WA}?text=${encodeURIComponent('أهلاً، جربت نسخة التجربة من Beam Care Maintenance وعايز أعرف تفاصيل الاشتراك')}">💬 عايز أشترك</a>`:''}<button class="btn sm" data-act="demoReset">ابدأ التجربة من جديد</button></span></div>`:'')+(S.demo&&isAdmin()&&!PM_DEMO?`<div class="banner row between no-print"><span>دي بيانات تجريبية. فيه مهندس (karim)، ومحاسب (amr)، ومدير المستهلكات (nader)، ومندوب توصيل (sayed)، وعيادة (skinline) — كلهم بكلمة سر 123456 علشان تجرب شاشاتهم.</span><button class="btn sm" data-act="clearDemo">امسح البيانات التجريبية وابدأ</button></div>`:PM_DEMO&&isAdmin()?`<div class="banner row between no-print"><span>تقدر تدخل بحسابات تانية علشان تشوف كل شاشة: مهندس (karim)، محاسب (amr)، مستهلكات (nader)، مندوب (sayed)، عيادة (skinline) — كلهم بكلمة سر 123456، والمدير admin بكلمة سر 123456.</span></div>`:'');
-  const V={import:viewImport,me:viewMe,webreqcfg:viewWebReqCfg,webreq:viewWebReq,mysub:viewMySub,devices:viewDevices,dev:()=>viewDev(PARAM),sdev:()=>viewSdev(PARAM),suppliers:viewSuppliers,supplier:()=>viewSupplier(PARAM),home:viewHome,requests:viewRequests,new:()=>viewForm(null),edit:()=>viewForm(PARAM),reports:viewReports,view:()=>viewReport(PARAM),clients:viewClients,client:()=>viewClient(PARAM),contracts:viewContracts,stock:viewStock,psales:viewPartSales,psale:()=>viewPartSale(PARAM),ar:viewAR,accounts:viewAccounts,capital:viewCapital,custody:viewCustody,cust:()=>viewCustodyOf(PARAM),hr:viewHR2,devh:()=>viewDevHistory(PARAM),orders:viewOrders,perf:viewPerf,perfu:()=>viewPerfUser(PARAM),tests:viewTests,test:()=>viewTakeTest(PARAM),tgrade:()=>viewGrade(PARAM),emps:viewEmps,payroll:viewPayroll,offers:viewOffers,quotes:viewQuotes,quote:()=>viewQuote(PARAM),meetings:viewMeetings,policy:()=>viewPolicy(),branch:()=>viewBranch(PARAM),insp:()=>viewInsp(),inspf:()=>viewInspForm(PARAM),inspv:()=>viewInspView(PARAM),treasury:()=>viewTreasury(),freon:()=>frStrip(can('stock')?`<div class="row between"><h2>المخزن</h2>${stockTabs()}</div>`+viewFreon():viewFreon()),weekly:()=>viewWeekly(),analytics:()=>viewAnalytics(),ledger:()=>viewLedger(),audit:()=>viewAudit(),archive:()=>viewArchive(),empf:()=>viewEmpFile(PARAM),users:viewUsers,settings:()=>(can('nav_order')?navOrderPanel():'')+(can('settings')?viewSettings():'')};
+  const V={import:viewImport,me:viewMe,webreqcfg:viewWebReqCfg,webreq:viewWebReq,mysub:viewMySub,devices:viewDevices,dev:()=>viewDev(PARAM),sdev:()=>viewSdev(PARAM),suppliers:viewSuppliers,supplier:()=>viewSupplier(PARAM),home:viewHome,requests:viewRequests,new:()=>viewForm(null),edit:()=>viewForm(PARAM),reports:viewReports,view:()=>viewReport(PARAM),clients:viewClients,client:()=>viewClient(PARAM),contracts:viewContracts,stock:viewStock,psales:viewPartSales,psale:()=>viewPartSale(PARAM),ar:viewAR,accounts:viewAccounts,capital:viewCapital,custody:viewCustody,cust:()=>viewCustodyOf(PARAM),hr:viewHR2,devh:()=>viewDevHistory(PARAM),orders:viewOrders,perf:viewPerf,perfu:()=>viewPerfUser(PARAM),tests:viewTests,test:()=>viewTakeTest(PARAM),tgrade:()=>viewGrade(PARAM),emps:viewEmps,payroll:viewPayroll,offers:viewOffers,pricelists:viewPricelists,plord:()=>viewPlOrder(PARAM),quotes:viewQuotes,quote:()=>viewQuote(PARAM),meetings:viewMeetings,policy:()=>viewPolicy(),branch:()=>viewBranch(PARAM),insp:()=>viewInsp(),inspf:()=>viewInspForm(PARAM),inspv:()=>viewInspView(PARAM),treasury:()=>viewTreasury(),freon:()=>frStrip(can('stock')?`<div class="row between"><h2>المخزن</h2>${stockTabs()}</div>`+viewFreon():viewFreon()),weekly:()=>viewWeekly(),analytics:()=>viewAnalytics(),ledger:()=>viewLedger(),audit:()=>viewAudit(),archive:()=>viewArchive(),empf:()=>viewEmpFile(PARAM),users:viewUsers,settings:()=>(can('nav_order')?navOrderPanel():'')+(can('settings')?viewSettings():'')};
   m.innerHTML=subBanner()+banner+hubBar(VIEW)+(V[VIEW]||viewHome)();
   if(VIEW==='new'||VIEW==='edit')initForm();
   if(VIEW==='webreq'||VIEW==='webreqcfg')wrBind();
@@ -1446,6 +1450,7 @@ function viewForm(id){
     <label class="f">TX<input id="f_tx" dir="ltr" inputmode="decimal" value="${esc(r?.tx||'')}"></label>
     <label class="f">PP<input id="f_pp" dir="ltr" inputmode="decimal" value="${esc(r?.pp||'')}"></label>
     <label class="f">H.V<input id="f_hv" dir="ltr" inputmode="decimal" value="${esc(r?.hv||'')}"></label>
+    ${dsOn()?`<div class="row" style="grid-column:1/-1;gap:8px;flex-wrap:wrap"><button type="button" class="btn pri" data-act="dsScan">📷 اقرا من شاشة الجهاز</button><span class="muted small">صوّر شاشة الجهاز بعد المعايرة، والسيستم يكتب السيريال والنبضات والـ TX والـ H.V@60J لوحده.</span></div><div id="f_scanres" style="grid-column:1/-1"></div>`:''}
     <div id="f_last" class="muted small" style="grid-column:1/-1"></div>
     <label class="f">نوع الزيارة<select id="f_visit">${opt(Object.entries(VISIT),VISIT[pre?.visitType]?pre.visitType:'emergency')}</select></label>
     <label class="f">نوع العمل<select id="f_work">${opt(WORK.map(w=>[w,w]),pre?.work||'صيانة')}</select></label>
@@ -1548,8 +1553,8 @@ function initForm(){
     $('#f_cinfo').innerHTML=info;
     if(!keep&&c){$('#f_visit').value=contractOn(c.id,$('#f_date').value||today(),$('#f_branch').disabled?'':$('#f_branch').value,$('#f_dserial').value.trim())?'contract':'emergency';setFee()}
   };
-  const lastRead=()=>{const sr=$('#f_dserial').value.trim();const el=$('#f_last');if(!el)return;const prev=S.reports.filter(x=>x.id!==FORM.id&&sr&&x.device?.serial===sr&&(x.tx||x.pp||x.hv)).sort((a,b)=>b.date.localeCompare(a.date))[0];el.innerHTML=prev?`آخر قراءة للجهاز ده (${fd(prev.date)}): TX <b class="num">${esc(prev.tx||'—')}</b> · PP <b class="num">${esc(prev.pp||'—')}</b> · H.V <b class="num">${esc(prev.hv||'—')}</b>`:''};
-  $('#f_dserial').addEventListener('input',lastRead);
+  const lastRead=()=>{const sr=$('#f_dserial').value.trim();const el=$('#f_last');if(!el)return;const prev=S.reports.filter(x=>x.id!==FORM.id&&sr&&x.device?.serial===sr&&(x.tx||x.pp||x.hv)).sort((a,b)=>b.date.localeCompare(a.date))[0];el.innerHTML=dsOn()?(sr?dsCompareLine(sr,{pp:$('#f_pp').value.trim(),tx:$('#f_tx').value.trim(),hv:$('#f_hv').value.trim()},FORM.id,$('#f_date').value):''):prev?`آخر قراءة للجهاز ده (${fd(prev.date)}): TX <b class="num">${esc(prev.tx||'—')}</b> · PP <b class="num">${esc(prev.pp||'—')}</b> · H.V <b class="num">${esc(prev.hv||'—')}</b>`:''};
+  $('#f_dserial').addEventListener('input',lastRead);['f_pp','f_tx','f_hv'].forEach(i=>{const e=$('#'+i);if(e)e.addEventListener('input',lastRead)});
   $('#f_client').onchange=()=>{fillDevices(false);lastRead()};
   $('#f_dev').onchange=()=>{const c=client($('#f_client').value);const d=c?clientDevices(c)[$('#f_dev').value]:null;$('#f_dbrand').value=d?.brand||'';$('#f_dname').value=d?.name||'';$('#f_dmodel').value=d?.model||'';$('#f_dserial').value=d?.serial||'';if(d?.branch)$('#f_branch').value=d.branch;lastRead();autoVisit();if(false){$('#f_visit').value=kNow()?'contract':'emergency';setFee();const lk=lastContract(c.id);const k=kNow();$('#f_cinfo').innerHTML=`نوع العميل: <b>${CTYPE[c.type]}</b>`+(k?` — ${k.serial?'عقد الجهاز ده':'العقد'} ساري لحد ${fd(k.end)}`:lk?` — <span style="color:var(--bad)">الجهاز ده ملوش عقد ساري — الزيارة بسعر الزيارة (${money(S.settings.visitFee)})</span>`:'')}};
   $('#f_visit').onchange=setFee;$('#f_grace').onchange=setFee;$('#f_date').addEventListener('change',autoVisit);$('#f_branch').addEventListener('change',()=>{const c=client($('#f_client').value);if(c){const devs=clientDevices(c);const cur=devs[$('#f_dev').value];if(cur&&cur.branch&&cur.branch!==$('#f_branch').value){const i=devs.findIndex(d=>(d.branch||'')===$('#f_branch').value);if(i>=0){$('#f_dev').value=i;$('#f_dev').onchange();return}}}autoVisit()});$('#f_dserial').addEventListener('change',autoVisit);
@@ -1619,7 +1624,7 @@ async function saveReport(){
   const faults=old?.faults||[];
   const r={id:rid,no,date:g('f_date'),clientId:cid,branch:$('#f_branch').disabled?'':g('f_branch'),
     device:{brand:g('f_dbrand'),name:g('f_dname'),model:g('f_dmodel'),serial:g('f_dserial')},
-    tx:g('f_tx'),pp:ppNow,hv:g('f_hv'),faults,
+    tx:g('f_tx'),pp:ppNow,hv:g('f_hv'),faults,...((FORM.scan||old?.scan)?{scan:FORM.scan||old.scan}:{}),
     contractId:g('f_visit')==='contract'?(contractOn(cid,g('f_date'),$('#f_branch').disabled?'':g('f_branch'),g('f_dserial'))?.id||''):'',visitType:g('f_visit')==='contract'&&!contractOn(cid,g('f_date'),$('#f_branch').disabled?'':g('f_branch'),g('f_dserial'))&&!(can('contract_grace')&&$('#f_grace')?.checked)?'emergency':g('f_visit'),graceContract:g('f_visit')==='contract'&&!contractOn(cid,g('f_date'),$('#f_branch').disabled?'':g('f_branch'),g('f_dserial'))&&can('contract_grace')&&!!$('#f_grace')?.checked,work:g('f_work'),complaint:g('f_complaint'),done:g('f_done'),parts,oldReceived:$('#f_old').checked,
     visitFee:fee,discount:disc,total:tot,method:g('f_method'),term:FORM.term,
     paid:FORM.term==='cash'?tot:Math.min(tot,n(g('f_paid'))),due:FORM.term==='credit'?g('f_due'):'',
@@ -2895,12 +2900,23 @@ service cloud.firestore {
     function subLive() { return request.time < get(/databases/$(database)/documents/meta/sub).data.lockAt && get(/databases/$(database)/documents/meta/sub).data.get('stop', false) != true; }
     function noUpd() { return !exists(/databases/$(database)/documents/meta/sub) || get(/databases/$(database)/documents/meta/sub).data.get('upd', false) != true; }
     function wrOk(d) { return d.keys().hasOnly(['name', 'phone', 'area', 'address', 'device', 'catId', 'catName', 'item', 'pref', 'notes', 'status', 'at', 'items']) && d.get('items', []) is list && d.get('items', []).size() <= 30 && d.name is string && d.name.size() > 1 && d.name.size() <= 80 && d.phone is string && d.phone.size() >= 8 && d.phone.size() <= 20 && d.get('area', '') is string && d.get('area', '').size() <= 60 && d.get('address', '') is string && d.get('address', '').size() <= 200 && d.get('device', '') is string && d.get('device', '').size() <= 80 && d.catName is string && d.catName.size() <= 40 && d.get('item', '') is string && d.get('item', '').size() <= 60 && d.get('notes', '') is string && d.get('notes', '').size() <= 600 && d.status == 'new' && d.at == request.time; }
+    function plOk() { return !exists(/databases/$(database)/documents/meta/sub) || ((!subOn() || subLive()) && noUpd() && get(/databases/$(database)/documents/meta/sub).data.get('mods', {}).get('pricelists', true) != false); }
+    function plOrd(d) { return d.keys().hasOnly(['plId', 'plTitle', 'name', 'clinic', 'phone', 'address', 'notes', 'clientId', 'uid', 'disc', 'items', 'status', 'at', '_u']) && d.plId is string && d.name is string && d.name.size() <= 80 && d.phone is string && d.phone.size() <= 20 && d.clientId is string && d.items is list && d.items.size() > 0 && d.items.size() <= 80 && d.status == 'new' && d.at == request.time && d._u == request.time; }
     function wOK() { return ((!subOn() || subLive()) && noUpd()) || isDev(); }
     function rOK() { return !subOn() || subLive() || (get(/databases/$(database)/documents/meta/sub).data.get('mode', 'read') != 'full' && get(/databases/$(database)/documents/meta/sub).data.get('stop', false) != true) || isDev(); }
 
     match /meta/sub { allow read: if signed(); allow write: if isDev(); }
     match /meta/admin { allow read: if true; allow create: if signed() && !exists(/databases/$(database)/documents/meta/admin); }
     match /webcat/{id} { allow read: if true; allow write: if (((isStaff())) && wOK()) || isDev(); }
+    match /pricelists/{id} {
+      allow read: if (resource.data.get('on', true) != false && plOk()) || (((can('pricelists'))) && rOK()) || isDev();
+      allow write: if (((can('pricelists'))) && wOK()) || isDev();
+    }
+    match /plorders/{id} {
+      allow create: if plOk() && plOrd(request.resource.data) && exists(/databases/$(database)/documents/pricelists/$(request.resource.data.plId)) && get(/databases/$(database)/documents/pricelists/$(request.resource.data.plId)).data.get('on', true) != false && ((request.resource.data.clientId == '' && get(/databases/$(database)/documents/pricelists/$(request.resource.data.plId)).data.get('who', 'all') != 'clients') || (request.resource.data.clientId != '' && active() && me().role == 'clinic' && me().clientId == request.resource.data.clientId && request.resource.data.uid == request.auth.uid));
+      allow read: if (((can('pricelists'))) && rOK()) || isDev();
+      allow update, delete: if (((can('pricelists'))) && wOK()) || isDev();
+    }
     match /meta/webreq { allow read: if true; allow write: if (((can('settings'))) && wOK()) || isDev(); }
     match /webreq/{id} {
       allow create: if exists(/databases/$(database)/documents/meta/webreq) && get(/databases/$(database)/documents/meta/webreq).data.get('on', false) == true && (!subOn() || subLive()) && (!exists(/databases/$(database)/documents/meta/sub) || get(/databases/$(database)/documents/meta/sub).data.get('webReq', false) == true) && wrOk(request.resource.data);
@@ -3348,13 +3364,14 @@ function derivedNotifs(){
     const k=activeContract(cid);if(k&&daysTo(k.end)<=15)out.push({key:'kt'+k.id+k.end,title:'عقد الصيانة قرب يخلص',body:`العقد بينتهي ${fd(k.end)} — كلمنا للتجديد`,v:'c:acc',ts:0});
     if(cp('shop'))out.push(...offerNotifs(cid));
     try{out.push(...clinicPlanNotifs(cid))}catch(e){}
+    try{out.push(...dsAlertNotifs(cid))}catch(e){}
     S.requests.filter(r=>r.clientId===cid&&r.onWayAt&&!r.arrivedAt&&r.status==='assigned').forEach(r=>out.push({key:'ow'+r.id,title:'🚗 المهندس في الطريق ليك',body:`${r.engineerName||''} — متوقع يوصل حوالي ${r.eta||''}`,v:'c:req',ts:Date.parse(r.onWayAt)||0}));
     if(cp('rate'))unratedReports().slice(0,3).forEach(r=>out.push({key:'rt'+r.id,title:'قيّم زيارة الصيانة',body:`زيارة ${fd(r.date)}${r.engineer?' — المهندس '+r.engineer:''}`,v:'c:rate',p:r.id,ts:Date.parse(r.date)||0}));
     return out;
   }
   if(can('ar'))openItems().filter(i=>dueSoon(i.due)).forEach(i=>out.push({key:'du'+i.type+i.x.id+(i.sub??'')+i.due,title:daysTo(i.due)===0?'فيه تحصيل النهارده':'بكره فيه تحصيل',body:`${i.client?.name||''} — ${i.label} — ${money(i.bal)}`,v:'ar',ts:Date.parse(i.due)||0}));
   if(can('suppliers'))supDueItems().filter(i=>dueSoon(i.due)).forEach(i=>out.push({key:'sd'+i.p.id+i.due,title:daysTo(i.due)===0?'دفعة لمورد النهارده':'بكره دفعة لمورد',body:`${S.suppliers.find(x=>x.id===i.p.supplierId)?.name||''} — ${i.label} — ${money(i.bal)}`,v:'suppliers',ts:Date.parse(i.due)||0}));
-  out.push(...meetingNotifs());out.push(...noteNotifs());
+  out.push(...meetingNotifs());out.push(...noteNotifs());try{out.push(...plNotifs())}catch(e){}if(can('clients')||can('reports_all')||can('requests'))try{out.push(...dsAlertNotifs())}catch(e){}
   S.requests.filter(r=>r.engineerId===ME.id&&r.status==='assigned'&&r.date===today()).forEach(r=>{const c=client(r.clientId)||{};out.push({key:'tv'+r.id+r.date,title:'عندك زيارة النهارده',body:`${c.clinic||c.name||''}${r.branch?' – '+r.branch:''} — ${slotLabel(r.slot)}`,v:'home',ts:Date.parse(r.date)||0})});
   return out;
 }
@@ -3448,6 +3465,7 @@ function viewDevHistory(p){
   </div>
   <div class="panel"><h3>بيانات الجهاز</h3><div class="kv">${devInfoKV({...d,serial})}<span>الفرع</span><a href="#" data-go="branch" data-p="${esc(c.id+'|'+(d.branch||''))}">${esc(d.branch||'الرئيسي')} ›</a></div></div>
   ${devAcctPanel(c,{...d,serial})}
+  ${dsHistPanel(cid,serial)}${dsAlertsPanel(c,serial)}
   <div class="panel"><h3>الأعطال اللي حصلت للجهاز</h3>${faults.length?`<div class="tbl-wrap"><table class="t"><thead><tr><th>العطل</th><th>عدد المرات</th><th>آخر مرة</th></tr></thead><tbody>${faults.map(x=>`<tr><td>${esc(x.f)}</td><td><span class="pill ${x.count>=3?'p-bad':x.count===2?'p-warn':'p-mut'}">${x.count}</span></td><td>${fd(x.last)}</td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">لسه مفيش أعطال متسجلة</div>'}</div>
   <div class="panel"><h3>قطع الغيار اللي اتركبت</h3>${parts.length?`<div class="tbl-wrap"><table class="t"><thead><tr><th>القطعة</th><th>العدد</th><th>اتركبت</th><th>الضمان</th></tr></thead><tbody>${parts.map(x=>`<tr><td><b>${esc(x.l.name)}</b>${x.l.unitCode?` <span class="muted small num">${esc(x.l.unitCode)}</span>`:''}${x.back?` <span class="pill p-warn">اترجع ${x.back}</span>`:''}</td><td>${x.l.qty}</td><td>${fd(x.r.date)} <a href="#" data-view="${x.r.id}" class="small num">#${pad(x.r.no)}</a></td><td class="small">${x.w?`${x.w.expired?'<span class="pill p-bad">انتهى</span>':'<span class="pill p-ok">ساري</span>'} ${x.w.txt.join(' · ')}`:'—'}</td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">لسه مفيش قطع اتركبت</div>'}</div>
   <div class="panel"><h3>سجل الزيارات</h3>${reps.length?reps.map(r=>`<div class="req" style="margin-bottom:8px"><div class="row between"><span class="row"><b>${fd(r.date)}</b><a href="#" data-view="${r.id}" class="num">تقرير #${pad(r.no)}</a><span class="pill p-mut">${esc(visitLabel(r.visitType))}</span>${r.branch?`<span class="pill p-info">${esc(r.branch)}</span>`:''}</span><span class="small muted">${esc(r.engineer||'')}${r.pp?` · PP <span class="num">${esc(r.pp)}</span>`:''}</span></div>
@@ -7039,7 +7057,7 @@ const HUBS=[
  {id:'fin',label:'إدارة المحاسبة',icon:'accounts',items:[['accounts','ملخص الحسابات'],['treasury','الخزينة'],['ar','الآجل والتحصيل'],['capital','رأس المال'],['ledger','القيود والقوائم'],['weekly','التقارير الدورية']]},
  {id:'staffh',label:'الموارد البشرية',icon:'perf',items:[['hr','الحضور والإجازات'],['custody','العهدة والمصاريف'],['emps','ملفات الموظفين'],['payroll','المرتبات والمكافآت'],['perf','الأداء والتقييم'],['tests','الاختبارات'],['meetings','الاجتماعات'],['policy','سياسة العمل']]},
  {id:'seth',label:'الإعدادات',icon:'settings',items:[['settings','الإعدادات العامة'],['users','المستخدمين'],['webreqcfg','طلب الخدمة أونلاين'],['mysub','الاشتراك والباكدج'],['import','استيراد من Excel'],['me','حسابي']],lead:'settings'},
- {id:'salesh',label:'فواتير البيع والعروض',icon:'psales',items:[['psales','فواتير البيع'],['quotes','عروض الأسعار'],['offers','العروض']]},
+ {id:'salesh',label:'فواتير البيع والعروض',icon:'psales',items:[['psales','فواتير البيع'],['quotes','عروض الأسعار'],['pricelists','قوائم الأسعار'],['offers','العروض']]},
  {id:'sysh',label:'السجل والأرشيف',icon:'audit',items:[['audit','سجل التعديلات'],['archive','الأرشيف والنسخ']]},
  {id:'stockh',label:'المخزن',icon:'stock',items:[['stock','المخزن'],['freon','الفريون']],nobar:true,lead:'stock'}
 ];
@@ -8018,7 +8036,403 @@ async function sendQuote(id){
 Object.assign(NEED9,{qNew:'quotes',qEdit:'quotes',qCopy:'quotes',qSend:'quotes',qDel:'quotes'});
 Object.assign(X9,{qNew:()=>openQuote(null),qEdit:(t,id)=>openQuote(id),qCopy:(t,id)=>openQuote(null,id),qSend:(t,id)=>sendQuote(id),
   qDel:(t,id)=>confirmBox('حذف عرض الأسعار ده؟',()=>{S.quotes=(S.quotes||[]).filter(x=>x.id!==id);save();go('quotes')})});
-const SUB_MODS=[['export','تحميل كل البيانات Excel',[]],['freon','الفريون',['freon']],['sales','المبيعات والمستهلكات والعروض',['psales','orders','offers']],['quotes','عروض الأسعار',['quotes']],['devices','بيع وإيجار الأجهزة',['devices']],['contracts','عقود الصيانة',['contracts']],['suppliers','الموردين والمشتريات',['suppliers']],['finance','الحسابات والخزينة ورأس المال والآجل',['ar','accounts','capital','treasury','ledger']],['hr','الحضور والإجازات',['hr']],['payroll','المرتبات والمكافآت',['payroll']],['staff','إدارة الموظفين',['custody','meetings','perf','tests','policy','emps']],['weekly','التقارير الدورية',['weekly']],['analytics','التحليلات',['analytics']],['gs','النسخ لجوجل شيت',[]]];
+/* =====================================================================
+   قوائم الأسعار: قائمة بأصناف من المخزن، ليها لينك العميل يطلب منه
+   ===================================================================== */
+const PLS=()=>(S.pricelists||[]).filter(x=>!x.deleted);
+const PLO=()=>S.plorders||[];
+const PL_ST={new:['جديد','p-warn'],talk:['اتكلمنا معاه','p-info'],confirmed:['اتأكد','p-ok'],cancel:['ملغي','p-bad']};
+let PL_TAB='lists';
+const plUrl=id=>location.origin+location.pathname.replace(/[^/]*$/,'')+PM_Q+'#pl='+id;
+const plLive=pl=>!!pl&&pl.on!==false&&(!pl.until||pl.until>=today());
+const plPrice=(pl,it)=>n(it.price)*(1-n(pl.disc)/100);
+const plTime=o=>{try{const a=o.at;return a&&a.toDate?a.toDate().getTime():a&&typeof a==='object'&&(a.seconds||a._seconds)?(a.seconds||a._seconds)*1000:a?(Date.parse(a.__ts||a)||0):0}catch(e){return 0}};
+const plNo=o=>'PL-'+String(o.id||'').slice(-5).toUpperCase();
+const plOrdTotal=o=>n((o.items||[]).reduce((a,l)=>a+n(l.qty)*n(l.price),0)*(1-n(o.disc)/100));
+const plKindOf=p=>catOf(p)==='cons'?'cons':p.freonKg?'freon':'spare';
+const PL_KINDS=[['cons','المستهلكات'],['freon','الفريون'],['spare','قطع الغيار']];
+const plParts=()=>qParts().filter(p=>catOf(p)==='cons'||catOf(p)==='spare');
+
+function plItemFrom(p,price){return {pid:p.id,name:p.name,code:p.code||'',unit:p.unit||'',group:p.group||(p.brand||''),kind:plKindOf(p),price:n(price),avail:partAvail(p)>0,qty:Math.max(0,partAvail(p)),photo:p.photo||''}}
+function plFit(d){ // الصور بتتشال من الآخر لو المستند كبر عن الحد
+  const sz=()=>JSON.stringify(d).length;if(sz()<850000)return d;
+  for(let i=d.items.length-1;i>=0&&sz()>=850000;i--)if(d.items[i].photo)d.items[i].photo='';
+  return d}
+function plBrand(){const s=S.settings||{};let logo=brandLogo()||'';if(logo.length>300000)logo='';
+  return {name:BRAND(),logo,color:(s.color||s.brandColor||''),wa:normD(s.plWa||s.phone||(WWR_CFG&&WWR_CFG.wa)||'').replace(/[^0-9+]/g,'').slice(0,20)}}
+
+function viewPricelists(){
+  const L=[...PLS()].sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||''));
+  const O=[...PLO()].sort((a,b)=>plTime(b)-plTime(a));const nNew=O.filter(o=>(o.status||'new')==='new').length;
+  const tabs=`<div class="seg" style="flex-wrap:wrap"><button data-act="plTab" data-id="lists" class="${PL_TAB==='lists'?'on':''}">📋 القوائم (${L.length})</button><button data-act="plTab" data-id="orders" class="${PL_TAB==='orders'?'on':''}">🧾 الطلبات${nNew?` <span class="pill p-warn">${nNew} جديد</span>`:''}</button></div>`;
+  const head=`<div class="row between"><h2>قوائم الأسعار</h2><button class="btn pri" data-act="plNew">+ قائمة أسعار جديدة</button></div>
+   <div class="muted small">اختار أصناف من المخزن واعمل منها قائمة أسعار بلوجو الشركة. ابعت اللينك أو الصورة للعملاء على واتساب، والعميل يختار اللي عايزه ويبعت الطلب، فيوصلك هنا على طول.</div>${ONLINE?'':'<div class="banner">اللينك بيشتغل للعملاء لما السيستم يبقى أونلاين بس. تقدر تعمل القوائم وتبعتها صورة دلوقتي عادي.</div>'}${tabs}`;
+  if(PL_TAB==='orders')return head+`<div class="panel">${O.length?`<div class="tbl-wrap"><table class="t"><thead><tr><th>الطلب</th><th>العميل</th><th>القائمة</th><th>الإجمالي</th><th>الحالة</th><th></th></tr></thead><tbody>${O.map(o=>{const st=PL_ST[o.status||'new']||PL_ST.new;return `<tr><td><b class="num">${plNo(o)}</b><div class="muted small">${plDate(o)}</div></td><td><b>${esc(o.clinic||o.name||'—')}</b>${o.clinic&&o.name?`<div class="muted small">${esc(o.name)}</div>`:''}${o.clientId?' <span class="pill p-ok">مسجّل</span>':''}</td><td class="small">${esc(o.plTitle||'')}</td><td class="num">${money(plOrdTotal(o))}</td><td><span class="pill ${st[1]}">${st[0]}</span></td><td><button class="btn sm" data-go="plord" data-p="${o.id}">افتح</button></td></tr>`}).join('')}</tbody></table></div>`:'<div class="empty">لسه مفيش طلبات. ابعت قائمة لعملاءك والطلبات هتظهر هنا.</div>'}</div>`;
+  return head+(L.length?`<div class="grid" style="gap:10px">${L.map(pl=>{const nO=O.filter(o=>o.plId===pl.id).length,live=plLive(pl);return `<div class="panel row between" style="gap:10px;flex-wrap:wrap"><div style="min-width:0"><b>${esc(pl.title||'قائمة أسعار')}</b> <span class="pill ${live?'p-ok':'p-mut'}">${live?'شغّالة':pl.on===false?'موقوفة':'منتهية'}</span>
+     <div class="muted small">${(pl.items||[]).length} صنف${pl.until?` · سارية لحد ${fd(pl.until)}`:''}${n(pl.disc)?` · خصم ${n(pl.disc)}%`:''} · ${nO} طلب</div></div>
+     <div class="row" style="gap:6px;flex-wrap:wrap"><button class="btn sm" data-act="plEdit" data-id="${pl.id}">✏️ تعديل</button><button class="btn sm" data-act="plCopyLink" data-id="${pl.id}">🔗 انسخ اللينك</button><button class="btn sm" data-act="plImg" data-id="${pl.id}">🖼️ صورة</button><button class="btn sm" data-act="plPdf" data-id="${pl.id}">📄 PDF</button><button class="btn sm pri" data-act="plShare" data-id="${pl.id}">💬 ابعت</button></div></div>`}).join('')}</div>`:'<div class="panel"><div class="empty">لسه معملتش قوائم. دوس «قائمة أسعار جديدة» واختار الأصناف.</div></div>');
+}
+const plDate=o=>{const t=plTime(o);return t?new Date(t).toLocaleString('ar-EG',{day:'numeric',month:'short',hour:'numeric',minute:'2-digit'}):''};
+
+function openPricelist(id){
+  const src=id?PLS().find(x=>x.id===id):null;
+  const pl=src?JSON.parse(JSON.stringify(src)):{title:'',until:addDays(today(),30),disc:0,who:'all',showImg:true,showUnit:true,showQty:false,hideOut:true,note:'',items:[]};
+  const sel=new Map((pl.items||[]).map(it=>[it.pid,n(it.price)]));
+  let K='cons',Q='';const P=plParts();
+  modal(`<h3>${id?'تعديل قائمة الأسعار':'قائمة أسعار جديدة'}</h3>
+   <div class="grid g2">
+    <label class="f span2">اسم القائمة (بيظهر للعميل)<input id="pl_t" maxlength="70" value="${esc(pl.title||'')}" placeholder="مثلاً: قائمة أسعار المستهلكات — نوفمبر" required></label>
+    <label class="f">سارية لحد (اختياري)<input type="date" id="pl_u" value="${esc(pl.until||'')}"></label>
+    <label class="f">خصم على القائمة كلها %<input type="number" id="pl_d" min="0" max="90" step="any" value="${n(pl.disc)||0}"></label>
+    <label class="f span2">مين يقدر يطلب<select id="pl_w"><option value="all" ${pl.who!=='clients'?'selected':''}>أي حد معاه اللينك، والعيادات المسجّلة بتتعرف لوحدها</option><option value="clients" ${pl.who==='clients'?'selected':''}>العيادات المسجّلة بس (لازم تكون داخلة بحسابها)</option></select></label>
+    <label class="f">كلمة للعملاء تحت العنوان (اختياري)<input id="pl_n" maxlength="140" value="${esc(pl.note||'')}" placeholder="مثلاً: الأسعار شاملة التوصيل"></label>
+    <label class="f">رقم الواتساب اللي يظهر في القائمة<input id="pl_wa" dir="ltr" inputmode="tel" maxlength="20" value="${esc(pl.brand?.wa||plBrand().wa||'')}" placeholder="01xxxxxxxxx"></label>
+   </div>
+   <div class="row small" style="gap:12px;flex-wrap:wrap"><label class="row" style="gap:6px"><input type="checkbox" id="pl_si" ${pl.showImg!==false?'checked':''} style="width:auto"> اعرض صور الأصناف</label><label class="row" style="gap:6px"><input type="checkbox" id="pl_su" ${pl.showUnit!==false?'checked':''} style="width:auto"> اعرض الوحدة</label><label class="row" style="gap:6px"><input type="checkbox" id="pl_sq" ${pl.showQty?'checked':''} style="width:auto"> اعرض الكمية المتاحة</label><label class="row" style="gap:6px"><input type="checkbox" id="pl_ho" ${pl.hideOut!==false?'checked':''} style="width:auto"> اخفي الصنف لو خلص من المخزن</label></div>
+   <div class="sec-title row between" style="gap:8px;flex-wrap:wrap"><span>الأصناف — <b id="pl_cnt">0</b> مختار</span><label class="row" style="gap:6px;font-weight:400"><input type="checkbox" id="pl_on" ${pl.on!==false?'checked':''} style="width:auto"> القائمة شغّالة (اللينك مفتوح للعملاء)</label></div>
+   <div class="seg" id="pl_k" style="flex-wrap:wrap"></div>
+   <div class="row" style="gap:6px;flex-wrap:wrap"><input id="pl_s" placeholder="🔍 دوّر بالاسم أو الكود" style="flex:1;min-width:180px"><button type="button" class="btn sm" id="pl_all">✓ اختار الكل</button><button type="button" class="btn sm" id="pl_none">شيل الكل</button></div>
+   <div id="pl_box" style="max-height:340px;overflow:auto;border:1px solid var(--line);border-radius:10px"></div>
+   <div class="muted small">السعر بيتسحب من سعر البيع في المخزن، وتقدر تغيّره هنا للقائمة دي بس من غير ما يتغير في المخزن.</div>`,async()=>{
+    syncP();const t=$('#pl_t').value.trim();if(!t){toast('اكتب اسم القائمة');return false}
+    if(!sel.size){toast('اختار صنف واحد على الأقل');return false}
+    const bad=[...sel].find(([pid,pr])=>!(n(pr)>0));if(bad){toast(`«${part(bad[0])?.name||''}» من غير سعر — اكتب السعر`);return false}
+    const items=P.filter(p=>sel.has(p.id)).map(p=>{const it=plItemFrom(p,sel.get(p.id));if(!$('#pl_si').checked)it.photo='';return it}).sort((a,b)=>PL_KINDS.findIndex(k=>k[0]===a.kind)-PL_KINDS.findIndex(k=>k[0]===b.kind)||(a.group||'').localeCompare(b.group||'','ar')||a.name.localeCompare(b.name,'ar'));
+    const d=plFit({title:t,until:$('#pl_u').value||'',disc:Math.min(90,Math.max(0,n($('#pl_d').value))),who:$('#pl_w').value,note:$('#pl_n').value.trim().slice(0,140),showImg:$('#pl_si').checked,showUnit:$('#pl_su').checked,showQty:$('#pl_sq').checked,hideOut:$('#pl_ho').checked,on:$('#pl_on').checked,items,brand:{...plBrand(),wa:normD($('#pl_wa').value).replace(/[^0-9+]/g,'').slice(0,20)},updatedAt:new Date().toISOString(),by:ME.id});
+    let pid=id;
+    if(id)Object.assign(PLS().find(x=>x.id===id),d);
+    else{pid=uid();(S.pricelists=S.pricelists||[]).push({id:pid,createdAt:new Date().toISOString(),...d})}
+    try{const w=d.brand.wa;if(w&&S.settings&&S.settings.plWa!==w)S.settings.plWa=w}catch(e){}
+    save();toast(id?'اتحفظت القائمة ✓':'القائمة جاهزة ✓ — ابعتها لعملاءك');PL_TAB='lists';go('pricelists');
+    if(!id)setTimeout(()=>plShare(pid),350);
+  });
+  const syncP=()=>$$('#pl_box .pl-r').forEach(r=>{if(sel.has(r.dataset.id))sel.set(r.dataset.id,n(r.querySelector('.pl-p').value))});
+  const list=()=>P.filter(p=>plKindOf(p)===K&&(!Q||(p.name+' '+(p.code||'')+' '+(p.group||'')+' '+(p.brand||'')).toLowerCase().includes(Q)));
+  const kinds=()=>{$('#pl_k').innerHTML=PL_KINDS.map(([k,l])=>{const all=P.filter(p=>plKindOf(p)===k);if(!all.length)return '';const c=all.filter(p=>sel.has(p.id)).length;return `<button type="button" data-k="${k}" class="${K===k?'on':''}">${l} (${c?c+' / ':''}${all.length})</button>`}).join('');$('#pl_cnt').textContent=sel.size};
+  const draw=()=>{const L=list();$('#pl_box').innerHTML=L.length?L.map(p=>{const on=sel.has(p.id),av=partAvail(p);return `<div class="pl-r row" data-id="${p.id}" style="gap:8px;flex-wrap:nowrap;padding:7px 10px;border-bottom:1px solid var(--line);${on?'background:var(--surface-2)':''}">
+     <input type="checkbox" class="pl-c" ${on?'checked':''} style="width:auto;flex:none">${p.photo?`<img src="${p.photo}" alt="" style="width:34px;height:34px;object-fit:cover;border-radius:8px;flex:none">`:`<span style="width:34px;height:34px;border-radius:8px;background:var(--surface-2);display:grid;place-items:center;flex:none">${catOf(p)==='cons'?'📦':'⚙️'}</span>`}
+     <div style="flex:1;min-width:0"><b class="small">${esc(p.name)}</b><div class="muted small">${esc([p.code,p.group||p.brand,p.unit].filter(Boolean).join(' · '))} · في المخزن <span class="num">${av}</span></div></div>
+     <input class="pl-p num" type="number" min="0" step="any" value="${on?sel.get(p.id):n(p.sell)||''}" placeholder="السعر" style="width:96px;flex:none" ${on?'':'disabled'}></div>`}).join(''):'<div class="empty small">مفيش أصناف هنا</div>';kinds()};
+  $('#pl_box').addEventListener('change',e=>{const r=e.target.closest('.pl-r');if(!r||!e.target.classList.contains('pl-c'))return;syncP();const p=part(r.dataset.id);if(e.target.checked)sel.set(p.id,n(r.querySelector('.pl-p').value)||n(p.sell));else sel.delete(p.id);draw()});
+  $('#pl_box').addEventListener('input',e=>{if(e.target.classList.contains('pl-p'))syncP()});
+  $('#pl_k').addEventListener('click',e=>{const b=e.target.closest('button[data-k]');if(!b)return;syncP();K=b.dataset.k;draw()});
+  $('#pl_s').oninput=()=>{syncP();Q=$('#pl_s').value.trim().toLowerCase();draw()};
+  $('#pl_s').onkeydown=e=>{if(e.key==='Enter')e.preventDefault()};
+  $('#pl_all').onclick=()=>{syncP();list().forEach(p=>{if(!sel.has(p.id))sel.set(p.id,n(p.sell))});draw()};
+  $('#pl_none').onclick=()=>{syncP();list().forEach(p=>sel.delete(p.id));draw()};
+  if(!P.some(p=>plKindOf(p)===K))K=(PL_KINDS.find(([k])=>P.some(p=>plKindOf(p)===k))||['cons'])[0];
+  draw();
+}
+
+/* صورة القائمة (للواتساب) */
+function plSheetHTML(pl,qrUrl){
+  const B=pl.brand||plBrand(),NV='#0B1A33',AC=B.color||'#163A6B',GD='#C9971F',LN='#E3E8F0',MU='#64728A';
+  const items=(pl.items||[]).filter(it=>!pl.hideOut||it.avail!==false);let last='',rows='';
+  items.forEach(it=>{const k=it.group||(PL_KINDS.find(x=>x[0]===it.kind)||[,''])[1];if(k!==last){rows+=`<div style="font-size:14px;font-weight:800;color:${GD};margin:12px 4px 4px">${esc(k)}</div>`;last=k}
+    rows+=`<div style="display:flex;align-items:center;gap:12px;background:#fff;border:1px solid ${LN};border-radius:12px;padding:9px 12px;margin-bottom:6px">${pl.showImg!==false&&it.photo?`<img src="${it.photo}" style="width:44px;height:44px;object-fit:cover;border-radius:9px" alt="">`:''}<div style="flex:1;font-size:15px;font-weight:700;color:${NV}">${esc(it.name)}${pl.showUnit!==false&&it.unit?` <span style="color:${MU};font-weight:400;font-size:13px">/ ${esc(it.unit)}</span>`:''}</div><div style="font-size:16px;font-weight:800;color:${NV};white-space:nowrap">${money(plPrice(pl,it))}${n(pl.disc)?` <span style="text-decoration:line-through;color:#9AA4B5;font-size:12px;font-weight:400">${n(it.price).toLocaleString('en-US')}</span>`:''}</div></div>`});
+  return `<div dir="rtl" style="width:794px;background:#F4F6FA;font-family:Tahoma,'Segoe UI',Arial,sans-serif;color:${NV};box-sizing:border-box">
+   <div style="background:linear-gradient(160deg,${AC},${NV});color:#fff;padding:30px 34px 26px">
+    <div style="display:flex;align-items:center;gap:14px">${B.logo?`<img src="${B.logo}" style="height:56px;max-width:200px;object-fit:contain;background:#fff;border-radius:12px;padding:4px" alt="">`:''}<div style="font-size:24px;font-weight:800">${esc(B.name||'')}</div></div>
+    <div style="font-size:32px;font-weight:800;margin-top:16px">${esc(pl.title||'قائمة أسعار')}</div>
+    <div style="font-size:15px;opacity:.9;margin-top:4px">${pl.until?`الأسعار سارية لحد ${fd(pl.until)}`:''}${n(pl.disc)?`${pl.until?' · ':''}<b style="color:#E8BE5A">خصم ${n(pl.disc)}% على كل القائمة</b>`:''}</div>
+    ${pl.note?`<div style="font-size:14px;opacity:.85;margin-top:6px">${esc(pl.note)}</div>`:''}</div>
+   <div style="padding:10px 30px 18px">${rows}</div>
+   <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;background:${NV};color:#fff;padding:18px 30px">
+    <div><div style="font-size:20px;font-weight:800;color:#E8BE5A">${qrUrl?'امسح الكود واطلب على طول':'اطلب دلوقتي'}</div>${B.wa?`<div style="font-size:15px;margin-top:4px">أو كلّمنا: <b dir="ltr" style="display:inline-block">${esc(B.wa)}</b></div>`:''}</div>
+    ${qrUrl?`<img src="${qrUrl}" style="width:110px;height:110px;background:#fff;border-radius:12px;padding:6px" alt="">`:''}</div></div>`;
+}
+async function plQr(id){if(!ONLINE)return '';await loadQR();if(!window.qrcode)return '';try{return wrCanvasQR(plUrl(id),300).toDataURL('image/png')}catch(e){return ''}}
+async function plImgBlob(id){const pl=PLS().find(x=>x.id===id);if(!pl)return null;return await htmlBlob(plSheetHTML(pl,await plQr(id)))}
+const plFile=pl=>'قائمة-أسعار-'+String(pl.title||'').replace(/[\\/:*?"<>|]+/g,'').slice(0,40);
+const plMsg=pl=>`أهلًا 👋\n${pl.title||'قائمة الأسعار'} من ${pl.brand?.name||BRAND()}${n(pl.disc)?` — عليها خصم ${n(pl.disc)}%`:''}.\n${ONLINE?'اختار اللي محتاجه من اللينك وابعت طلبك، وهنكلّمك نأكد معاك:\n'+plUrl(pl.id):'كلّمنا وقولّنا محتاج إيه.'}`;
+async function plSaveImg(id){const pl=PLS().find(x=>x.id===id);toast('بيتم تجهيز الصورة…');try{const b=await plImgBlob(id);await download(b,plFile(pl)+'.png')}catch(e){toast('معرفتش أعمل الصورة')}}
+async function plPdf(id){const pl=PLS().find(x=>x.id===id);toast('بيتم تجهيز الـ PDF…');
+  try{const b=await plImgBlob(id);if(!window.jspdf)await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
+    const img=await new Promise((ok,no)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=no;i.src=URL.createObjectURL(b)});
+    const {jsPDF}=window.jspdf,doc=new jsPDF({unit:'pt',format:'a4'}),PW=doc.internal.pageSize.getWidth(),PH=doc.internal.pageSize.getHeight();
+    const sc=PW/img.width,pageH=Math.floor(PH/sc);const cv=document.createElement('canvas');cv.width=img.width;
+    for(let y=0,pg=0;y<img.height;y+=pageH,pg++){const h=Math.min(pageH,img.height-y);cv.height=h;const g=cv.getContext('2d');g.fillStyle='#F4F6FA';g.fillRect(0,0,cv.width,h);g.drawImage(img,0,y,img.width,h,0,0,img.width,h);if(pg)doc.addPage();doc.addImage(cv.toDataURL('image/jpeg',.9),'JPEG',0,0,PW,h*sc)}
+    await download(doc.output('blob'),plFile(pl)+'.pdf')}catch(e){toast('معرفتش أعمل الـ PDF — جرّب الصورة')}}
+async function plShare(id){const pl=PLS().find(x=>x.id===id);if(!pl)return;
+  modal(`<h3>💬 ابعت «${esc(pl.title||'')}»</h3>
+   ${ONLINE?`<label class="f">لينك القائمة<input id="pl_link" dir="ltr" readonly value="${esc(plUrl(id))}"></label>`:'<div class="banner">اللينك بيشتغل لما السيستم يبقى أونلاين. تقدر تبعت الصورة دلوقتي.</div>'}
+   <div class="grid g2" style="gap:8px">${ONLINE?'<button type="button" class="btn pri" id="pl_wl">💬 ابعت اللينك على واتساب</button><button type="button" class="btn" id="pl_cl">🔗 انسخ اللينك</button>':''}<button type="button" class="btn ${ONLINE?'':'pri'}" id="pl_wi">🖼️ ابعت الصورة</button><button type="button" class="btn" id="pl_wp">📄 حمّل PDF</button></div>
+   <div class="muted small">الصورة فيها كود QR بيفتح نفس اللينك، فالعميل يقدر يطلب منها برضه.</div>`,()=>true);
+  const ok=$('#mOk');if(ok)ok.textContent='تمام';
+  const L=$('#pl_wl');if(L)L.onclick=async()=>{const t=plMsg(pl);try{if(navigator.share){await navigator.share({text:t});return}}catch(e){if(e?.name==='AbortError')return}openWa('',t)};
+  const C=$('#pl_cl');if(C)C.onclick=async()=>{try{await navigator.clipboard.writeText(plUrl(id));toast('اتنسخ اللينك')}catch(e){const i=$('#pl_link');i.select();document.execCommand('copy');toast('اتنسخ اللينك')}};
+  $('#pl_wi').onclick=async()=>{toast('بيتم تجهيز الصورة…');let b=null;try{b=await plImgBlob(id)}catch(e){}if(!b){toast('معرفتش أعمل الصورة');return}
+    const f=new File([b],plFile(pl)+'.png',{type:'image/png'});try{if(!IN_ART()&&navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],text:plMsg(pl)});return}}catch(e){if(e?.name==='AbortError')return}
+    await download(b,plFile(pl)+'.png');openWa('',plMsg(pl))};
+  $('#pl_wp').onclick=()=>plPdf(id);
+}
+
+/* الطلب جوه السيستم */
+function viewPlOrder(id){
+  const o=PLO().find(x=>x.id===id);if(!o)return '<div class="empty">الطلب مش موجود</div>';
+  const st=PL_ST[o.status||'new']||PL_ST.new,c=o.clientId?client(o.clientId):null;
+  const byPhone=!c&&o.phone?CL().find(x=>waPhone(x.phone)===waPhone(o.phone)):null;
+  const sub=(o.items||[]).reduce((a,l)=>a+n(l.qty)*n(l.price),0),disc=sub*n(o.disc)/100;
+  const kinds=[...new Set((o.items||[]).map(l=>l.kind==='cons'?'cons':'spare'))];
+  const canSale=k=>can(k==='cons'?'cons_sales':'part_sales');
+  return `<div class="row between no-print" style="gap:8px;flex-wrap:wrap"><h2>🧾 طلب من قائمة الأسعار <span class="muted num">${plNo(o)}</span></h2><div class="row" style="gap:6px;flex-wrap:wrap"><button class="btn" data-go="pricelists">رجوع</button>${o.phone?`<button class="btn" data-act="plWa" data-id="${o.id}">💬 كلّمه واتساب</button>`:''}${(o.status||'new')!=='cancel'?`<button class="btn" data-act="plOrdSt" data-id="${o.id}" data-st="cancel">ارفض / الغي</button>`:`<button class="btn" data-act="plOrdSt" data-id="${o.id}" data-st="new">رجّعه جديد</button>`}</div></div>
+   <div class="panel grid" style="gap:10px">
+    <div class="row between" style="gap:8px;flex-wrap:wrap"><span class="pill ${st[1]}">${st[0]}</span><span class="muted small">${plDate(o)} · من قائمة «${esc(o.plTitle||'')}»</span></div>
+    <div class="grid g2" style="gap:6px 16px">
+     <div><span class="muted small">العميل</span><div><b>${esc(c?cName(c):(o.clinic||o.name||'—'))}</b>${c?' <span class="pill p-ok">عيادة مسجّلة</span>':''}</div>${!c&&o.clinic&&o.name?`<div class="small">${esc(o.name)}</div>`:''}</div>
+     <div><span class="muted small">الموبايل</span><div class="num" dir="ltr" style="text-align:right">${esc(o.phone||c?.phone||'—')}</div></div>
+     ${o.address?`<div class="span2"><span class="muted small">العنوان</span><div>${esc(o.address)}</div></div>`:''}
+     ${o.notes?`<div class="span2"><span class="muted small">ملاحظات العميل</span><div>${esc(o.notes)}</div></div>`:''}
+    </div>
+    ${!c?(byPhone?`<div class="banner info">الرقم ده بتاع عيادة عندك: <b>${esc(cName(byPhone))}</b>. <button class="btn sm" data-act="plLink" data-id="${o.id}" data-c="${byPhone.id}">اربط الطلب بيها</button></div>`:`<div class="row" style="gap:8px;flex-wrap:wrap"><span class="pill p-warn">عميل جديد — مش متسجّل عندك</span>${can('clients')?`<button class="btn sm" data-act="plAddCl" data-id="${o.id}">➕ ضيفه للعيادات</button>`:''}</div>`):''}
+    <div class="tbl-wrap"><table class="t"><thead><tr><th>الصنف</th><th>الكمية</th><th>السعر</th><th>الإجمالي</th><th>في المخزن</th></tr></thead><tbody>
+     ${(o.items||[]).map(l=>{const p=part(l.pid),av=p?partAvail(p):0;return `<tr><td><b>${esc(l.name)}</b>${l.unit?` <span class="muted small">/ ${esc(l.unit)}</span>`:''}</td><td class="num">${n(l.qty)}</td><td class="num">${money(l.price)}</td><td class="num">${money(n(l.qty)*n(l.price))}</td><td>${p?`<span class="pill ${av>=n(l.qty)?'p-ok':av>0?'p-warn':'p-bad'}">${av}</span>`:'<span class="muted small">اتشال من المخزن</span>'}</td></tr>`}).join('')}
+     ${disc?`<tr><td colspan="3">خصم القائمة ${n(o.disc)}%</td><td class="num">−${money(disc)}</td><td></td></tr>`:''}
+     <tr><td colspan="3"><b>الإجمالي</b></td><td class="num"><b>${money(sub-disc)}</b></td><td></td></tr></tbody></table></div>
+    ${(o.status||'new')!=='cancel'?`<div class="grid" style="gap:8px"><div class="sec-title">لما تأكد مع العميل</div><div class="row" style="gap:8px;flex-wrap:wrap">${kinds.map(k=>{const done=o.sales&&o.sales[k];const lbl=k==='cons'?'المستهلكات':'قطع الغيار';return done?`<button class="btn" data-go="psale" data-p="${done}">✓ فاتورة ${lbl} اتعملت — افتحها</button>`:canSale(k)?`<button class="btn pri" data-act="plSale" data-id="${o.id}" data-k="${k}">✓ أكّد وحوّله لفاتورة ${lbl}</button>`:''}).join('')}${(o.status||'new')==='new'?`<button class="btn" data-act="plOrdSt" data-id="${o.id}" data-st="talk">اتكلمت معاه</button>`:''}</div>
+     <div class="muted small">الفاتورة بتتفتح بنفس الأصناف والأسعار والخصم، وتقدر تعدّل فيها قبل الحفظ. ولما تتحفظ الكميات بتتخصم من المخزن.</div></div>`:''}
+   </div>`;
+}
+async function plSale(id,kind){
+  const o=PLO().find(x=>x.id===id);if(!o)return;const ls=(o.items||[]).filter(l=>(l.kind==='cons'?'cons':'spare')===kind&&part(l.pid));
+  if(!ls.length){toast('الأصناف دي مش موجودة في المخزن');return}
+  const before=new Set((S.partSales||[]).map(x=>x.id));openPartSale(kind);
+  const c=o.clientId?client(o.clientId):null;
+  if(c){$('#ps_bt').value='client';$('#ps_bt').onchange();$('#ps_bc').value=c.id;$('#ps_bc').onchange()}
+  else{$('#ps_bn').value=[o.clinic,o.name].filter(Boolean).join(' — ').slice(0,80);$('#ps_bp').value=o.phone||''}
+  const box=$('#ps_lines');box.innerHTML='';
+  for(const l of ls){box.insertAdjacentHTML('beforeend',psLineHTML(kind));const r=box.lastElementChild,s=r.querySelector('.ps-part');s.value=l.pid;s.dispatchEvent(new Event('change',{bubbles:true}))}
+  await new Promise(z=>setTimeout(z,60));
+  [...box.querySelectorAll('.ps-row')].forEach((r,i)=>{const l=ls[i];const p=part(l.pid);r.querySelector('.ps-qty').value=Math.max(1,Math.min(n(l.qty),Math.max(1,partAvail(p))));r.querySelector('.ps-price').value=n(l.price)});
+  const sub=ls.reduce((a,l)=>a+n(l.qty)*n(l.price),0);$('#ps_disc').value=Math.round(sub*n(o.disc)/100*100)/100;
+  $('#ps_notes').value=`من قائمة الأسعار «${o.plTitle||''}» — طلب ${plNo(o)}`;
+  box.dispatchEvent(new Event('input',{bubbles:true}));
+  const short=ls.filter(l=>partAvail(part(l.pid))<n(l.qty));if(short.length)toast('فيه أصناف الكمية المتاحة منها أقل من المطلوب — راجعها');
+  let gone=0;const t=setInterval(()=>{const nw=(S.partSales||[]).find(x=>!before.has(x.id)&&x.kind===kind);
+    if(nw){clearInterval(t);const oo=PLO().find(x=>x.id===id);if(!oo)return;oo.sales={...(oo.sales||{}),[kind]:nw.id};oo.status='confirmed';oo.updatedAt=new Date().toISOString();oo.by=ME.id;save();return}
+    if(!$('#modal')&&++gone>8)clearInterval(t)},300);
+}
+function plWatch(){if(!can('pricelists'))return;const ids=PLO().filter(o=>(o.status||'new')==='new').map(o=>o.id);
+  if(!window.PL_SEEN){window.PL_SEEN=new Set(ids);return}
+  ids.forEach(i=>{if(!window.PL_SEEN.has(i)){window.PL_SEEN.add(i);const o=PLO().find(x=>x.id===i);toast('🔔 طلب جديد من قائمة الأسعار — '+(o.clinic||o.name||''))}})}
+function plNotifs(){if(!can('pricelists')||!modOn('pricelists'))return [];try{plWatch()}catch(e){}
+  return PLO().filter(o=>(o.status||'new')==='new').map(o=>({key:'plo'+o.id,title:'طلب جديد من قائمة الأسعار',body:`${o.clinic||o.name||''} — ${money(plOrdTotal(o))}`,v:'plord',p:o.id,ts:plTime(o)}))}
+
+Object.assign(NEED9,{plNew:'pricelists',plEdit:'pricelists',plCopyLink:'pricelists',plImg:'pricelists',plPdf:'pricelists',plShare:'pricelists',plTab:'pricelists',plWa:'pricelists',plOrdSt:'pricelists',plSale:'pricelists',plAddCl:'clients',plLink:'pricelists'});
+Object.assign(X9,{plNew:()=>openPricelist(null),plEdit:(t,id)=>openPricelist(id),plImg:(t,id)=>plSaveImg(id),plPdf:(t,id)=>plPdf(id),plShare:(t,id)=>plShare(id),
+  plTab:(t,id)=>{PL_TAB=id;render()},
+  plCopyLink:async(t,id)=>{if(!ONLINE){toast('اللينك بيشتغل لما السيستم يبقى أونلاين');return}try{await navigator.clipboard.writeText(plUrl(id));toast('اتنسخ اللينك')}catch(e){plShare(id)}},
+  plWa:(t,id)=>{const o=PLO().find(x=>x.id===id);if(!o)return;openWa(o.phone,`أهلًا ${o.name||''} 👋\nمعاك ${BRAND()} — وصلنا طلبك ${plNo(o)} من «${o.plTitle||''}» بإجمالي ${money(plOrdTotal(o))}.`);if((o.status||'new')==='new'){o.status='talk';o.updatedAt=new Date().toISOString();save();render()}},
+  plOrdSt:(t,id)=>{const o=PLO().find(x=>x.id===id);if(!o)return;const s=t.dataset.st;const f=()=>{o.status=s;o.updatedAt=new Date().toISOString();o.by=ME.id;save();render()};if(s==='cancel')confirmBox('إلغاء الطلب ده؟',f);else f()},
+  plSale:(t,id)=>plSale(id,t.dataset.k),
+  plLink:(t,id)=>{const o=PLO().find(x=>x.id===id);if(!o)return;o.clientId=t.dataset.c;o.updatedAt=new Date().toISOString();save();toast('اتربط الطلب بالعيادة');render()},
+  plAddCl:(t,id)=>{const o=PLO().find(x=>x.id===id);if(!o)return;const n0=CL().length;openClientModal(null);setTimeout(()=>{const s=(q,v)=>{const i=$(q);if(i&&!i.value)i.value=v};s('#c_name',o.clinic||o.name||'');s('#c_phone',o.phone||'');const a=document.querySelector('#brRows .b-addr');if(a&&!a.value)a.value=o.address||'';const nt=$('#c_notes');if(nt&&!nt.value)nt.value='جه من طلب قائمة أسعار '+plNo(o)+(o.clinic&&o.name?' — '+o.name:'')},60);
+    const tm=setInterval(()=>{if($('#modal'))return;clearInterval(tm);const L=CL();if(L.length>n0){const c=L.find(x=>waPhone(x.phone)===waPhone(o.phone))||L[L.length-1];const oo=PLO().find(x=>x.id===id);if(oo&&c){oo.clientId=c.id;save();render()}}},500)}
+});
+
+/* ===================== صفحة العميل (من غير دخول) ===================== */
+const PLP={pl:null,id:'',cart:{},cat:'',step:'list',who:null,t0:Date.now(),db:null,sentNo:'',cfgOk:true};
+const PLP_CSS=`body.plp-on header.top{display:none}body.plp-on{background:var(--bg,#eef1f6)}
+#main.plp{max-width:560px;margin:0 auto;padding:0 0 110px}
+.plp-h{background:linear-gradient(160deg,var(--plc,#163A6B),#0B1A33);color:#fff;padding:22px 18px 18px;border-radius:0 0 26px 26px}
+.plp-b{display:flex;align-items:center;gap:10px}.plp-b img{height:44px;max-width:150px;object-fit:contain;background:#fff;border-radius:10px;padding:3px}.plp-b b{font-size:1.05rem}
+.plp-h h1{margin:12px 0 2px;font-size:1.45rem;line-height:1.35}.plp-h p{margin:0;font-size:.85rem;opacity:.88}
+.plp-bd{display:inline-block;margin-top:8px;background:#E8BE5A;color:#0B1A33;font-size:.78rem;font-weight:800;border-radius:99px;padding:2px 12px}
+.plp-who{margin:10px 12px 0;background:var(--surface,#fff);border:1px solid var(--line);border-radius:14px;padding:8px 12px;font-size:.85rem;display:flex;justify-content:space-between;gap:8px;align-items:center}
+.plp-cats{display:flex;gap:6px;overflow-x:auto;padding:12px 12px 4px;scrollbar-width:none}
+.plp-cats button{flex:none;border:1px solid var(--line);background:var(--surface,#fff);color:var(--muted);border-radius:99px;padding:5px 14px;font:inherit;font-size:.82rem;font-weight:800;cursor:pointer}
+.plp-cats button.on{background:#0B1A33;color:#fff;border-color:#0B1A33}
+.plp-l{padding:4px 12px;display:flex;flex-direction:column;gap:8px}
+.plp-sec{font-size:.8rem;font-weight:900;color:#C9971F;margin:8px 4px 0}
+.plp-it{background:var(--surface,#fff);border:1.5px solid var(--line);border-radius:16px;padding:10px;display:flex;gap:10px;align-items:center}
+.plp-it.on{border-color:#C9971F}
+.plp-im{width:60px;height:60px;border-radius:12px;background:var(--surface-2,#eef2f8);display:grid;place-items:center;font-size:1.7rem;flex:none;overflow:hidden}.plp-im img{width:100%;height:100%;object-fit:cover}
+.plp-in{flex:1;min-width:0}.plp-in b{font-size:.92rem;display:block;line-height:1.4}.plp-in small{color:var(--muted);font-size:.75rem}
+.plp-pr{font-weight:900;font-size:.98rem}.plp-pr s{color:var(--muted);font-weight:400;font-size:.75rem;margin-inline-start:4px}
+.plp-q{display:flex;align-items:center;gap:6px;flex:none}.plp-q button{width:32px;height:32px;border-radius:10px;border:1px solid var(--line);background:var(--surface,#fff);font:900 1.05rem/1 inherit;color:var(--text,#0B1A33);cursor:pointer;display:grid;place-items:center;padding:0}
+.plp-q button.add{background:#0B1A33;color:#fff;border-color:#0B1A33}.plp-q span{min-width:20px;text-align:center;font-weight:900}
+.plp-bar{position:fixed;inset:auto max(12px,env(safe-area-inset-right)) calc(12px + env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left));max-width:536px;margin:0 auto;background:#0B1A33;color:#fff;border-radius:18px;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:8px;box-shadow:0 10px 26px rgba(11,26,51,.35);z-index:20}
+.plp-bar b{font-size:1rem}.plp-bar small{display:block;font-size:.75rem;opacity:.8}
+.plp-go{background:#E8BE5A;color:#0B1A33;border:0;border-radius:12px;padding:10px 16px;font:inherit;font-weight:900;cursor:pointer}.plp-go:disabled{opacity:.5}
+.plp-card{margin:12px;background:var(--surface,#fff);border:1px solid var(--line);border-radius:18px;padding:16px;display:grid;gap:10px}
+.plp-row{display:flex;justify-content:space-between;gap:8px;font-size:.9rem;border-bottom:1px dashed var(--line);padding-bottom:6px}
+.plp-done{text-align:center;padding:30px 18px;display:grid;gap:12px;justify-items:center}.plp-done .ic{width:84px;height:84px;border-radius:50%;background:#DDF3E4;display:grid;place-items:center;font-size:2.4rem}`;
+function plpSet(html){const m=$('#main');m.className='plp';m.innerHTML=html}
+async function viewPlPage(cfg,id){
+  document.body.classList.add('nonav','plp-on');try{$('#tabs').innerHTML='';$('#brandSub').innerHTML='قائمة أسعار'}catch(e){}
+  if(!$('#plp-css')){const st=document.createElement('style');st.id='plp-css';st.textContent=PLP_CSS;document.head.appendChild(st)}
+  PLP.id=id;plpSet('<div class="panel" style="margin:20px"><div class="empty">بيحمّل…</div></div>');
+  try{if(!cfg)throw 0;for(const f of ['app','auth','firestore'])await loadScript(`https://www.gstatic.com/firebasejs/${FB_VER}/firebase-${f}-compat.js`).catch(()=>{});
+    if(!(firebase.apps||[]).some(a=>a.name==='[DEFAULT]'))firebase.initializeApp(cfg);
+    PLP.db=firebase.firestore();
+    const d=await PLP.db.doc('pricelists/'+id).get();PLP.pl=d.exists?{...d.data(),id}:null;
+    PLP.who=null;try{const au=firebase.auth&&firebase.auth();if(au&&au.onAuthStateChanged){const u=await new Promise(ok=>{let done=false;const t=setTimeout(()=>{if(!done){done=true;ok(au.currentUser||null)}},2500);try{au.onAuthStateChanged(x=>{if(!done){done=true;clearTimeout(t);ok(x)}})}catch(e){}});
+      if(u){const ud=(await PLP.db.doc('users/'+u.uid).get()).data()||{};if(ud.role==='clinic'&&ud.active!==false&&ud.clientId){let cn='';try{const cd=(await PLP.db.doc('clients/'+ud.clientId).get()).data()||{};cn=cd.clinic||cd.name||''}catch(e){}PLP.who={kind:'clinic',uid:u.uid,clientId:ud.clientId,name:ud.name||cn,clinic:cn,phone:ud.phone||''}}else if(STAFF_ROLES.includes(ud.role))PLP.who={kind:'staff',name:ud.name||''}}}}catch(e){PLP.who=null}
+  }catch(e){PLP.pl=null}
+  const pl=PLP.pl;
+  if(pl&&pl.brand){try{document.title=(pl.title||'قائمة أسعار')+' — '+(pl.brand.name||'');if(pl.brand.color)document.documentElement.style.setProperty('--plc',pl.brand.color)}catch(e){}}
+  if(!pl||!plLive(pl)){plpSet(`<div class="plp-done"><div class="ic" style="background:#FBE7E2">🕒</div><h2 style="margin:0">القائمة دي مش متاحة دلوقتي</h2><div class="muted">ممكن تكون مدتها خلصت أو اتقفلت.${pl&&pl.brand&&pl.brand.wa?` كلّمنا على واتساب: <b dir="ltr">${esc(pl.brand.wa)}</b>`:''}</div>${pl&&pl.brand&&pl.brand.wa?`<a class="btn pri" style="text-decoration:none" target="_blank" rel="noopener" href="https://wa.me/${waPhone(pl.brand.wa)}">💬 كلّمنا على واتساب</a>`:''}</div>`);return}
+  PLP.t0=Date.now();PLP.step='list';plpRender();
+}
+const plpItems=()=>(PLP.pl.items||[]).filter(it=>!PLP.pl.hideOut||it.avail!==false);
+const plpSecOf=it=>it.group||(PL_KINDS.find(x=>x[0]===it.kind)||[,''])[1];
+function plpTotals(){const pl=PLP.pl;const L=Object.entries(PLP.cart).filter(([,q])=>q>0).map(([pid,q])=>({it:plpItems().find(x=>x.pid===pid),q})).filter(x=>x.it);
+  return {L,n:L.length,pcs:L.reduce((a,x)=>a+x.q,0),total:L.reduce((a,x)=>a+x.q*plPrice(pl,x.it),0)}}
+function plpRender(){const pl=PLP.pl,B=pl.brand||{},T=plpTotals();
+  const head=`<div class="plp-h"><div class="plp-b">${B.logo?`<img src="${B.logo}" alt="">`:''}<b>${esc(B.name||'')}</b></div><h1>${esc(pl.title||'قائمة أسعار')}</h1><p>${pl.until?`الأسعار سارية لحد ${fd(pl.until)}`:''}${pl.note?`${pl.until?' · ':''}${esc(pl.note)}`:''}</p>${n(pl.disc)?`<span class="plp-bd">خصم ${n(pl.disc)}% على كل القائمة</span>`:''}</div>`;
+  const who=PLP.who?.kind==='clinic'?`<div class="plp-who"><span>👋 أهلًا <b>${esc(PLP.who.clinic||PLP.who.name||'')}</b></span><span style="color:var(--ok,#1E7D4F);font-weight:800">✓ عميل مسجّل</span></div>`:PLP.who?.kind==='staff'?`<div class="plp-who"><span>إنت فاتح القائمة بحساب موظف — ده شكلها عند العميل.</span></div>`:'';
+  const blocked=pl.who==='clients'&&PLP.who?.kind!=='clinic';
+  if(PLP.step==='done'){plpSet(head+`<div class="plp-done"><div class="ic">✓</div><h2 style="margin:0">طلبك وصل</h2><div class="muted">رقم الطلب <b class="num">${esc(PLP.sentNo)}</b>. هنكلّمك في أقرب وقت نأكد معاك الطلب وميعاد التوصيل.</div>${B.wa?`<a class="btn pri" style="text-decoration:none" target="_blank" rel="noopener" href="https://wa.me/${waPhone(B.wa)}?text=${encodeURIComponent('أهلًا، بعت طلب '+PLP.sentNo+' من «'+(pl.title||'')+'»')}">💬 كلّمنا على واتساب</a><div class="muted small num" dir="ltr">${esc(B.wa)}</div>`:''}<button class="btn ghost" data-plp="again">ارجع للقائمة</button></div>`);return}
+  if(PLP.step==='review'){const sub=T.L.reduce((a,x)=>a+x.q*n(x.it.price),0);
+    plpSet(head+who+`<div class="plp-card"><h3 style="margin:0">مراجعة الطلب</h3>${T.L.map(x=>`<div class="plp-row"><span>${esc(x.it.name)} × ${x.q}</span><b class="num">${money(x.q*plPrice(pl,x.it))}</b></div>`).join('')}
+      ${n(pl.disc)?`<div class="plp-row muted"><span>وفّرت بالخصم</span><span class="num">${money(sub-T.total)}</span></div>`:''}<div class="plp-row" style="border:0"><b>الإجمالي</b><b class="num" style="color:#C9971F">${money(T.total)}</b></div>
+      ${PLP.who?.kind==='clinic'?`<div class="muted small">الطلب هيتسجل على حساب ${esc(PLP.who.clinic||'العيادة')}.</div><label class="f">رقم للتواصل (اختياري)<input id="pp_phone" maxlength="20" inputmode="tel" value="${esc(PLP.who.phone||'')}" dir="ltr"></label>`:
+      `<label class="f">اسمك<input id="pp_name" maxlength="80" autocomplete="name"></label><label class="f">اسم العيادة أو المكان<input id="pp_clinic" maxlength="80"></label><label class="f">رقم الموبايل<input id="pp_phone" maxlength="20" inputmode="tel" autocomplete="tel" placeholder="01xxxxxxxxx" dir="ltr"></label><label class="f">العنوان (اختياري)<input id="pp_addr" maxlength="200"></label>`}
+      <label class="f">ملاحظات (اختياري)<textarea id="pp_notes" rows="2" maxlength="400" placeholder="مثلاً: محتاجينهم قبل يوم الخميس"></textarea></label>
+      <div style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%)" aria-hidden="true"><input id="pp_web" tabindex="-1" autocomplete="off"></div>
+      <button class="plp-go" data-plp="send" style="padding:14px">ابعت الطلب</button><button class="btn ghost" data-plp="back">→ رجوع للقائمة</button></div>`);return}
+  const L=plpItems(),secs=[...new Set(L.map(plpSecOf))],F=secs.includes(PLP.cat)?PLP.cat:'';let last='',rows='';
+  L.filter(it=>!F||plpSecOf(it)===F).forEach(it=>{const s=plpSecOf(it);if(s!==last){rows+=`<div class="plp-sec">${esc(s)}</div>`;last=s}const q=PLP.cart[it.pid]||0;
+    rows+=`<div class="plp-it ${q?'on':''}">${pl.showImg!==false?`<div class="plp-im">${it.photo?`<img src="${it.photo}" alt="" loading="lazy">`:(it.kind==='cons'?'📦':it.kind==='freon'?'🧯':'⚙️')}</div>`:''}<div class="plp-in"><b>${esc(it.name)}</b><small>${[pl.showUnit!==false&&it.unit?esc(it.unit):'',pl.showQty&&it.avail!==false?'متاح '+n(it.qty):'',it.avail===false?'بيتطلب (مش متوفر دلوقتي)':''].filter(Boolean).join(' · ')}</small><div class="plp-pr num">${money(plPrice(pl,it))}${n(pl.disc)?`<s>${n(it.price).toLocaleString('en-US')}</s>`:''}</div></div>
+     ${blocked?'':`<div class="plp-q">${q?`<button data-plp="q" data-id="${esc(it.pid)}" data-d="-1" aria-label="أقل">−</button><span class="num">${q}</span>`:''}<button class="add" data-plp="q" data-id="${esc(it.pid)}" data-d="1" aria-label="أكتر">+</button></div>`}</div>`});
+  plpSet(head+who+(blocked?`<div class="plp-who" style="border-color:#E8BE5A"><span>الطلب من القائمة دي للعيادات المسجّلة بس. ادخل بحساب العيادة الأول${B.wa?`، أو كلّمنا على <b dir="ltr">${esc(B.wa)}</b>`:''}.</span></div>`:'')+
+    (secs.length>1?`<div class="plp-cats"><button data-plp="cat" data-k="" class="${F?'':'on'}">الكل</button>${secs.map(s=>`<button data-plp="cat" data-k="${esc(s)}" class="${F===s?'on':''}">${esc(s)}</button>`).join('')}</div>`:'')+
+    `<div class="plp-l">${rows||'<div class="empty">مفيش أصناف</div>'}</div>`+
+    (blocked?'':`<div class="plp-bar"><div><b class="num">${money(T.total)}</b><small>${T.n?`${T.n} صنف · ${T.pcs} قطعة`:'اختار الأصناف اللي محتاجها'}</small></div><button class="plp-go" data-plp="review" ${T.n?'':'disabled'}>راجع الطلب ←</button></div>`));
+}
+document.addEventListener('click',async e=>{const b=e.target.closest('[data-plp]');if(!b||!PLP.pl)return;const k=b.dataset.plp;
+  if(k==='q'){const id=b.dataset.id,v=Math.max(0,Math.min(999,(PLP.cart[id]||0)+(+b.dataset.d)));if(v)PLP.cart[id]=v;else delete PLP.cart[id];const y=scrollY;plpRender();scrollTo(0,y);return}
+  if(k==='cat'){PLP.cat=b.dataset.k||'';plpRender();return}
+  if(k==='review'){if(!plpTotals().n)return;PLP.step='review';plpRender();scrollTo(0,0);return}
+  if(k==='back'){PLP.step='list';plpRender();return}
+  if(k==='again'){PLP.cart={};PLP.step='list';PLP.t0=Date.now();plpRender();scrollTo(0,0);return}
+  if(k==='send'){
+    const v=s=>($(s)?.value||'').trim(),cl=PLP.who?.kind==='clinic',pl=PLP.pl,T=plpTotals();if(!T.n)return;
+    const name=cl?(PLP.who.name||PLP.who.clinic||''):v('#pp_name'),clinic=cl?(PLP.who.clinic||''):v('#pp_clinic'),phone=normD(v('#pp_phone')).replace(/[^0-9+]/g,'');
+    if(!cl){if(name.length<2){toast('اكتب اسمك');return}if(clinic.length<2){toast('اكتب اسم العيادة أو المكان');return}}
+    if(!cl||phone){if(phone.length<8||phone.length>20){toast('اكتب رقم موبايل صحيح');return}}
+    if(v('#pp_web')||Date.now()-PLP.t0<3000){PLP.sentNo='PL-'+Math.random().toString(36).slice(-5).toUpperCase();PLP.step='done';plpRender();return}
+    const dk='pm-pl-'+new Date().toISOString().slice(0,10);let nn=0;try{nn=+localStorage.getItem(dk)||0}catch(er){}
+    if(nn>=5){toast('بعت طلبات كتير النهارده — لو محتاج حاجة كلّمنا على واتساب');return}
+    b.disabled=true;b.textContent='بيبعت…';
+    const d={plId:pl.id,plTitle:String(pl.title||'').slice(0,70),name:name.slice(0,80),clinic:clinic.slice(0,80),phone:phone.slice(0,20),address:cl?'':v('#pp_addr').slice(0,200),notes:v('#pp_notes').slice(0,400),clientId:cl?PLP.who.clientId:'',uid:cl?PLP.who.uid:'',disc:n(pl.disc),
+      items:T.L.slice(0,80).map(x=>({pid:x.it.pid,name:String(x.it.name).slice(0,120),unit:String(x.it.unit||'').slice(0,30),kind:x.it.kind||'spare',qty:x.q,price:n(x.it.price)})),status:'new',at:firebase.firestore.FieldValue.serverTimestamp(),_u:firebase.firestore.FieldValue.serverTimestamp()};
+    try{const ref=PLP.db.collection('plorders').doc();await ref.set(d);PLP.sentNo='PL-'+ref.id.slice(-5).toUpperCase();try{localStorage.setItem(dk,String(nn+1))}catch(er){}PLP.step='done';PLP.cart={};plpRender();scrollTo(0,0)}
+    catch(er){b.disabled=false;b.textContent='ابعت الطلب';toast('الطلب ما اتبعتش — جرّب تاني'+(pl.brand?.wa?' أو كلّمنا على واتساب '+pl.brand.wa:''))}
+  }
+});
+
+/* =====================================================================
+   قراءة شاشة الجهاز بالصورة + متابعة القراءات + تنبيهات الجهاز
+   ===================================================================== */
+const dsOn=()=>subMod('devscan');
+const dsAi=()=>{if(ME&&isDev(ME))return true;const x=subX();return !x||x.aiScan===true};
+const numR=v=>{const s=String(v??'').replace(/,/g,'').trim();if(!s)return null;const x=parseFloat(s);return isFinite(x)?x:null};
+const DS_MET={pp:['عدد النبضات','>='],hv:['H.V@60J','>='],tx:['TX','<=']};
+function dsParse(txt){
+  const T=String(txt||'').replace(/[|]/g,' ');const out={};
+  let m=T.match(/Serial\S*\s*[=:]?\s*([0-9OoIl]{3,5})\s*[-–.\s]\s*([0-9OoIl]{3,5})\s*[-–.\s]\s*([0-9OoIl]{3,6})/i);
+  if(m)out.serial=[m[1],m[2],m[3]].map(x=>x.replace(/[Oo]/g,'0').replace(/[Il]/g,'1')).join('-');
+  m=T.match(/Treatment\s*Pulses\s*[=:]?\s*([\d,]+)/i);if(m)out.pp=m[1].replace(/,/g,'');
+  m=T.match(/HV\s*@?\s*6\s*0\s*J?\s*H?\s*D?\s*[=:]\s*(\d{3,4})/i)||T.match(/@\s*60\s*J\S*\s*[=:]?\s*(\d{3,4})/i);if(m)out.hv=m[1];
+  for(const line of T.split(/\n/)){const k=line.match(/(\d{3,4})\s+(\d{1,2}\.\d)\s+(\d{1,3}\.\d)\s+(\d{1,3}\.\d{1,2})/);if(k&&parseFloat(k[4])>0){out.tx=k[4];break}}
+  // أرقام مش منطقية من القراية المجانية مش بتتكتب
+  if(out.hv&&(+out.hv<500||+out.hv>3000))delete out.hv;if(out.tx&&(+out.tx<=0||+out.tx>100))delete out.tx;if(out.serial&&out.serial.split('-').some(g=>g.length<4))delete out.serial;
+  return out}
+function dsImgToJpeg(file,max,q){return new Promise((ok,no)=>{const u=URL.createObjectURL(file),im=new Image();im.onload=()=>{const sc=Math.min(1,max/Math.max(im.width,im.height)),cv=document.createElement('canvas');cv.width=Math.round(im.width*sc);cv.height=Math.round(im.height*sc);cv.getContext('2d').drawImage(im,0,0,cv.width,cv.height);URL.revokeObjectURL(u);ok({url:cv.toDataURL('image/jpeg',q||.82),img:im,cv})};im.onerror=no;im.src=u})}
+async function dsAiRead(dataUrl){const u=await bcPushUrl();if(!u)throw new Error('off');const t=(typeof bcTid==='function'&&bcTid())||'';
+  const r=await fetch(u+'/scan',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({t:'m-'+t,img:dataUrl.split(',')[1]})});
+  const j=await r.json().catch(()=>({}));if(!r.ok||j.error)throw new Error(j.error||'ai');return j}
+let TESS_P=null;function loadTess(){if(window.Tesseract)return Promise.resolve();return TESS_P||(TESS_P=loadScript('https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js'))}
+async function dsFreeRead(cv){await loadTess();const w=await Tesseract.createWorker('eng',1,{workerPath:'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/worker.min.js',corePath:'https://cdn.jsdelivr.net/npm/tesseract.js-core@5.1.1',langPath:'https://cdn.jsdelivr.net/npm/@tesseract.js-data/eng@1.0.0/4.0.0_best_int'});
+  try{const r=await w.recognize(cv);return r.data.text||''}finally{w.terminate()}}
+function dsPrep(src,box){const sx=src.width/box.w0;const x=Math.max(0,box.x*sx),y=Math.max(0,box.y*sx),w=Math.min(src.width-x,box.w*sx),h=Math.min(src.height-y,box.h*sx);
+  const sc=Math.min(3,Math.max(1,1800/w)),cv=document.createElement('canvas');cv.width=Math.round(w*sc);cv.height=Math.round(h*sc);const g=cv.getContext('2d');g.drawImage(src,x,y,w,h,0,0,cv.width,cv.height);
+  const d=g.getImageData(0,0,cv.width,cv.height),a=d.data;let lo=255,hi=0;const L=new Uint8Array(a.length/4);for(let i=0;i<L.length;i++){const v=(a[i*4]*.3+a[i*4+1]*.59+a[i*4+2]*.11)|0;L[i]=v;if(v<lo)lo=v;if(v>hi)hi=v}
+  const rg=Math.max(1,hi-lo);for(let i=0;i<L.length;i++){const v=Math.max(0,Math.min(255,(L[i]-lo)*255/rg));a[i*4]=a[i*4+1]=a[i*4+2]=v}g.putImageData(d,0,0);return cv}
+function dsScan(){const inp=document.createElement('input');inp.type='file';inp.accept='image/*';inp.setAttribute('capture','environment');
+  inp.onchange=async()=>{const f=inp.files&&inp.files[0];if(!f)return;let J;try{J=await dsImgToJpeg(f,1600,.85)}catch(e){toast('الصورة مش مفهومة');return}
+    const small=await dsImgToJpeg(f,900,.72);FORM.scan={img:small.url,at:new Date().toISOString(),src:''};
+    if(dsAi()){toast('بيقرا الشاشة…');try{const j=await dsAiRead(J.url);FORM.scan.src='ai';dsApply(j,'ai');return}catch(e){}}
+    dsCrop(J);};
+  inp.click()}
+function dsCrop(J){
+  modal(`<h3>📷 حدد شاشة الجهاز</h3><div class="muted small">اسحب بصباعك على الشاشة اللي فيها الأرقام بس، علشان القراية تطلع أدق.</div>
+   <div id="ds_wrap" style="position:relative;touch-action:none;user-select:none;max-width:100%"><img id="ds_im" src="${J.url}" style="width:100%;display:block;border-radius:8px" alt=""><div id="ds_box" style="position:absolute;border:3px solid #E8BE5A;box-shadow:0 0 0 9999px rgba(0,0,0,.45);border-radius:6px;pointer-events:none"></div></div>
+   <div id="ds_st" class="muted small"></div>`,async()=>{
+    const im=$('#ds_im');$('#ds_st').textContent='بيقرا الأرقام… (أول مرة بتاخد شوية)';$('#mOk').textContent='بيقرا…';
+    try{const cv=dsPrep(J.img,{...B,w0:im.clientWidth});const txt=await dsFreeRead(cv);FORM.scan.src='ocr';const p=dsParse(txt);
+      if(!Object.keys(p).length){toast('مقدرتش أقرا أرقام — جرّب صورة أوضح أو حدد الشاشة بس');$('#mOk').textContent='اقرا الأرقام';return false}
+      setTimeout(()=>dsApply(p,'ocr'),50);return true}catch(e){toast('القراية مش متاحة دلوقتي — اتأكد من النت');$('#mOk').textContent='اقرا الأرقام';return false}});
+  $('#mOk').textContent='اقرا الأرقام';
+  const W=$('#ds_wrap'),bx=$('#ds_box');let B=null,st=null;
+  const draw=()=>{bx.style.left=B.x+'px';bx.style.top=B.y+'px';bx.style.width=B.w+'px';bx.style.height=B.h+'px'};
+  const init=()=>{const r=W.getBoundingClientRect();B={x:r.width*.12,y:r.height*.2,w:r.width*.76,h:r.height*.45};draw()};
+  const im=$('#ds_im');if(im.complete)init();else im.onload=init;
+  const pt=e=>{const r=W.getBoundingClientRect();return {x:Math.max(0,Math.min(r.width,e.clientX-r.left)),y:Math.max(0,Math.min(r.height,e.clientY-r.top))}};
+  W.addEventListener('pointerdown',e=>{st=pt(e);W.setPointerCapture(e.pointerId)});
+  W.addEventListener('pointermove',e=>{if(!st)return;const p=pt(e);B={x:Math.min(st.x,p.x),y:Math.min(st.y,p.y),w:Math.abs(p.x-st.x),h:Math.abs(p.y-st.y)};draw()});
+  W.addEventListener('pointerup',()=>{st=null;if(B.w<30||B.h<20)init()});
+}
+function dsApply(p,src){
+  const set=(id,v)=>{const i=$('#'+id);if(i&&v!=null&&v!==''){i.value=v;i.style.outline='2px solid #E8BE5A';i.dispatchEvent(new Event('input',{bubbles:true}))}};
+  const cur=$('#f_dserial').value.trim();let warn='';
+  if(p.serial){if(!cur)set('f_dserial',p.serial);else if(cur.replace(/\W/g,'')!==String(p.serial).replace(/\W/g,''))warn=`السيريال في الصورة <b class="num">${esc(p.serial)}</b> مختلف عن الجهاز المختار <b class="num">${esc(cur)}</b> — اتأكد إنك مصوّر الجهاز الصح.`}
+  set('f_pp',p.pp);set('f_tx',p.tx);set('f_hv',p.hv);
+  const got=[['السيريال',p.serial],['النبضات',p.pp],['TX',p.tx],['H.V@60J',p.hv]];const miss=got.filter(x=>x[1]==null||x[1]==='').map(x=>x[0]);
+  const el=$('#f_scanres');if(el)el.innerHTML=`<div class="banner ${miss.length||warn?'':'info'}" style="margin:0">📷 ${src==='ai'?'اتقرت الشاشة':'اتقرت الشاشة (قراية مجانية — راجع الأرقام كويس)'}: ${got.filter(x=>x[1]).map(x=>`${x[0]} <b class="num">${esc(x[1])}</b>`).join(' · ')||'—'}${miss.length?`<br>مقدرتش أقرا: ${miss.join('، ')} — اكتبهم بإيدك.`:''}${warn?'<br>⚠️ '+warn:''}</div>`;
+  toast(miss.length?'اتقرا جزء من الأرقام — راجعها':'اتقرت الأرقام ✓ راجعها قبل الحفظ');
+}
+/* مقارنة بآخر زيارة (بتظهر وإنت بتكتب التقرير بس) */
+function dsDelta(a,b,dec){const x=numR(a),y=numR(b);if(x==null||y==null)return null;const d=+(x-y).toFixed(dec);return d}
+function dsArrow(d,bad,dec,unit){if(d==null)return '';if(!d)return '<span class="muted">(زي ما هو)</span>';const up=d>0,isBad=bad==='up'?up:bad==='down'?!up:false;return `<span style="color:${isBad?'var(--bad)':'var(--ok,#1e7d4f)'};font-weight:700">(${up?'▲ +':'▼ '}${Math.abs(d).toLocaleString('en-US',{maximumFractionDigits:dec})}${unit||''})</span>`}
+function dsCompareLine(serial,cur,exceptId,date){if(!serial)return '';
+  const prev=S.reports.filter(x=>x.id!==exceptId&&x.device?.serial===serial&&(x.tx||x.pp||x.hv)&&(!date||x.date<=date)).sort((a,b)=>b.date.localeCompare(a.date)||n(b.no)-n(a.no))[0];if(!prev)return '<span class="muted">أول قراءة للجهاز ده في السيستم.</span>';
+  const it=(lbl,k,dec,bad)=>{const pv=prev[k],cv=cur[k];if(!pv&&!cv)return '';return `${lbl}: <b class="num">${esc(pv||'—')}</b>${cv?` ← <b class="num">${esc(cv)}</b> ${dsArrow(dsDelta(cv,pv,dec),bad,dec)}`:''}`};
+  return `مقارنة بآخر زيارة (${fd(prev.date)}، تقرير #${pad(prev.no)}): ${[it('النبضات','pp',0,''),it('TX','tx',2,'down'),it('H.V@60J','hv',0,'up')].filter(Boolean).join(' · ')}`}
+/* سجل قراءات الجهاز */
+function dsHistPanel(cid,serial){if(!dsOn()||!serial)return '';
+  const reps=S.reports.filter(r=>sameDev(r,cid,serial)&&mine(r)&&(r.tx||r.pp||r.hv)).sort((a,b)=>a.date.localeCompare(b.date)||n(a.no)-n(b.no));
+  if(!reps.length)return `<div class="panel"><h3>📈 قراءات الجهاز</h3><div class="empty small">لسه مفيش قراءات. القراءات بتتسجل من تقرير الصيانة (TX و PP و H.V).</div></div>`;
+  const rows=reps.map((r,i)=>{const p=reps[i-1];const c=(k,dec,bad)=>`<td class="num">${esc(r[k]||'—')} ${p?dsArrow(dsDelta(r[k],p[k],dec),bad,dec):''}</td>`;
+    return `<tr><td>${fd(r.date)}</td><td><a href="#" data-view="${r.id}" class="num">#${pad(r.no)}</a></td>${c('pp',0,'')}${c('tx',2,'down')}${c('hv',0,'up')}<td>${r.scan&&r.scan.img?`<button class="btn sm" data-act="dsImg" data-id="${r.id}" title="صورة الشاشة">📷</button>`:''}</td></tr>`}).reverse().join('');
+  const f=reps[0],l=reps[reps.length-1];const sum=reps.length>1?`<div class="muted small">من ${fd(f.date)} لحد ${fd(l.date)}: النبضات ${dsArrow(dsDelta(l.pp,f.pp,0),'',0)} · TX ${dsArrow(dsDelta(l.tx,f.tx,2),'down',2)} · H.V@60J ${dsArrow(dsDelta(l.hv,f.hv,0),'up',0)}</div>`:'';
+  return `<div class="panel"><h3>📈 قراءات الجهاز</h3>${sum}<div class="tbl-wrap"><table class="t"><thead><tr><th>التاريخ</th><th>التقرير</th><th>النبضات (PP)</th><th>TX</th><th>H.V@60J</th><th></th></tr></thead><tbody>${rows}</tbody></table></div><div class="muted small">السهم الأحمر يعني القراية رايحة في الاتجاه الوحش (TX بينزل أو H.V بيزيد).</div></div>`}
+/* تنبيهات الجهاز: لما قراية توصل لرقم معين */
+const DA=c=>(c&&c.devAlerts)||[];
+function dsLatest(serial){const r=S.reports.filter(x=>x.device?.serial===serial&&(x.tx||x.pp||x.hv)).sort((a,b)=>b.date.localeCompare(a.date)||n(b.no)-n(a.no));return r[0]||null}
+function dsHit(a){const r=dsLatest(a.serial);if(!r)return null;const v=numR(r[a.metric]);if(v==null)return null;if(a.doneAt&&r.date<=a.doneAt)return null;const ok=DS_MET[a.metric][1]==='>='?v>=n(a.val):v<=n(a.val);return ok?{r,v}:null}
+function dsAlertMsg(a,c,clinic){const d=clientDevices(c).find(x=>(x.serial||'')===a.serial)||{};const dl=devLabel(d)+(a.serial?' ('+a.serial+')':'');
+  return clinic?`جهاز ${dl} هيحتاج ${a.part||'صيانة'}${a.within?' خلال '+a.within:' الفترة الجاية'} — كلّمنا نحدد ميعاد.`:`${cName(c)} — ${dl}: ${DS_MET[a.metric][0]} وصل للحد (${a.val}) — محتاج ${a.part||'صيانة'}${a.within?' خلال '+a.within:''}`}
+function dsAlertNotifs(clinicId){if(!dsOn())return [];const out=[];
+  (clinicId?CL().filter(c=>c.id===clinicId):CL()).forEach(c=>DA(c).forEach(a=>{if(a.on===false||(clinicId&&a.clinic===false))return;const h=dsHit(a);if(!h)return;
+    out.push({key:'da'+a.id+h.r.id,title:clinicId?'🔧 جهازك محتاج صيانة قريب':'🔧 جهاز وصل لحد التنبيه',body:dsAlertMsg(a,c,!!clinicId),v:clinicId?'home':'devh',p:clinicId?null:c.id+'|'+a.serial,ts:Date.parse(h.r.date)||0})}));return out}
+function dsAlertsPanel(c,serial){if(!dsOn()||!serial)return '';const L=DA(c).filter(a=>a.serial===serial);const ed=can('clients')||can('reports_all');
+  return `<div class="panel"><div class="row between"><h3 style="margin:0">🔔 تنبيهات الجهاز</h3>${ed?`<button class="btn sm pri" data-act="daNew" data-c="${c.id}" data-s="${esc(serial)}">+ تنبيه جديد</button>`:''}</div>
+   <div class="muted small">لما قراية الجهاز توصل لرقم معين، السيستم ينبّهك${' '}وينبّه العيادة لو ليها حساب، إن الجهاز محتاج قطعة غيار في خلال فترة إنت بتحددها.</div>
+   ${L.length?L.map(a=>{const h=dsHit(a);return `<div class="row between" style="gap:8px;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:8px"><div><b>${DS_MET[a.metric][0]} ${DS_MET[a.metric][1]==='>='?'يوصل أو يعدّي':'ينزل لـ'} <span class="num">${esc(a.val)}</span></b> ← ${esc(a.part||'صيانة')}${a.within?' خلال '+esc(a.within):''}
+     <div class="small">${a.on===false?'<span class="pill p-mut">موقوف</span>':h?`<span class="pill p-bad">وصل للحد — آخر قراية ${esc(h.v)}</span>`:'<span class="pill p-ok">لسه</span>'} ${a.clinic!==false?'<span class="pill p-info">العيادة بتتنبّه</span>':''}${a.doneAt?` <span class="muted">اتعمل ${fd(a.doneAt)}</span>`:''}</div></div>
+     ${ed?`<div class="row" style="gap:6px">${h?`<button class="btn sm" data-act="daDone" data-c="${c.id}" data-id="${a.id}">✓ اتغيرت القطعة</button>`:''}<button class="btn sm" data-act="daEdit" data-c="${c.id}" data-id="${a.id}">✏️</button></div>`:''}</div>`}).join(''):'<div class="empty small">مفيش تنبيهات للجهاز ده.</div>'}</div>`}
+function daModal(cid,serial,id){const c=client(cid);if(!c)return;const a=id?DA(c).find(x=>x.id===id):{metric:'pp',val:'',part:'',within:'شهر',clinic:true,on:true};
+  modal(`<h3>${id?'تعديل تنبيه':'تنبيه جديد'} — <span class="num">${esc(serial||a.serial)}</span></h3>
+   <div class="grid g2"><label class="f">القراية<select id="da_m">${Object.entries(DS_MET).map(([k,[l,op]])=>`<option value="${k}" ${a.metric===k?'selected':''}>${l} ${op==='>='?'(لما يوصل أو يعدّي)':'(لما ينزل لـ)'}</option>`).join('')}</select></label>
+   <label class="f">الرقم<input id="da_v" type="number" step="any" required value="${esc(a.val)}" dir="ltr"></label>
+   <label class="f">القطعة اللي هيحتاجها<input id="da_p" list="da_pl" value="${esc(a.part||'')}" placeholder="مثلاً: فلاش لامب"><datalist id="da_pl">${[...new Set(S.parts.filter(p=>catOf(p)==='spare').map(p=>p.name))].map(x=>`<option value="${esc(x)}">`).join('')}</datalist></label>
+   <label class="f">خلال<input id="da_w" value="${esc(a.within||'')}" placeholder="مثلاً: شهر، أسبوعين، 3 شهور"></label></div>
+   <label class="row" style="gap:6px"><input type="checkbox" id="da_c" style="width:auto" ${a.clinic!==false?'checked':''}> نبّه العيادة كمان (لو ليها حساب على السيستم)</label>
+   <label class="row" style="gap:6px"><input type="checkbox" id="da_on" style="width:auto" ${a.on!==false?'checked':''}> التنبيه شغّال</label>
+   ${id?'<button type="button" class="btn sm danger" id="da_del">مسح التنبيه</button>':''}`,()=>{
+    const v=numR($('#da_v').value);if(v==null){toast('اكتب الرقم');return false}
+    const d={serial:serial||a.serial,metric:$('#da_m').value,val:v,part:$('#da_p').value.trim().slice(0,80),within:$('#da_w').value.trim().slice(0,40),clinic:$('#da_c').checked,on:$('#da_on').checked};
+    c.devAlerts=DA(c).slice();if(id)Object.assign(c.devAlerts.find(x=>x.id===id),d);else c.devAlerts.push({id:uid(),...d,createdAt:new Date().toISOString()});save();toast('اتحفظ التنبيه ✓');render()});
+  const del=$('#da_del');if(del)del.onclick=()=>{c.devAlerts=DA(c).filter(x=>x.id!==id);save();closeModal();toast('اتمسح');render()}}
+Object.assign(NEED9,{daNew:'clients',daEdit:'clients',daDone:'clients'});
+Object.assign(X9,{dsScan:()=>dsScan(),
+  daNew:t=>daModal(t.dataset.c,t.dataset.s,null),daEdit:(t,id)=>daModal(t.dataset.c,null,id),
+  daDone:(t,id)=>{const c=client(t.dataset.c);const a=DA(c).find(x=>x.id===id);if(!a)return;const r=dsLatest(a.serial);a.doneAt=r?r.date:today();save();toast('تمام — التنبيه هيرجع يشتغل مع القراءات الجاية');render()},
+  dsImg:(t,id)=>{const r=S.reports.find(x=>x.id===id);if(!r||!r.scan)return;modal(`<h3>📷 شاشة الجهاز — ${fd(r.date)}</h3><img src="${r.scan.img}" style="width:100%;border-radius:8px" alt="">`,()=>true)}});
+
+const SUB_MODS=[['export','تحميل كل البيانات Excel',[]],['freon','الفريون',['freon']],['sales','المبيعات والمستهلكات والعروض',['psales','orders','offers']],['quotes','عروض الأسعار',['quotes']],['pricelists','قوائم الأسعار وطلباتها أونلاين',['pricelists']],['devscan','قراءة شاشة الجهاز بالصورة وتنبيهات القراءات',[]],['devices','بيع وإيجار الأجهزة',['devices']],['contracts','عقود الصيانة',['contracts']],['suppliers','الموردين والمشتريات',['suppliers']],['finance','الحسابات والخزينة ورأس المال والآجل',['ar','accounts','capital','treasury','ledger']],['hr','الحضور والإجازات',['hr']],['payroll','المرتبات والمكافآت',['payroll']],['staff','إدارة الموظفين',['custody','meetings','perf','tests','policy','emps']],['weekly','التقارير الدورية',['weekly']],['analytics','التحليلات',['analytics']],['gs','النسخ لجوجل شيت',[]]];
 const SUB_TAB={};SUB_MODS.forEach(([k,,tabs])=>tabs.forEach(t=>SUB_TAB[t]=k));
 const BC_NAME='Beam Care Maintenance';
 const BC_LOGO='data:image/svg+xml;utf8,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="220" height="220" viewBox="0 0 220 220"><rect width="220" height="220" rx="52" fill="#2F6F68"/><path d="M110 40 L122 98 L180 110 L122 122 L110 180 L98 122 L40 110 L98 98 Z" fill="#DDA86E"/></svg>');
@@ -8091,6 +8505,7 @@ async function pmCoFetch(){try{const r=await fetch('https://firestore.googleapis
   if(PM_CO&&cfg){try{localStorage.setItem('pm-last-co',PM_CO)}catch(e){}}
   if(NO_CFG()){if(PM_CO){S=emptyState();$('#main').innerHTML=`<div class="panel grid" style="max-width:520px;margin:30px auto;text-align:center"><h2>الرابط ده مش شغال</h2><div class="muted">اتأكد إنك فاتح الرابط الصح، أو كلّم الدعم الفني.</div></div>`;return}S=emptyState();$('#main').innerHTML=`<div class="panel grid" style="max-width:520px;margin:30px auto;text-align:center"><h2>السيستم لسه بيتجهز</h2><div class="muted">النسخة دي لسه ما اتفعّلتش. كلّم الدعم الفني.</div></div>`;return}
   if(location.hash==='#req'){S=emptyState();viewWebReqPage(cfg);return}
+  if(/^#pl=[A-Za-z0-9_-]{4,40}$/.test(location.hash)){S=emptyState();window.PLP_SHOWN=1;viewPlPage(cfg,location.hash.slice(4));return}
   if(cfg){
     try{await initOnline(cfg);return}
     catch(e){

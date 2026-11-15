@@ -634,12 +634,12 @@ function itemBal(type,x,sub){if(type==='sale')return saleSched(x)[+sub]?.bal||0;
 const buyerOf=x=>client(x.clientId)||{name:x.buyer||'—',phone:x.phone||'',clinic:x.buyer?'مهندس / مشتري من بره':''};
 function openItems(cid){
   const lim=addDays(today(),30);
-  const a=S.reports.map(r=>({type:'report',x:r,bal:balOf('report',r),due:r.due||r.date,client:client(r.clientId),label:'تقرير #'+pad(r.no)+(r.branch?' — '+r.branch:''),total:totOf('report',r)}));
+  const a=S.reports.map(r=>({type:'report',x:r,bal:balOf('report',r),due:r.due||r.date,client:billToOf(r)||client(r.clientId),label:'تقرير #'+pad(r.no)+(r.branch?' — '+r.branch:''),total:totOf('report',r)}));
   const b=S.contracts.map(k=>({type:'contract',x:k,bal:balOf('contract',k),due:k.due||k.start,client:client(k.clientId),label:'عقد صيانة '+fd(k.start)+' → '+fd(k.end),total:k.value}));
   const c=[];(S.sales||[]).forEach(s=>{const sc=saleSched(s);sc.forEach(q=>{if(q.bal>0.009&&q.due<=lim)c.push({type:'sale',x:s,sub:q.i,bal:q.bal,due:q.due,client:client(s.clientId),label:`قسط ${q.i+1} من ${sc.length} — ${devName(s.device)}`,total:q.amount})})});
   (S.rentals||[]).forEach(r=>rentSched(r).forEach(q=>{if(q.bal>0.009&&q.due<=lim)c.push({type:'rent',x:r,sub:q.i,bal:q.bal,due:q.due,client:client(r.clientId),label:r.once?`إيجار قطعة — ${devName(r.device)}`:`إيجار ${monthName(q.due)} — ${devName(r.device)}`,total:q.amount})}));
   const d=(S.partSales||[]).map(x=>({type:'psale',x,bal:balOf('psale',x),due:x.due||x.date,client:buyerOf(x),label:psTitle(x)+' #'+pad(x.no),total:totOf('psale',x)}));
-  return a.concat(b,c,d).filter(i=>i.bal>0.009&&(!cid||i.x.clientId===cid)).sort((p,q)=>p.due.localeCompare(q.due));
+  return a.concat(b,c,d).filter(i=>i.bal>0.009&&(!cid||(i.x.clientId===cid&&!(i.type==='report'&&i.x.billTo)))).sort((p,q)=>p.due.localeCompare(q.due));
 }
 function dueBadge(d){const k=daysTo(d);if(k<0)return `<span class="pill p-bad">متأخر ${-k} يوم</span>`;if(k===0)return '<span class="pill p-warn">مستحق النهارده</span>';if(k<=7)return `<span class="pill p-warn">بعد ${k} يوم</span>`;return `<span class="pill p-mut">بعد ${k} يوم</span>`}
 function activeContract(cid){const t=today();return S.contracts.filter(k=>k.clientId===cid).sort((a,b)=>b.end.localeCompare(a.end)).find(k=>k.start<=t&&k.end>=t)}
@@ -1150,7 +1150,7 @@ function cpBox(c){return `<div class="perm-grp" id="cpBox"><b>صلاحيات ا�
 function readCpBox(c){if(!c||!$('#cpBox'))return;c.portal=Object.fromEntries(CPERMS.filter(([k])=>k!=='shop').map(([k])=>[k,!!$(`#cpBox .cpm[value="${k}"]`)?.checked]));c.shop=!!$('#cpBox .cpm[value="shop"]')?.checked}
 function clinicBalance(){
   const cid=ME.clientId;
-  const reps=S.reports.filter(r=>r.clientId===cid),ks=S.contracts.filter(k=>k.clientId===cid);
+  const reps=S.reports.filter(r=>r.clientId===cid&&!r.billTo),ks=S.contracts.filter(k=>k.clientId===cid);
   const items=openItems(cid).map(i=>i.type==='report'?{...i,label:`زيارة ${fd(i.x.date)} — تقرير #${pad(i.x.no)}`}:i.type==='contract'?{...i,label:`عقد الصيانة ${fd(i.x.start)} → ${fd(i.x.end)}`}:i);
   return{reps,ks,items,total:items.reduce((a,i)=>a+i.bal,0),late:items.filter(i=>daysTo(i.due)<0).reduce((a,i)=>a+i.bal,0)};
 }
@@ -1484,6 +1484,7 @@ function viewForm(id){
       <label class="f">خصم<input type="number" min="0" step="any" id="f_disc" value="${r?.discount||0}"></label>
       <label class="f">طريقة الدفع<select id="f_method">${opt(S.settings.methods.map(m=>[m,m]),r?.method||S.settings.methods[0])}</select></label>
     </div>
+    ${billToField(r)}
     <div class="row"><span class="muted">السداد:</span><div class="seg" id="f_term"><button type="button" data-term="cash">كاش (مدفوع بالكامل)</button><button type="button" data-term="credit">آجل</button></div></div>
     <div id="creditBox" class="grid g3">
       <label class="f">المدفوع دلوقتي<input type="number" min="0" step="any" id="f_paid" value="${r&&r.term==='credit'?r.paid:0}"></label>
@@ -1569,7 +1570,7 @@ function initForm(){
   if(!r)setFee();
   const setTerm=t=>{FORM.term=t;$$('#f_term button').forEach(b=>b.classList.toggle('on',b.dataset.term===t));$('#creditBox').hidden=t!=='credit';calc()};
   $$('#f_term button').forEach(b=>b.onclick=()=>setTerm(b.dataset.term));
-  setTerm(FORM.term);
+  setTerm(FORM.term);billToWire();
   rows.addEventListener('change',async e=>{
     if(e.target.classList.contains('pr-photo')){const fl=e.target.files[0];if(!fl)return;const row=e.target.closest('.part-row');try{const d=await compress(fl,800,.6);FORM.partPhotos[row.dataset.k]=d;const cam=row.querySelector('.pr-cam');[...cam.childNodes].forEach(nd=>{if(nd.nodeName!=='INPUT')nd.remove()});cam.insertAdjacentHTML('afterbegin',`<img src="${d}" alt="">`)}catch(_){toast('معرفتش أقرا الصورة')}return}
     if(e.target.classList.contains('pr-part')){const v=e.target.value,row=e.target.closest('.part-row');const q=row.querySelector('.pr-qty');
@@ -1629,7 +1630,7 @@ async function saveReport(){
     device:{brand:g('f_dbrand'),name:g('f_dname'),model:g('f_dmodel'),serial:g('f_dserial')},
     tx:g('f_tx'),pp:ppNow,hv:g('f_hv'),faults,...((FORM.scan||old?.scan)?{scan:FORM.scan||old.scan}:{}),
     contractId:g('f_visit')==='contract'?(contractOn(cid,g('f_date'),$('#f_branch').disabled?'':g('f_branch'),g('f_dserial'))?.id||''):'',visitType:g('f_visit')==='contract'&&!contractOn(cid,g('f_date'),$('#f_branch').disabled?'':g('f_branch'),g('f_dserial'))&&!(can('contract_grace')&&$('#f_grace')?.checked)?'emergency':g('f_visit'),graceContract:g('f_visit')==='contract'&&!contractOn(cid,g('f_date'),$('#f_branch').disabled?'':g('f_branch'),g('f_dserial'))&&can('contract_grace')&&!!$('#f_grace')?.checked,work:g('f_work'),complaint:g('f_complaint'),done:g('f_done'),parts,oldReceived:$('#f_old').checked,
-    visitFee:fee,discount:disc,total:tot,method:g('f_method'),term:FORM.term,
+    visitFee:fee,discount:disc,total:tot,method:g('f_method'),term:FORM.term,billTo:billToGet(),
     paid:FORM.term==='cash'?tot:Math.min(tot,n(g('f_paid'))),due:FORM.term==='credit'?g('f_due'):'',
     pendingNo:old?old.pendingNo||false:pendNo,by:old?.by||ME.id,payReceived:$('#f_recv_ok').checked,payPhoto:FORM.payPhoto,requestId:old?.requestId||FORM.reqId||'',
     sentAt:old?.sentAt||'',engineer:g('f_eng'),receiver:g('f_recv'),notes:g('f_notes'),sigEng:FORM.sigEng,sigClient:FORM.sigClient,photos:FORM.photos,pulled:old?.pulled||[]};
@@ -1660,7 +1661,7 @@ function sigPad(key){
    عرض التقرير (نفس شكل الورقة) + تصويره
    ===================================================================== */
 function reportHTML(r){
-  const s=S.settings,c=client(r.clientId)||{},sp=s.showPrices,NV='#1d2b45',AC='#2b8fb8',MU='#4a5565',LN='#d9e0e8',TX='#0f1722',BG='#f1f5f9';
+  const s=S.settings,c=client(r.clientId)||{},sp=s.showPrices&&!r.billTo,NV='#1d2b45',AC='#2b8fb8',MU='#4a5565',LN='#d9e0e8',TX='#0f1722',BG='#f1f5f9';
   const lg=brandLogo();
   const logo=lg?`<img src="${lg}" style="height:52px;max-width:200px;object-fit:contain" alt="">`:`<div style="font-size:26px;font-weight:800;color:${NV};direction:ltr;font-family:Arial,sans-serif">${esc(s.company)}</div>`;
   const paid=paidOf('report',r),bal=balOf('report',r),br=branchInfo(c,r.branch);
@@ -1720,6 +1721,7 @@ function viewReport(id){
   const just=JUST_SAVED===r.id;JUST_SAVED=null;if(just&&!r.sentAt&&S.settings.autoWa!==false)setTimeout(()=>sendReport(r.id),250);
   return `
   ${just&&!r.sentAt?`<div class="done-card no-print"><b>اتحفظ التقرير ✓</b><div class="row between"><span>${S.settings.autoWa!==false?'بيتفتح الواتساب علشان تبعته للعميل — لو ما اتفتحش دوس هنا. وهيظهرله كمان في حسابه على السيستم.':'ابعته للعميل دلوقتي على الواتساب، وهيظهرله كمان في حسابه على السيستم.'}</span><button class="btn pri" data-act="sendRep" data-id="${r.id}">📤 ابعت للعميل</button></div></div>`:''}
+  ${r.billTo&&!isClinic()?`<div class="banner info no-print">💼 حساب التقرير ده على <b>${esc(billToOf(r).name)}</b> (${r.billTo.type==='sup'?'مورد':'مهندس من بره'}) — الإجمالي <b class="num">${money(totOf('report',r))}</b>${bal>0.009?` · الباقي عليه <b class="num">${money(bal)}</b>`:' · خالص'}. الأسعار مش بتظهر في التقرير اللي بيتبعت للعيادة.</div>`:''}
   <div class="row between no-print"><h2>تقرير #${pad(r.no)} <span class="muted" style="font-size:1rem">${esc(c?.name||'')}${r.branch?' — '+esc(r.branch):''}</span></h2>
    <div class="row"><button class="btn pri" data-act="sendRep" data-id="${r.id}">📤 ابعت للعميل</button><button class="btn" data-act="img" data-id="${r.id}">📷 حفظ كصورة</button>${IN_ART()?'':prBtn('r',r.id,'طباعة / PDF')}</div></div>
   <div class="row no-print">${r.sentAt?`<span class="pill p-info">اتبعت للعميل ${fdt(r.sentAt)}</span>`:'<span class="pill p-warn">لسه متبعتش للعميل</span>'}${bal>0.009?`<span class="pill p-warn">متبقي ${money(bal)}</span> ${dueBadge(r.due||r.date)} <button class="btn sm" data-act="collect" data-type="report" data-id="${r.id}">تسجيل تحصيل</button>`:bal<-0.009?`<span class="pill p-info">مستحق للعميل ${money(-bal)}</span>`:'<span class="pill p-ok">مدفوع بالكامل</span>'}
@@ -1734,7 +1736,7 @@ function openWa(phone,txt){const a=document.createElement('a');a.href=`https://w
 async function sendReport(id){
   const r=S.reports.find(x=>x.id===id);if(!r)return;const c=client(r.clientId)||{};const br=branchInfo(c,r.branch);
   const bal=balOf('report',r);const link=location.origin+location.pathname+PM_Q;
-  const txt=`${BRAND()} — تقرير صيانة رقم ${pad(r.no)}\nالعميل: ${c.name||''}${r.branch?' – فرع '+r.branch:''}\nالتاريخ: ${fd(r.date)}\nالجهاز: ${devName(r.device)}${(r.faults||[]).length?'\nالأعطال: '+r.faults.join('، '):''}\nما تم: ${r.done||'—'}\nالإجمالي: ${money(totOf('report',r))}${bal>0.009?'\nالمتبقي: '+money(bal):''}\n\nتقدر تشوف التقرير وحسابك وضمان القطع من هنا:\n${link}`;
+  const txt=`${BRAND()} — تقرير صيانة رقم ${pad(r.no)}\nالعميل: ${c.name||''}${r.branch?' – فرع '+r.branch:''}\nالتاريخ: ${fd(r.date)}\nالجهاز: ${devName(r.device)}${(r.faults||[]).length?'\nالأعطال: '+r.faults.join('، '):''}\nما تم: ${r.done||'—'}${r.billTo?'':`\nالإجمالي: ${money(totOf('report',r))}${bal>0.009?'\nالمتبقي: '+money(bal):''}`}\n\nتقدر تشوف التقرير وحسابك وضمان القطع من هنا:\n${link}`;
   toast('بيتم تجهيز التقرير…');
   let blob=null;try{blob=await reportBlob(r)}catch(e){}
   let done=false;
@@ -1817,7 +1819,7 @@ function viewClient(id){
   const reps=S.reports.filter(r=>r.clientId===id&&mine(r)).sort((a,b)=>b.date.localeCompare(a.date));
   const ks=S.contracts.filter(k=>k.clientId===id).sort((a,b)=>b.start.localeCompare(a.start));
   const items=openItems(id);const bal=items.reduce((a,i)=>a+i.bal,0);
-  const tot=S.reports.filter(r=>r.clientId===id).reduce((a,r)=>a+totOf('report',r),0)+ks.reduce((a,k)=>a+n(k.value),0);
+  const tot=S.reports.filter(r=>r.clientId===id&&!r.billTo).reduce((a,r)=>a+totOf('report',r),0)+ks.reduce((a,k)=>a+n(k.value),0);
   const acc=S.users.filter(u=>u.clientId===id);
   const pa=partsAtClient(id);const brs=branchesOf(c);
   return `<div class="row between"><h2>${esc(cName(c))} <span class="muted" style="font-size:1rem">${esc(cSub(c))}</span>${c.deleted?' <span class="pill p-bad">محذوف</span>':''}</h2><div class="row">${can('reports_write')?`<button class="btn pri" data-act="newFor" data-id="${c.id}">+ تقرير للعيادة دي</button>`:''}${can('devices')?`<button class="btn" data-act="sellTo" data-id="${c.id}">+ بيع جهاز</button><button class="btn" data-act="rentTo" data-id="${c.id}">+ إيجار جهاز</button>`:''}${can('part_sales')?`<button class="btn" data-act="psTo" data-id="${c.id}">+ فاتورة قطع / مستهلكات</button>`:''}<button class="btn" data-act="editClient" data-id="${c.id}">تعديل البيانات</button>${can('clients_delete')&&!c.deleted?`<button class="btn danger" data-act="delClient" data-id="${c.id}">حذف</button>`:''}</div></div>
@@ -2136,6 +2138,7 @@ function viewSupplier(id){
     <div class="small muted">مقدم ${money(p.paid)}${p.plan?` · ${p.plan.count} قسط كل ${p.plan.every>1?p.plan.every+' شهور':'شهر'}`:''}${wLabel({wMonths:p.supWMonths,wPulses:p.supWPulses})?` · ضمان المورد ${wLabel({wMonths:p.supWMonths,wPulses:p.supWPulses})}${p.supWMonths?' لحد '+fd(wEnd(p.date,p.supWMonths)):''}`:''}</div>
     ${sc.length?`<div class="tbl-wrap"><table class="t"><thead><tr><th>#</th><th>الميعاد</th><th>القسط</th><th>اتدفع</th><th>الحالة</th></tr></thead><tbody>${sc.map(q=>`<tr><td>${q.i+1}</td><td>${fd(q.due)}</td><td class="num">${money(q.amount)}</td><td class="num">${money(q.paid)}</td><td>${q.bal<=0.009?'<span class="pill p-ok">مدفوع</span>':dueBadge(q.due)}</td></tr>`).join('')}</tbody></table></div>`:''}</div>`}).join('')}</div>`:''}
   <div class="panel"><h3>فواتير الشراء</h3>${pu.length?`<div class="tbl-wrap"><table class="t"><thead><tr><th>التاريخ</th><th>رقم الفاتورة</th><th>الأصناف</th><th>الإجمالي</th><th>مدفوع وقتها</th><th>الحالة</th><th></th></tr></thead><tbody>${pu.map(p=>`<tr><td>${fd(p.date)}</td><td class="num"><b>${puNo(p)||'—'}</b>${p.invoiceNo&&!['فريون','أسطوانات فاضية','تصليح'].includes(p.invoiceNo)?`<div class="muted small">فاتورة المورد: ${esc(p.invoiceNo)}</div>`:''}${p.kind==='freon'?' <span class="pill p-info">فريون</span>':p.kind==='frempty'?' <span class="pill p-info">أسطوانات</span>':[...new Set((p.lines||[]).map(l=>l.cat||catOf(part(l.partId))))].map(c=>` <span class="pill ${c==='cons'?'p-acc':'p-info'}">${c==='cons'?'مستهلكات':'قطع غيار'}</span>`).join('')}</td><td class="small">${(p.lines||[]).map(l=>`${esc(l.name)} × ${l.qty}${wLabel({wMonths:l.supWMonths,wPulses:l.supWPulses})?` <span class="muted">(ضمان ${wLabel({wMonths:l.supWMonths,wPulses:l.supWPulses})})</span>`:''}`).join('، ')}</td><td class="num">${money(p.total)}</td><td class="num">${money(p.paid)}</td><td>${AL[p.id]>0.009?`باقي <b class="num">${money(AL[p.id])}</b>${p.due?`<br>${fd(p.due)} ${dueBadge(p.due)}`:''}`:'<span class="pill p-ok">خالصة</span>'}</td><td><div class="row" style="flex-wrap:nowrap">${p.photo?`<button class="btn sm" data-act="showImg" data-src="pu:${p.id}">الفاتورة</button>`:''}${frIsPu(p)&&can('freon_inv_edit')?`<button class="btn sm" data-act="frEditPu" data-id="${p.id}">✏️ تعديل</button>`:''}${can('suppliers')||can('invoice_delete')?`<button class="btn sm ghost" data-act="delPurchase" data-id="${p.id}">حذف</button>`:''}</div></td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">مفيش فواتير</div>'}</div>
+  ${supSalesPanel(s)}
   <div class="panel"><h3>الدفعات للمورد</h3>${pa.length?`<div class="tbl-wrap"><table class="t"><thead><tr><th>التاريخ</th><th>المبلغ</th><th>الطريقة</th><th>على</th><th>ملاحظات</th><th></th></tr></thead><tbody>${pa.map(p=>{const tp=p.purchaseId&&S.purchases.find(x=>x.id===p.purchaseId);return `<tr><td>${fd(p.date)}</td><td class="num"><b>${money(p.amount)}</b></td><td>${esc(p.method)}</td><td class="small">${tp?(tp.kind==='device'?'جهاز '+esc(devName(tp.device||{})):'فاتورة '+esc(puNo(tp)||tp.invoiceNo||fd(tp.date))):'الحساب العام'}</td><td class="small">${esc(p.notes||'')}</td><td><div class="row" style="flex-wrap:nowrap">${p.photo?`<button class="btn sm" data-act="showImg" data-src="sp:${p.id}">الإيصال</button>`:''}<button class="btn sm ghost" data-act="delSupPay" data-id="${p.id}">حذف</button></div></td></tr>`}).join('')}</tbody></table></div>`:'<div class="empty">مفيش دفعات</div>'}</div>`;
 }
 function openSupplierModal(id){
@@ -2349,7 +2352,8 @@ function openPartSale(kind){
   let term='cash';
   modal(`<h3>${kind==='cons'?'فاتورة بيع مستهلكات ومستلزمات':'فاتورة بيع قطع غيار'}</h3>
    <div class="grid g2"><label class="f">التاريخ<input type="date" id="ps_d" value="${today()}"></label>
-   <label class="f">المشتري<select id="ps_bt"><option value="ext">مهندس / مشتري من بره</option><option value="client">عيادة من العيادات</option></select></label>
+   <label class="f">المشتري<select id="ps_bt"><option value="ext">مهندس / مشتري من بره</option><option value="client">عيادة من العيادات</option>${SUPS().length?'<option value="sup">مورد من الموردين</option>':''}</select></label>
+   <label class="f" id="ps_bs_l" hidden>المورد<select id="ps_bs">${SUPS().map(x=>`<option value="${x.id}">${esc(x.name)}${x.company?' — '+esc(x.company):''}</option>`).join('')}</select></label>
    <label class="f" id="ps_bn_l">اسم المشتري<input id="ps_bn" list="ps_bl"><datalist id="ps_bl">${buyers.map(([b])=>`<option value="${esc(b)}">`).join('')}</datalist></label>
    <label class="f" id="ps_bp_l">تليفونه<input id="ps_bp" type="tel"></label>
    <label class="f" id="ps_bc_l" hidden>العيادة<select id="ps_bc">${CL().map(c=>`<option value="${c.id}">${esc(cName(c))}${cSub(c)?' – '+esc(cSub(c)):''}</option>`).join('')}</select></label>
@@ -2372,9 +2376,9 @@ function openPartSale(kind){
     const no=await takeSaleNo(kind);const id=uid();
     for(const pid in need){const p=part(pid);partTake(p,need[pid],VQ[pid])}
     lines.filter(l=>l.unitId).forEach(l=>{const u=unitById(l.unitId);u.status='sold';u.saleId=id;u.clientId=bt==='client'?$('#ps_bc').value:''});
-    const c=bt==='client'?client($('#ps_bc').value):null;
+    const c=bt==='client'?client($('#ps_bc').value):null;const sup=bt==='sup'?S.suppliers.find(x=>x.id===$('#ps_bs').value):null;
     const brn=c&&branchesOf(c).length?$('#ps_bb').value:'';const bri=c&&brn?branchInfo(c,brn):null;
-    S.partSales.push({id,no,kind,date:$('#ps_d').value,clientId:c?.id||'',branch:brn,address:c?(bri?bri.address:c.address)||'':'',buyer:c?c.name:$('#ps_bn').value.trim(),phone:c?(bri?.phone||c.phone):$('#ps_bp').value.trim(),lines,discount:disc,delivery:dlv,total,term:tm,paid:tm==='cash'?total:Math.min(total,n($('#ps_paid').value)),due:tm==='credit'?$('#ps_due').value:'',method:$('#ps_m').value,notes:$('#ps_notes').value.trim(),by:ME.id});
+    S.partSales.push({id,no,kind,date:$('#ps_d').value,clientId:c?.id||'',branch:brn,address:c?(bri?bri.address:c.address)||'':'',buyer:c?c.name:sup?sup.name:$('#ps_bn').value.trim(),phone:c?(bri?.phone||c.phone):sup?(sup.phone||''):$('#ps_bp').value.trim(),...(sup?{supplierId:sup.id}:{}),lines,discount:disc,delivery:dlv,total,term:tm,paid:tm==='cash'?total:Math.min(total,n($('#ps_paid').value)),due:tm==='credit'?$('#ps_due').value:'',method:$('#ps_m').value,notes:$('#ps_notes').value.trim(),by:ME.id});
     try{writeVerify('i',(S.partSales||[]).find(y=>y.id===id))}catch(e){}window.JUST_PS=id;save();toast('اتسجلت الفاتورة');go('psale',id);frAfterDeliver(c?.id,lines);
   });
   const box=$('#ps_lines');
@@ -2388,7 +2392,7 @@ function openPartSale(kind){
   const fillBr=()=>{const isC=$('#ps_bt').value==='client';const c=isC?client($('#ps_bc').value):null;const brs=branchesOf(c);$('#ps_bb').innerHTML=(brs.length>1?`<option value="">اختار الفرع…</option>`:brs.length?'':`<option value="">—</option>`)+brs.map(b=>`<option value="${esc(b.name)}">${esc(b.name)}${b.address?' — '+esc(b.address):''}</option>`).join('');$('#ps_bb_l').hidden=!isC||brs.length<2;showBr()};
   const showBr=()=>{const c=$('#ps_bt').value==='client'?client($('#ps_bc').value):null;if(!c){$('#ps_binf').innerHTML='';return}const b=$('#ps_bb').value?branchInfo(c,$('#ps_bb').value):null;const a=b?b.address:c.address,p=b?.phone||c.phone;$('#ps_binf').innerHTML=a||p?`التوصيل: ${esc(a||'—')}${p?' · <span class="num">'+esc(p)+'</span>':''}`:''};
   $('#ps_bc').onchange=fillBr;$('#ps_bb').onchange=showBr;
-  $('#ps_bt').onchange=()=>{const c=$('#ps_bt').value==='client';$('#ps_bn_l').hidden=c;$('#ps_bp_l').hidden=c;$('#ps_bc_l').hidden=!c;fillBr()};
+  $('#ps_bt').onchange=()=>{const bv=$('#ps_bt').value,c=bv==='client';$('#ps_bn_l').hidden=bv!=='ext';$('#ps_bp_l').hidden=bv!=='ext';$('#ps_bc_l').hidden=!c;$('#ps_bs_l').hidden=bv!=='sup';fillBr()};
   $('#ps_term').onchange=()=>{const cr=$('#ps_term').value==='credit';$('#ps_paid_l').hidden=!cr;$('#ps_due_l').hidden=!cr};
   $('#ps_bn').addEventListener('change',()=>{const b=buyers.find(x=>x[0]===$('#ps_bn').value);if(b&&!$('#ps_bp').value)$('#ps_bp').value=b[1]});
   calc();
@@ -2780,7 +2784,7 @@ function viewAccounts(){
   const profit=revenue-cogs-expV-vchV-partnerShare;
   // الكاش
   const cashIn=reps.reduce((a,r)=>a+n(r.paid),0)+ks.reduce((a,k)=>a+n(k.paid),0)+sl.reduce((a,x)=>a+n(x.down),0)+ps.reduce((a,x)=>a+n(x.paid),0)+S.payments.filter(p=>inR(p.date)).reduce((a,p)=>a+n(p.amount),0);
-  const supOut=S.purchases.filter(p=>inR(p.date)).reduce((a,p)=>a+n(p.paid),0)+S.supplierPayments.filter(p=>inR(p.date)).reduce((a,p)=>a+n(p.amount),0);
+  const supOut=S.purchases.filter(p=>inR(p.date)).reduce((a,p)=>a+n(p.paid),0)+S.supplierPayments.filter(p=>inR(p.date)&&p.method!==OFFSET_M).reduce((a,p)=>a+n(p.amount),0);
   const refunds=rets.filter(x=>x.creditMode==='refund').reduce((a,x)=>a+n(x.credit),0);
   const ptOut=(S.stockDevices||[]).reduce((a,d)=>a+((d.partner?.payouts)||[]).filter(x=>inR(x.date)).reduce((b,x)=>b+n(x.amount),0),0);
   const mktBuy=(S.stockDevices||[]).filter(d=>d.source!=='supplier'&&inR(d.buyDate)).reduce((a,d)=>a+n(d.buyPrice),0);
@@ -4921,7 +4925,7 @@ const VCH=()=>S.vouchers||[];
 function vchNo(){return VCH().reduce((a,x)=>Math.max(a,n(x.no)),0)+1}
 /* ---------- دفتر الخزينة ---------- */
 function trLedger(){
-  const C=trCfg();const st=C.start||'2000-01-01';const L=[];const add=(date,amount,method,label,src,safe)=>{if(!date||date<st||!n(amount))return;L.push({date,amount:n(amount),safe:safe||safeFor(method),label,src,method:method||''})};
+  const C=trCfg();const st=C.start||'2000-01-01';const L=[];const add=(date,amount,method,label,src,safe)=>{if(!date||date<st||!n(amount)||method===OFFSET_M)return;L.push({date,amount:n(amount),safe:safe||safeFor(method),label,src,method:method||''})};
   C.safes.forEach(s=>{if(n(s.opening))L.push({date:st==='2000-01-01'?'':st,amount:n(s.opening),safe:s.id,label:'رصيد أول المدة',src:'open'})});
   if(C.auto){
     S.reports.forEach(r=>!isHeldColl('rep',r)&&add(r.date,r.paid,r.method,`تحصيل وقت الزيارة — تقرير #${pad(r.no)} — ${cName(client(r.clientId))||''}`,'in'));
@@ -5380,7 +5384,7 @@ function kDevOpts(cid,branch,sel){const c=client(cid);const D=clientDevices(c).f
 function acctOf(list){const f=(t,a)=>a.reduce((s,x)=>s+t(x),0);return list}
 function branchAcct(c,bn){
   const inBr=x=>(x||'')===bn;const cid=c.id;
-  const reps=S.reports.filter(r=>r.clientId===cid&&inBr(r.branch));
+  const reps=S.reports.filter(r=>r.clientId===cid&&inBr(r.branch)&&!r.billTo);
   const ks=S.contracts.filter(k=>k.clientId===cid&&inBr(k.branch));
   const ps=(S.partSales||[]).filter(x=>x.clientId===cid&&inBr(x.branch));
   const sl=bn?[]:(S.sales||[]).filter(x=>x.clientId===cid);
@@ -8630,6 +8634,43 @@ async function syncInvNos(){if(INVNO_BUSY){invNoTick();return}if(!ME||(ONLINE&&N
   let k=0;got.forEach(([col,id,no])=>{const x=(S[col]||[]).find(y=>y.id===id);if(x&&(x.no==null||x.no==='')){x.no=no;k++}});if(k){save();render()}
 }finally{INVNO_BUSY=false}}
 function invNoTick(){clearTimeout(INVNO_AT);INVNO_AT=setTimeout(()=>syncInvNos().then(()=>{}).catch(()=>{}),500)}
+
+/* =====================================================================
+   البيع للمورد: المورد ممكن يشتري مني قطع غيار أو مستهلكات + مقاصة بين اللي ليه واللي عليه
+   ===================================================================== */
+const OFFSET_M='مقاصة';
+function supSalesOf(sid){return (S.partSales||[]).filter(x=>x.supplierId===sid)}
+function supSalesBal(sid){return n(supSalesOf(sid).reduce((a,x)=>a+n(balOf('psale',x)),0)+supRepsOf(sid).reduce((a,r)=>a+n(balOf('report',r)),0))}
+function supDocs(sid){return [...supSalesOf(sid).map(x=>({t:'psale',x})),...supRepsOf(sid).map(x=>({t:'report',x}))]}
+function supSalesPanel(s){
+  const L=supDocs(s.id).sort((a,b)=>String(b.x.date).localeCompare(String(a.x.date)));const owe=supSalesBal(s.id),B=supBal(s.id);
+  const canSp=can('part_sales'),canSc=can('cons_sales');
+  if(!L.length&&!canSp&&!canSc)return '';
+  const canOff=owe>0.009&&B.bal>0.009&&can('suppliers')&&(can('client_pay')||can('ar'));
+  return `<div class="panel"><div class="row between"><h3 style="margin:0">مبيعات وصيانة للمورد <span class="muted small">(قطع غيار ومستهلكات اشتراها منك، وصيانة عملتها في عيادات تبعه)</span></h3><div class="row">${canSp?`<button class="btn sm" data-act="supSell" data-id="${s.id}" data-k="spare">+ بيع قطع غيار للمورد</button>`:''}${canSc?`<button class="btn sm" data-act="supSell" data-id="${s.id}" data-k="cons">+ بيع مستهلكات للمورد</button>`:''}</div></div>
+   ${L.length?`<div class="grid g3" style="margin-top:8px"><div class="panel kpi"><span>ليك عند المورد (مبيعات وصيانة)</span><b>${money(owe)}</b></div><div class="panel kpi"><span>عليك للمورد</span><b>${money(B.bal)}</b></div><div class="panel kpi"><span>الصافي</span><b style="color:${B.bal-owe>0.009?'var(--accent)':'var(--ok,#1e7d4f)'}">${Math.abs(B.bal-owe)<0.01?'متساويين':B.bal>owe?'عليك '+money(B.bal-owe):'ليك '+money(owe-B.bal)}</b></div></div>
+   ${canOff?`<div class="row" style="margin:6px 0"><button class="btn pri sm" data-act="supOffset" data-id="${s.id}">🔁 مقاصة ${money(Math.min(owe,B.bal))}</button><span class="muted small">— يخصم اللي ليك من اللي عليك من غير فلوس ما تتحرك من الخزنة</span></div>`:''}
+   <div class="tbl-wrap"><table class="t"><thead><tr><th>رقم</th><th>التاريخ</th><th>النوع</th><th>الأصناف</th><th>الإجمالي</th><th>الباقي عليه</th><th></th></tr></thead><tbody>${L.map(({t,x})=>{const r=n(balOf(t,x));const isR=t==='report';return `<tr><td class="num"><a href="#" data-go="${isR?'view':'psale'}" data-p="${x.id}">#${pad(x.no)}</a></td><td>${fd(x.date)}</td><td><span class="pill ${isR?'p-warn':psKind(x)==='cons'?'p-acc':'p-info'}">${isR?'تقرير صيانة':psKind(x)==='cons'?'مستهلكات':'قطع غيار'}</span></td><td class="small">${isR?`صيانة في ${esc(cName(client(x.clientId))||'')} — ${esc(devName(x.device||{}))}`:(x.lines||[]).map(l=>`${esc(l.name)} × ${l.qty}`).join('، ')}</td><td class="num">${money(totOf(t,x))}</td><td>${r>0.009?`<b class="num">${money(r)}</b>${x.due?`<br>${fd(x.due)} ${dueBadge(x.due)}`:''}`:'<span class="pill p-ok">خالصة</span>'}</td><td>${r>0.009&&can('client_pay')?`<button class="btn sm" data-act="collect" data-type="${t}" data-id="${x.id}">تحصيل</button>`:''}</td></tr>`}).join('')}</tbody></table></div>`:'<div class="muted small" style="margin-top:6px">لسه مابعتش للمورد ده حاجة.</div>'}</div>`}
+function supSell(sid,kind){const s=S.suppliers.find(x=>x.id===sid);if(!s)return;openPartSale(kind);setTimeout(()=>{const bt=$('#ps_bt');if(bt){bt.value='sup';bt.onchange();$('#ps_bs').value=sid}},0)}
+function supOffset(sid){const s=S.suppliers.find(x=>x.id===sid);const owe=supSalesBal(sid),B=supBal(sid),mx=n(Math.min(owe,B.bal));if(mx<=0.009)return;
+  modal(`<h3>🔁 مقاصة مع ${esc(s.name)}</h3><div class="muted">ليك عنده ${money(owe)} من مبيعات، وعليك له ${money(B.bal)} من مشتريات. المقاصة بتخصم المبلغ من الناحيتين، ومش بتتحسب حركة فلوس في الخزنة.</div>
+   <div class="grid g2"><label class="f">المبلغ<input type="number" min="0" step="any" id="so_a" value="${mx}"></label><label class="f">التاريخ<input type="date" id="so_d" value="${today()}"></label><label class="f span2">ملاحظات<input id="so_n"></label></div>`,()=>{
+    let a=Math.min(mx,n($('#so_a').value));if(a<=0){toast('اكتب المبلغ');return false}const d=$('#so_d').value||today(),note=$('#so_n').value.trim(),gid=uid();
+    S.supplierPayments.push({id:uid(),supplierId:sid,date:d,amount:a,method:OFFSET_M,offsetId:gid,notes:'مقاصة مع مبيعات للمورد'+(note?' — '+note:''),by:ME.id});
+    let left=a;supDocs(sid).sort((p,q)=>String(p.x.date).localeCompare(String(q.x.date))).forEach(({t:ty,x})=>{if(left<=0.009)return;const r=n(balOf(ty,x));if(r<=0.009)return;const t=n(Math.min(r,left));left=n(left-t);S.payments.push({id:uid(),refType:ty,refId:x.id,clientId:ty==='report'?x.clientId:'',date:d,amount:t,method:OFFSET_M,offsetId:gid,by:ME.id,receipt:''})});
+    save();toast('اتعملت المقاصة ✓');render()})}
+Object.assign(NEED9,{supSell:'',supOffset:'suppliers'});
+Object.assign(X9,{supSell:(t,id)=>{if(!can(t.dataset.k==='cons'?'cons_sales':'part_sales')){toast('مفيش صلاحية');return}supSell(id,t.dataset.k)},supOffset:(t,id)=>supOffset(id)});
+/* تقرير صيانة حسابه على مورد أو مهندس من بره (مش على العيادة) */
+function billToField(r){const b=r?.billTo||null;const v=b?(b.type==='sup'?'sup:'+b.id:'ext'):'';
+  return `<div class="panel" style="padding:10px 12px"><label class="f">الحساب على مين؟<select id="f_billto"><option value="" ${v===''?'selected':''}>العيادة نفسها</option>${SUPS().length?`<optgroup label="مورد">${SUPS().map(s=>`<option value="sup:${s.id}" ${v==='sup:'+s.id?'selected':''}>${esc(s.name)}${s.company?' — '+esc(s.company):''}</option>`).join('')}</optgroup>`:''}<option value="ext" ${v==='ext'?'selected':''}>مهندس صيانة / جهة من بره</option></select></label>
+   <div class="grid g2" id="f_bt_ext" ${v==='ext'?'':'hidden'}><label class="f">اسمه<input id="f_bt_n" value="${esc(b?.type==='ext'?b.name:'')}" list="f_bt_l"><datalist id="f_bt_l">${[...new Set(S.reports.filter(x=>x.billTo?.type==='ext').map(x=>x.billTo.name))].map(nm=>`<option value="${esc(nm)}">`).join('')}</datalist></label><label class="f">تليفونه<input id="f_bt_p" type="tel" value="${esc(b?.type==='ext'?b.phone||'':'')}"></label></div>
+   <div class="muted small" id="f_bt_h" ${v?'':'hidden'}>التقرير بيتعمل عادي على العيادة والجهاز، بس الفلوس بتتحسب على الجهة دي، والعيادة مش بتشوف الأسعار.</div></div>`}
+function billToWire(){const s=$('#f_billto');if(!s)return;const up=()=>{$('#f_bt_ext').hidden=s.value!=='ext';$('#f_bt_h').hidden=!s.value};s.addEventListener('change',up)}
+function billToGet(){const v=$('#f_billto')?.value||'';if(!v)return null;if(v.startsWith('sup:')){const s=S.suppliers.find(x=>x.id===v.slice(4));return s?{type:'sup',id:s.id,name:s.name,phone:s.phone||''}:null}
+  const nm=($('#f_bt_n')?.value||'').trim();return nm?{type:'ext',name:nm,phone:($('#f_bt_p')?.value||'').trim()}:null}
+function billToOf(r){const b=r?.billTo;if(!b)return null;if(b.type==='sup'){const s=S.suppliers.find(x=>x.id===b.id);return {name:s?.name||b.name,phone:s?.phone||b.phone||'',clinic:'مورد — عن '+(cName(client(r.clientId))||'عيادة')}}return {name:b.name,phone:b.phone||'',clinic:'مهندس من بره — عن '+(cName(client(r.clientId))||'عيادة')}}
+function supRepsOf(sid){return S.reports.filter(r=>r.billTo?.type==='sup'&&r.billTo.id===sid)}
 
 const SUB_MODS=[['export','تحميل كل البيانات Excel',[]],['freon','الفريون',['freon']],['sales','المبيعات والمستهلكات والعروض',['psales','orders','offers']],['quotes','عروض الأسعار',['quotes']],['pricelists','قوائم الأسعار وطلباتها أونلاين',['pricelists']],['devscan','قراءة شاشة الجهاز وتحليل بيانات الجهاز',[]],['pricetiers','أسعار خاصة لكل عميل (فئات أسعار)',[]],['devices','بيع وإيجار الأجهزة',['devices']],['contracts','عقود الصيانة',['contracts']],['suppliers','الموردين والمشتريات',['suppliers']],['finance','الحسابات والخزينة ورأس المال والآجل',['ar','accounts','capital','treasury','ledger']],['hr','الحضور والإجازات',['hr']],['payroll','المرتبات والمكافآت',['payroll']],['staff','إدارة الموظفين',['custody','meetings','perf','tests','policy','emps']],['weekly','التقارير الدورية',['weekly']],['analytics','التحليلات',['analytics']],['gs','النسخ لجوجل شيت',[]]];
 const SUB_TAB={};SUB_MODS.forEach(([k,,tabs])=>tabs.forEach(t=>SUB_TAB[t]=k));

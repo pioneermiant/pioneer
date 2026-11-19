@@ -3462,7 +3462,7 @@ async function sysQr(){await loadQR();const link=sysLink(),img=qrData(link);
   <div class="row" style="justify-content:center;gap:8px;margin-top:10px"><button class="btn" data-act="sysQrShare">📤 ابعته / احفظه</button><button class="btn" onclick="navigator.clipboard&&navigator.clipboard.writeText('${esc(link)}').then(()=>toast('اتنسخ ✓'))">نسخ اللينك</button></div>`)}
 async function sysQrShare(){try{const cv=wrCanvasQR(sysLink(),600);const blob=await new Promise(r=>cv.toBlob(r,'image/png'));const f=new File([blob],'qr-system.png',{type:'image/png'});if(!IN_ART()&&navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],text:'ادخل على السيستم من هنا: '+sysLink()});return}await download(blob,'qr-system.png')}catch(e){if(e?.name!=='AbortError')toast('مقدرتش')}}
 /* إشعارات الموبايل لما ييجي طلب جديد من عميل (عن طريق سيرفر الإشعارات بتاع Beam Care) */
-const BC_VAPID='BLVZwt4S0_JXsCy-a_ss0N0TpE0A5TfUY24Z4TwRkc_cWwlP8m7ilXuKEYcqY_gR-qec8gBXMlV_DB1-zPrJL-s';let BC_PUSH_URL=null;
+const BC_VAPID='BM5q7ecq2pZwQ-Q5OS0CKDNbdP6i5lSn5LbIvHGq2d6MEc4pljROIE5a--GcV4my3xUzBufxVMQXq2cAzseneJg';let BC_PUSH_URL=null;
 async function bcPushUrl(){if(BC_PUSH_URL!==null)return BC_PUSH_URL;try{const r=await fetch(BC_API+'pub/push?key='+BC_KEY);const j=await r.json();BC_PUSH_URL=(j.fields?.url?.stringValue||'').replace(/\/+$/,'')}catch(e){BC_PUSH_URL=''}return BC_PUSH_URL}
 async function bcNotify(kind,tt){try{const t=tt||bcTid();const u=await bcPushUrl();if(!t||!u)return;await fetch(u+'/notify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({t:'m-'+t,kind}),keepalive:true})}catch(e){}}
 const pushSupported=()=>'serviceWorker' in navigator&&'PushManager' in window&&'Notification' in window;

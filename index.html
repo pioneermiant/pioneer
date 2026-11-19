@@ -379,6 +379,17 @@ input:focus,select:focus,textarea:focus{border-color:var(--accent)}
 .seg label{padding:7px 18px;cursor:pointer;color:var(--ink)}.seg label.on{background:var(--accent);color:var(--accent-ink);font-weight:600}
 .offer{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px;border-radius:14px;background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 22%,var(--surface)),var(--surface));border:1px solid var(--accent)}.offer img,.offer .ofi{width:72px;height:72px;border-radius:10px;object-fit:cover;background:var(--surface-2);display:grid;place-items:center;font-size:2rem;flex:none}
 .kpi-ic{display:none}
+.vwrap{position:relative;display:block}
+.vwrap>textarea{padding-left:52px!important}.vwrap>input{padding-left:46px!important}
+.vmic{position:absolute;left:6px;width:36px;height:36px;min-height:0;padding:0;border:0;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;background:var(--accent,#3f4b6e);color:var(--accent-ink,#fff);box-shadow:0 4px 10px rgba(0,0,0,.18)}
+.vwrap>textarea+.vmic{bottom:8px}.vwrap>input+.vmic{top:50%;margin-top:-17px;width:34px;height:34px}
+.vmic svg{width:18px;height:18px}
+.vmic.on{background:#E4504A;color:#fff;box-shadow:0 0 0 5px rgba(228,80,74,.22);animation:vmicP 1.1s ease-in-out infinite}
+@keyframes vmicP{50%{box-shadow:0 0 0 9px rgba(228,80,74,.10)}}
+@media (prefers-reduced-motion:reduce){.vmic.on{animation:none}}
+.upbtn{position:fixed;left:max(16px,env(safe-area-inset-left,0px));bottom:calc(24px + env(safe-area-inset-bottom,0px));z-index:40;width:44px;height:44px;border-radius:50%;border:1px solid var(--line,#ddd);background:var(--card,#fff);color:var(--ink,#222);box-shadow:0 6px 18px rgba(0,0,0,.16);display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:0;transform:translateY(10px);pointer-events:none;transition:opacity .2s,transform .2s}
+.upbtn.on{opacity:.92;transform:none;pointer-events:auto}
+@media (max-width:760px){.upbtn{bottom:calc(84px + env(safe-area-inset-bottom,0px))}}
 </style>
 </head>
 <body>
@@ -1070,6 +1081,7 @@ function render(){try{deptsApply()}catch(e){}try{invNoTick()}catch(e){}if(PM_DEM
   $('#brandSub').innerHTML=`<button class="me-av" data-act="acct" title="حسابي" aria-label="حسابي">${avHTML(ME,32)}</button> ${esc(ME.name)}${roleT(ME)?' · '+esc(roleT(ME)):''} ${modeTag} ${bellBtn()}${calcBtn()}${notesBtn()}${qrBtn()}`+(isClinic()||updOn()||subLockFull()?` <button class="hbtn" data-act="myPass">كلمة السر</button> <button class="hbtn" data-act="logout">خروج</button>`:'');
   if(updOn()){$('#tabs').innerHTML='';document.body.classList.add('nonav');m.classList.add('narrow');m.innerHTML=updScreen();return}
   if(subLockFull()){$('#tabs').innerHTML='';document.body.classList.add('nonav');m.classList.add('narrow');m.innerHTML=subLockScreen();return}
+  {const st=isClinic()?null:slpState();window.SLP_ON=!!st;if(st){$('#tabs').innerHTML='';document.body.classList.add('nonav');m.classList.add('narrow');m.innerHTML=slpScreen(st);return}}
   setTimeout(pushDeviceNotifs,50);
   if(isClinic()){$('#tabs').innerHTML='';document.body.classList.add('nonav');m.classList.add('narrow');m.innerHTML=subBanner()+annBanners()+viewClinic();initClinic();return}
   if(location.hash==='#dev-archive'){try{history.replaceState(null,'',location.pathname+location.search)}catch(e){}if(isDev(ME)){VIEW='archive';PARAM=null}}
@@ -2920,9 +2932,18 @@ service cloud.firestore {
     function plOk() { return !exists(/databases/$(database)/documents/meta/sub) || ((!subOn() || subLive()) && noUpd() && get(/databases/$(database)/documents/meta/sub).data.get('mods', {}).get('pricelists', true) != false); }
     function plOrd(d) { return d.keys().hasOnly(['plId', 'plTitle', 'name', 'clinic', 'phone', 'address', 'notes', 'clientId', 'uid', 'disc', 'items', 'status', 'at', '_u']) && d.plId is string && d.name is string && d.name.size() <= 80 && d.phone is string && d.phone.size() <= 20 && d.clientId is string && d.items is list && d.items.size() > 0 && d.items.size() <= 80 && d.status == 'new' && d.at == request.time && d._u == request.time; }
     function wOK() { return ((!subOn() || subLive()) && noUpd()) || isDev(); }
+    function supDoc() { return /databases/$(database)/documents/meta/support; }
+    function supD() { return exists(supDoc()) ? get(supDoc()).data : {}; }
+    function isDevR() { return isDev() && (supD().get('backup', true) != false || supD().get('until', 0) > request.time.toMillis()); }
+    function supCodeOk() { return exists(/databases/$(database)/documents/meta/supcode)
+      && request.resource.data.get('used', '') == get(/databases/$(database)/documents/meta/supcode).data.code
+      && get(/databases/$(database)/documents/meta/supcode).data.exp > request.time.toMillis()
+      && request.resource.data.get('until', 0) <= request.time.toMillis() + supD().get('dur', 1) * 3600000 + 120000; }
     function rOK() { return !subOn() || subLive() || (get(/databases/$(database)/documents/meta/sub).data.get('mode', 'read') != 'full' && get(/databases/$(database)/documents/meta/sub).data.get('stop', false) != true) || isDev(); }
 
     match /meta/sub { allow read: if signed(); allow write: if isDev(); }
+    match /meta/support { allow read: if signed(); allow write: if (isAdmin() && !isDev()) || (isDev() && resource != null && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['until', 'used', 'log']) && supCodeOk()); }
+    match /meta/supcode { allow read, write: if isAdmin() && !isDev(); }
     match /meta/admin { allow read: if true; allow create: if signed() && !exists(/databases/$(database)/documents/meta/admin); }
     match /webcat/{id} { allow read: if true; allow write: if (((isStaff())) && wOK()) || isDev(); }
     match /pricetiers/{id} {
@@ -2959,38 +2980,38 @@ service cloud.firestore {
       allow delete: if (((can('users') && resource.data.get('owner', false) != true && resource.data.get('main', false) != true && request.auth.uid != uid)) && wOK()) || isDev();
     }
     match /clients/{id} {
-      allow read: if (((isStaff() || (hasUser() && me().clientId == id))) && rOK()) || isDev();
+      allow read: if (((isStaff() || (hasUser() && me().clientId == id))) && rOK()) || isDevR();
       allow create, update: if (((isStaff())) && wOK()) || isDev();
       allow delete: if (((can('clients_delete'))) && wOK()) || isDev();
     }
-    match /parts/{id} { allow read: if (((isStaff())) && rOK()) || isDev(); allow create, update: if (((isStaff())) && wOK()) || isDev(); allow delete: if (((can('stock_edit'))) && wOK()) || isDev(); }
-    match /units/{id} { allow read: if (((isStaff())) && rOK()) || isDev(); allow create, update: if (((isStaff())) && wOK()) || isDev(); allow delete: if (((can('stock_edit'))) && wOK()) || isDev(); }
-    match /returns/{id} { allow read: if (((isStaff())) && rOK()) || isDev(); allow write: if (((isStaff())) && wOK()) || isDev(); }
-    match /reports/{id} { allow read: if (((isStaff() || ownClient())) && rOK()) || isDev(); allow create, update: if (((isStaff())) && wOK()) || isDev(); allow delete: if (((can('delete'))) && wOK()) || isDev(); }
+    match /parts/{id} { allow read: if (((isStaff())) && rOK()) || isDevR(); allow create, update: if (((isStaff())) && wOK()) || isDev(); allow delete: if (((can('stock_edit'))) && wOK()) || isDev(); }
+    match /units/{id} { allow read: if (((isStaff())) && rOK()) || isDevR(); allow create, update: if (((isStaff())) && wOK()) || isDev(); allow delete: if (((can('stock_edit'))) && wOK()) || isDev(); }
+    match /returns/{id} { allow read: if (((isStaff())) && rOK()) || isDevR(); allow write: if (((isStaff())) && wOK()) || isDev(); }
+    match /reports/{id} { allow read: if (((isStaff() || ownClient())) && rOK()) || isDevR(); allow create, update: if (((isStaff())) && wOK()) || isDev(); allow delete: if (((can('delete'))) && wOK()) || isDev(); }
     match /contractReqs/{id} {
-      allow read: if (((can('contracts') || can('clients') || ownClient())) && rOK()) || isDev();
+      allow read: if (((can('contracts') || can('clients') || ownClient())) && rOK()) || isDevR();
       allow create: if (((active() && me().role == 'clinic' && request.resource.data.clientId == me().clientId && request.resource.data.status == 'new')) && wOK()) || isDev();
       allow update: if (((can('contracts') || (ownClient() && resource.data.status == 'new' && request.resource.data.status == 'cancelled'))) && wOK()) || isDev();
       allow delete: if (((can('req_delete') || can('contracts'))) && wOK()) || isDev();
     }
-    match /contracts/{id} { allow read: if (((isStaff() || ownClient())) && rOK()) || isDev(); allow create, update: if (((isStaff())) && wOK()) || isDev(); allow delete: if (((can('delete'))) && wOK()) || isDev(); }
-    match /payments/{id} { allow read: if (((isStaff() || ownClient())) && rOK()) || isDev(); allow create, update: if (((isStaff())) && wOK()) || isDev(); allow delete: if (((can('delete') || can('invoice_delete'))) && wOK()) || isDev(); }
-    match /partReturns/{id} { allow read: if (((isStaff() || ownClient())) && rOK()) || isDev(); allow write: if (((can('returns'))) && wOK()) || isDev(); }
+    match /contracts/{id} { allow read: if (((isStaff() || ownClient())) && rOK()) || isDevR(); allow create, update: if (((isStaff())) && wOK()) || isDev(); allow delete: if (((can('delete'))) && wOK()) || isDev(); }
+    match /payments/{id} { allow read: if (((isStaff() || ownClient())) && rOK()) || isDevR(); allow create, update: if (((isStaff())) && wOK()) || isDev(); allow delete: if (((can('delete') || can('invoice_delete'))) && wOK()) || isDev(); }
+    match /partReturns/{id} { allow read: if (((isStaff() || ownClient())) && rOK()) || isDevR(); allow write: if (((can('returns'))) && wOK()) || isDev(); }
     match /requests/{id} {
-      allow read: if (((isStaff() || (signed() && resource.data.uid == request.auth.uid))) && rOK()) || isDev();
+      allow read: if (((isStaff() || (signed() && resource.data.uid == request.auth.uid))) && rOK()) || isDevR();
       allow create: if (((isStaff() || (hasUser() && request.resource.data.uid == request.auth.uid && request.resource.data.clientId == me().clientId))) && wOK()) || isDev();
       allow update: if (((isStaff())) && wOK()) || isDev();
       allow delete: if (((can('req_delete') || can('requests'))) && wOK()) || isDev();
     }
-    match /suppliers/{id} { allow read: if (((can('freon_buy') || can('capital_view') || can('suppliers') || can('accounts') || can('devices') || can('treasury') || can('treasury_view') || can('suppay_req') || can('suppay_approve') || can('ext_repair') || can('freon') || can('place_loc'))) && rOK()) || isDev(); allow create, update: if (((can('freon_buy') || can('suppliers') || can('ext_repair') || can('freon') || can('place_loc'))) && wOK()) || isDev(); allow delete: if (((can('suppliers_delete'))) && wOK()) || isDev(); }
-    match /purchases/{id} { allow read: if (((can('freon_buy') || can('capital_view') || can('suppliers') || can('accounts') || can('devices') || can('treasury') || can('treasury_view') || can('suppay_req') || can('suppay_approve') || can('ext_repair') || can('freon'))) && rOK()) || isDev(); allow write: if (((can('freon_buy') || can('suppliers') || can('devices') || can('ext_repair') || can('freon') || can('invoice_delete'))) && wOK()) || isDev(); }
-    match /supplierPayments/{id} { allow read: if (((can('capital_view') || can('suppliers') || can('accounts') || can('treasury') || can('treasury_view') || can('suppay_req') || can('suppay_approve'))) && rOK()) || isDev(); allow write: if (((can('suppliers') || can('treasury'))) && wOK()) || isDev(); }
-    match /sales/{id} { allow read: if (((can('capital_view') || can('devices') || can('ar') || can('accounts') || can('treasury') || can('treasury_view') || ownClient())) && rOK()) || isDev(); allow write: if (((can('devices'))) && wOK()) || isDev(); }
-    match /rentals/{id} { allow read: if (((can('capital_view') || can('devices') || can('ar') || can('accounts') || can('part_rent') || ownClient())) && rOK()) || isDev(); allow write: if (((can('devices') || can('part_rent'))) && wOK()) || isDev(); }
-    match /stockcounts/{id} { allow read: if (((can('stock_count') || can('stock_count_approve') || can('accounts'))) && rOK()) || isDev(); allow create, update: if (((can('stock_count') || can('stock_count_approve'))) && wOK()) || isDev(); allow delete: if (((can('stock_count_approve'))) && wOK()) || isDev(); }
-    match /freon/{id} { allow read: if (((can('freon_collect') || can('freon_buy') || can('freon_fill') || can('freon_empties') || can('freon_sell') || can('freon_ret') || can('freon_send') || can('freon_edit') || can('capital_view') || can('freon') || can('freon_view') || can('accounts') || can('invoice_delete'))) && rOK()) || isDev(); allow write: if (((can('freon') || can('freon_buy') || can('freon_fill') || can('freon_sell') || can('freon_edit') || can('invoice_delete'))) && wOK()) || isDev(); }
-    match /stockDevices/{id} { allow read: if (((can('capital_view') || can('devices') || can('accounts'))) && rOK()) || isDev(); allow write: if (((can('devices'))) && wOK()) || isDev(); }
-    match /partSales/{id} { allow read: if (((can('freon_sell') || can('freon') || can('ext_repair') || can('capital_view') || can('part_sales') || can('cons_sales') || can('ar') || can('accounts') || can('orders_manage') || can('orders_work') || can('treasury') || can('treasury_view') || ownClient())) && rOK()) || isDev(); allow write: if (((can('freon_sell') || can('part_sales') || can('cons_sales') || can('orders_manage') || can('orders_work') || can('freon') || can('ext_repair') || can('invoice_delete'))) && wOK()) || isDev(); }
+    match /suppliers/{id} { allow read: if (((can('freon_buy') || can('capital_view') || can('suppliers') || can('accounts') || can('devices') || can('treasury') || can('treasury_view') || can('suppay_req') || can('suppay_approve') || can('ext_repair') || can('freon') || can('place_loc'))) && rOK()) || isDevR(); allow create, update: if (((can('freon_buy') || can('suppliers') || can('ext_repair') || can('freon') || can('place_loc'))) && wOK()) || isDev(); allow delete: if (((can('suppliers_delete'))) && wOK()) || isDev(); }
+    match /purchases/{id} { allow read: if (((can('freon_buy') || can('capital_view') || can('suppliers') || can('accounts') || can('devices') || can('treasury') || can('treasury_view') || can('suppay_req') || can('suppay_approve') || can('ext_repair') || can('freon'))) && rOK()) || isDevR(); allow write: if (((can('freon_buy') || can('suppliers') || can('devices') || can('ext_repair') || can('freon') || can('invoice_delete'))) && wOK()) || isDev(); }
+    match /supplierPayments/{id} { allow read: if (((can('capital_view') || can('suppliers') || can('accounts') || can('treasury') || can('treasury_view') || can('suppay_req') || can('suppay_approve'))) && rOK()) || isDevR(); allow write: if (((can('suppliers') || can('treasury'))) && wOK()) || isDev(); }
+    match /sales/{id} { allow read: if (((can('capital_view') || can('devices') || can('ar') || can('accounts') || can('treasury') || can('treasury_view') || ownClient())) && rOK()) || isDevR(); allow write: if (((can('devices'))) && wOK()) || isDev(); }
+    match /rentals/{id} { allow read: if (((can('capital_view') || can('devices') || can('ar') || can('accounts') || can('part_rent') || ownClient())) && rOK()) || isDevR(); allow write: if (((can('devices') || can('part_rent'))) && wOK()) || isDev(); }
+    match /stockcounts/{id} { allow read: if (((can('stock_count') || can('stock_count_approve') || can('accounts'))) && rOK()) || isDevR(); allow create, update: if (((can('stock_count') || can('stock_count_approve'))) && wOK()) || isDev(); allow delete: if (((can('stock_count_approve'))) && wOK()) || isDev(); }
+    match /freon/{id} { allow read: if (((can('freon_collect') || can('freon_buy') || can('freon_fill') || can('freon_empties') || can('freon_sell') || can('freon_ret') || can('freon_send') || can('freon_edit') || can('capital_view') || can('freon') || can('freon_view') || can('accounts') || can('invoice_delete'))) && rOK()) || isDevR(); allow write: if (((can('freon') || can('freon_buy') || can('freon_fill') || can('freon_sell') || can('freon_edit') || can('invoice_delete'))) && wOK()) || isDev(); }
+    match /stockDevices/{id} { allow read: if (((can('capital_view') || can('devices') || can('accounts'))) && rOK()) || isDevR(); allow write: if (((can('devices'))) && wOK()) || isDev(); }
+    match /partSales/{id} { allow read: if (((can('freon_sell') || can('freon') || can('ext_repair') || can('capital_view') || can('part_sales') || can('cons_sales') || can('ar') || can('accounts') || can('orders_manage') || can('orders_work') || can('treasury') || can('treasury_view') || ownClient())) && rOK()) || isDevR(); allow write: if (((can('freon_sell') || can('part_sales') || can('cons_sales') || can('orders_manage') || can('orders_work') || can('freon') || can('ext_repair') || can('invoice_delete'))) && wOK()) || isDev(); }
     match /offers/{id} { allow read: if (((active())) && rOK()) || isDev(); allow write: if (((can('offers'))) && wOK()) || isDev(); }
     match /meetings/{id} { allow read: if (((isStaff())) && rOK()) || isDev(); allow create, delete: if (((can('meetings'))) && wOK()) || isDev(); allow update: if (((can('meetings') || (isStaff() && request.auth.uid in resource.data.attendees))) && wOK()) || isDev(); }
     match /catalog/{id} { allow read: if (((active())) && rOK()) || isDev(); allow write: if (((isStaff())) && wOK()) || isDev(); }
@@ -3036,10 +3057,10 @@ service cloud.firestore {
     match /inspections/{id} { allow read: if (((can('inspections'))) && rOK()) || isDev(); allow create, update: if (((can('inspections'))) && wOK()) || isDev(); allow delete: if (((can('inspections'))) && wOK()) || isDev(); }
     match /secrets/{id} { allow read: if isDev(); allow create, update: if (((can('users') || request.auth.uid == id)) && wOK()) || isDev(); allow delete: if (((isAdmin())) && wOK()) || isDev(); }
     match /weekrep/{id} { allow read: if (((can('weekly_report') || can('weekly_view') || isAdmin() || (isStaff() && me().get('nonEmp', false) == true) || (isStaff() && resource.data.approverId == request.auth.uid))) && rOK()) || isDev(); allow create: if (((can('weekly_report') && request.resource.data.uid == request.auth.uid)) && wOK()) || isDev(); allow update: if ((((isStaff() && resource.data.approverId == request.auth.uid) || (can('weekly_report') && resource.data.uid == request.auth.uid))) && wOK()) || isDev(); allow delete: if (((isAdmin() || (can('weekly_report') && resource.data.uid == request.auth.uid && resource.data.status != 'approved'))) && wOK()) || isDev(); }
-    match /audit/{id} { allow read: if (((isAdmin())) && rOK()) || isDev(); allow create: if (((isStaff() && request.resource.data.uid == request.auth.uid)) && wOK()) || isDev(); allow update: if false; allow delete: if (((isAdmin())) && wOK()) || isDev(); }
+    match /audit/{id} { allow read: if (((isAdmin())) && rOK()) || isDevR(); allow create: if (((isStaff() && request.resource.data.uid == request.auth.uid)) && wOK()) || isDev(); allow update: if false; allow delete: if (((isAdmin())) && wOK()) || isDev(); }
     match /verify/{id} { allow get: if true; allow list: if isDev(); allow create, update: if (((isStaff())) && wOK()) || isDev(); allow delete: if (((isAdmin())) && wOK()) || isDev(); }
     match /deleted/{id} { allow read: if (((active() && me().role != 'clinic')) && rOK()) || isDev(); allow create: if (((active() && me().role != 'clinic')) && wOK()) || isDev(); allow update: if false; allow delete: if (((isAdmin())) && wOK()) || isDev(); }
-    match /archive/{id} { allow read: if (((can('reports_all') || can('accounts') || isAdmin())) && rOK()) || isDev(); allow write: if (((isAdmin())) && wOK()) || isDev(); }
+    match /archive/{id} { allow read: if (((can('reports_all') || can('accounts') || isAdmin())) && rOK()) || isDevR(); allow write: if (((isAdmin())) && wOK()) || isDev(); }
     match /notes/{id} { allow read: if (((isStaff() && resource.data.uid == request.auth.uid)) && rOK()) || isDev(); allow update, delete: if (((isStaff() && resource.data.uid == request.auth.uid)) && wOK()) || isDev(); allow create: if (((isStaff() && request.resource.data.uid == request.auth.uid)) && wOK()) || isDev(); }
     match /handovers/{id} {
       allow read: if (((can('capital_view') || can('handover_recv') || can('accounts') || can('treasury') || can('custody') || mineDoc() || approver())) && rOK()) || isDev();
@@ -3079,19 +3100,47 @@ const XP_SHEETS={clients:'العملاء',parts:'المخزن',reports:'تقار
 const XP_COLS={name:'الاسم',clinic:'العيادة',phone:'التليفون',address:'العنوان',date:'التاريخ',no:'الرقم',amount:'المبلغ',total:'الإجمالي',paid:'المدفوع',method:'طريقة الدفع',note:'ملاحظة',notes:'ملاحظات',qty:'الكمية',cost:'التكلفة',sell:'سعر البيع',code:'الكود',brand:'الماركة',model:'الموديل',serial:'السيريال',status:'الحالة',start:'البداية',end:'النهاية',due:'ميعاد التحصيل',branch:'الفرع',clientId:'العميل',engineer:'المهندس',by:'بواسطة',kind:'النوع',cat:'القسم',unit:'الوحدة',username:'اسم الدخول',role:'الدور',jobTitle:'المسمى',month:'الشهر',net:'الصافي',base:'الأساسي',desc:'الوصف',title:'العنوان',supplierId:'المورد',lines:'الأصناف',visits:'الزيارات',price:'السعر',discount:'الخصم',buyer:'المشتري',type:'النوع',branches:'الفروع',devices:'الأجهزة',createdAt:'اتسجل',updatedAt:'آخر تعديل',email:'الإيميل',city:'المدينة',area:'المنطقة',partId:'القطعة',min:'الحد الأدنى',location:'المكان',warranty:'الضمان',items:'الأصناف',parts:'القطع',description:'الوصف',slot:'الميعاد',urgent:'مستعجل',active:'شغال'};
 const XP_SKIP=/^(hash|photo|photos|receipt|sig|signature|img|image|payPhoto|logo|avatar|pw|pass|perms|_.*)$/;
 const xpCell=(k,v,x)=>{if(v==null)return '';if(k==='clientId')return client(v)?.name||v;if(k==='supplierId')return (S.suppliers||[]).find(z=>z.id===v)?.name||v;if(k==='engineer'||k==='by')return (S.users||[]).find(u=>u.id===v)?.name||v;if(k==='role')return ROLE[v]||v;if(Array.isArray(v))return v.map(i=>typeof i==='object'?(i.name||i.desc||i.title||'')+(i.qty?' × '+i.qty:''):String(i)).filter(Boolean).join('، ');if(typeof v==='object')return v.toDate?fdt(v.toDate()):'';if(typeof v==='boolean')return v?'أيوه':'لأ';return v};
+function loadExcelJS(){if(window.ExcelJS)return Promise.resolve();return loadScript('https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js')}
+const XP_MONEY=/^(amount|total|paid|cost|sell|price|buy|value|due|net|salary|fee|balance|remain|discount|labor|partsTotal|grand)$/i;
 async function exportAll(){
-  if(!isOwnerU(ME)&&!isDev(ME))return;try{await loadXLSX()}catch(e){toast('مقدرتش أحمّل أداة الإكسيل — اتأكد من النت');return}
-  const wb=XLSX.utils.book_new(),sum=[['البيان','العدد']];
-  for(const [k,title] of Object.entries(XP_SHEETS)){const L=(S[k]||[]).filter(x=>x&&typeof x==='object'&&!x.deleted);if(!L.length)continue;
+  if(!isOwnerU(ME)&&!isDev(ME))return;
+  modal(`<h3>⬇️ تحميل كل البيانات على Excel</h3><div class="grid" style="gap:8px"><label class="row" style="gap:6px"><input type="radio" name="xpP" value="all" checked style="width:auto"> كل الفترة</label><label class="row" style="gap:6px"><input type="radio" name="xpP" value="r" style="width:auto"> من تاريخ لتاريخ</label>
+    <div class="row" style="gap:8px"><label class="f" style="flex:1">من<input type="date" id="xpF" value="${today().slice(0,7)}-01"></label><label class="f" style="flex:1">إلى<input type="date" id="xpT" value="${today()}"></label></div>
+    <div class="muted small">شيت لكل حاجة متنسّق، وأول شيت فهرس بأهم الأرقام ولينك لكل شيت.</div></div>`,async()=>{const r=document.querySelector('input[name=xpP]:checked')?.value==='r';await exportAllGo(r?$('#xpF').value:'',r?$('#xpT').value:'')})}
+async function exportAllGo(from,to){
+  try{await loadExcelJS()}catch(e){toast('مقدرتش أحمّل أداة الإكسيل — اتأكد من النت');return}
+  toast('بيجهّز الملف…');
+  const inP=x=>{if(!from)return true;const d=String(x.date||'').slice(0,10);return !d||(d>=from&&d<=to)};
+  const col=(getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()||'#1F4E9A').replace('#','').slice(0,6).padEnd(6,'0');
+  const wb=new ExcelJS.Workbook();wb.views=[{rightToLeft:true}];const first=wb.addWorksheet('الفهرس',{views:[{rightToLeft:true}]});const idx=[];
+  const wall=t=>new Date(t.getTime()-t.getTimezoneOffset()*6e4);
+  const cell=(k,v,x)=>{if(typeof v==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(v)){const[y,m,d]=v.split('-').map(Number);return new Date(Date.UTC(y,m-1,d))}if(v&&typeof v==='object'&&v.toDate)return wall(v.toDate());const o=xpCell(k,v,x);return typeof v==='number'?v:o};
+  const add=(title,head,rows,opt={})=>{const ws=wb.addWorksheet(title.slice(0,31),{views:[{rightToLeft:true,state:'frozen',ySplit:1}]});ws.addRow(head.map(h=>h[1]));rows.forEach(r=>ws.addRow(r));
+    ws.getRow(1).eachCell(c=>{c.font={bold:true,color:{argb:'FFFFFFFF'}};c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF'+col}};c.alignment={vertical:'middle',horizontal:'center',wrapText:true}});ws.getRow(1).height=24;
+    head.forEach(([k],i)=>{const c=ws.getColumn(i+1);let w=String(head[i][1]).length+4;rows.forEach(r=>{const v=r[i];const l=v instanceof Date?12:String(v??'').length;if(l>w)w=l});c.width=Math.min(48,Math.max(10,w+2));if(XP_MONEY.test(k))c.numFmt='#,##0.##';c.eachCell((z,n)=>{if(n>1&&z.value instanceof Date)z.numFmt='yyyy-mm-dd'})});
+    if(rows.length)ws.autoFilter={from:{row:1,column:1},to:{row:1,column:head.length}};
+    const mc=head.map(([k],i)=>XP_MONEY.test(k)&&!/^(price|sell|cost)$/i.test(k)&&!(opt.noSum||[]).includes(k)?i:-1).filter(i=>i>=0);
+    if(rows.length&&mc.length){const tr=ws.addRow(head.map((_,i)=>i===0?'الإجمالي':''));mc.forEach(i=>{const L=ws.getColumn(i+1).letter;tr.getCell(i+1).value={formula:`SUBTOTAL(9,${L}2:${L}${rows.length+1})`}});tr.eachCell(z=>{z.font={bold:true};z.border={top:{style:'medium'}};z.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFF3EBD6'}}})}
+    idx.push([title,rows.length])};
+  for(const [k,title] of Object.entries(XP_SHEETS)){const L=(S[k]||[]).filter(x=>x&&typeof x==='object'&&!x.deleted&&(['clients','parts','suppliers','units'].includes(k)||inP(x)));if(!L.length)continue;
     const keys=[...new Set(L.flatMap(x=>Object.keys(x)))].filter(c=>!XP_SKIP.test(c)&&c!=='id').sort((a,b)=>(XP_COLS[b]?1:0)-(XP_COLS[a]?1:0));
-    const rows=[keys.map(c=>XP_COLS[c]||c),...L.map(x=>keys.map(c=>xpCell(c,x[c],x)))];
-    const ws=XLSX.utils.aoa_to_sheet(rows);ws['!views']=[{RTL:true}];ws['!cols']=keys.map(()=>({wch:16}));XLSX.utils.book_append_sheet(wb,ws,title.slice(0,31));sum.push([title,L.length])}
-  const sm=XLSX.utils.aoa_to_sheet([[S.settings.company||BRAND()],['تاريخ التحميل',new Date().toLocaleString('ar-EG')],[],...sum]);sm['!views']=[{RTL:true}];sm['!cols']=[{wch:26},{wch:20}];
-  XLSX.utils.book_append_sheet(wb,sm,'الملخص');wb.SheetNames.unshift(wb.SheetNames.pop());wb.Workbook={Views:[{RTL:true}]};
-  const out=XLSX.write(wb,{bookType:'xlsx',type:'array'});await download(new Blob([out],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),`بيانات-${S.settings.company||BRAND()}-${today()}.xlsx`);toast('اتحمّل الملف ✓')}
+    add(title,keys.map(c=>[c,XP_COLS[c]||c]),[...L].sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))).map(x=>keys.map(c=>cell(c,x[c],x))))}
+  // الحسابات اليومية: التحصيلات والمصروفات
+  const days={};(S.payments||[]).filter(x=>!x.deleted&&inP(x)).forEach(p=>{const d=String(p.date||'').slice(0,10);if(!d)return;(days[d]=days[d]||{i:0,o:0}).i+=n(p.amount)});
+  (S.expenses||[]).filter(x=>!x.deleted&&inP(x)).forEach(p=>{const d=String(p.date||'').slice(0,10);if(!d)return;(days[d]=days[d]||{i:0,o:0}).o+=n(p.amount)});
+  let run=0;const dr=Object.keys(days).sort().map(d=>{run+=days[d].i-days[d].o;return [cell('date',d),days[d].i,days[d].o,days[d].i-days[d].o,run]}).reverse();
+  add('الحسابات اليومية',[['date','اليوم'],['amount','التحصيلات'],['total','المصروفات'],['net','الصافي'],['balance','الرصيد التراكمي']],dr,{noSum:['balance']});
+  const tin=(S.payments||[]).filter(x=>!x.deleted&&inP(x)).reduce((a,p)=>a+n(p.amount),0),tout=(S.expenses||[]).filter(x=>!x.deleted&&inP(x)).reduce((a,p)=>a+n(p.amount),0);
+  first.getColumn(1).width=34;first.getColumn(2).width=24;first.addRow([S.settings.company||BRAND()]).font={bold:true,size:18,color:{argb:'FF'+col}};
+  first.addRow(['تاريخ التحميل',new Date().toLocaleString('ar-EG')]);first.addRow(['الفترة',from?`${from} ← ${to}`:'كل الفترة']);first.addRow([]);first.addRow(['أهم الأرقام']).font={bold:true,size:13};
+  [['إجمالي التحصيلات',tin],['إجمالي المصروفات',tout],['الصافي',tin-tout],['عدد العملاء',(S.clients||[]).filter(x=>!x.deleted).length],['تقارير الصيانة',(S.reports||[]).filter(x=>!x.deleted&&inP(x)).length]].forEach(([l,v],i)=>{const r=first.addRow([l,v]);r.getCell(2).numFmt=i<3?'#,##0.##':'#,##0';r.getCell(2).font={bold:true}});
+  first.addRow([]);const h=first.addRow(['الشيت (دوس عليه)','عدد السطور']);h.eachCell(c=>{c.font={bold:true,color:{argb:'FFFFFFFF'}};c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF'+col}}});
+  idx.forEach(([t,k])=>{const r=first.addRow([{text:t,hyperlink:`#'${t.slice(0,31)}'!A1`},k]);r.getCell(1).font={color:{argb:'FF1F4E9A'},underline:true}});
+  const buf=await wb.xlsx.writeBuffer();await download(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),`بيانات-${S.settings.company||BRAND()}-${from?from+'_'+to:today()}.xlsx`);toast('اتحمّل الملف ✓')}
 function viewSettings(){
   const s=S.settings;
   return `<div class="row between"><h2>الإعدادات</h2>${(isOwnerU(ME)||isDev(ME))&&subMod('export')?'<button class="btn" data-act="exportAll">⬇️ تحميل كل بياناتي (Excel)</button>':''}</div>
+  ${psupCard()}${slpCard()}
   <form id="sf" class="grid">
   <div class="panel grid g2"><h3 style="grid-column:1/-1;margin:0">اسم الشركة واللوجو</h3><div class="muted small" style="grid-column:1/-1">بيظهروا في السيستم كله: القايمة، وشاشة الدخول، واسم الأبلكيشن وأيقونته على الموبايل، والتقارير والفواتير.</div>
     <label class="f">اسم الشركة<input id="s_company" value="${esc(s.company)}"></label>
@@ -3903,6 +3952,85 @@ function viewPunches(){
   ${list.length?`<div class="tbl-wrap" style="margin-top:8px"><table class="t"><thead><tr><th>الموظف</th><th>النوع</th><th>الوقت</th><th>المكان</th><th>المأمورية</th><th>ملاحظة</th></tr></thead><tbody>${list.map(x=>{const m=(S.hr||[]).find(h=>h.id===x.missionId);return `<tr><td><b>${esc(x.name||userName(x.uid))}</b></td><td><span class="pill ${x.type==='in'?'p-ok':'p-info'}">${PUNCH_T[x.type]}</span></td><td class="num">${timeOf(x.at)}</td><td class="small">${esc(x.place||'')}${x.lat!=null?` <a href="${mapUrl(x)}" target="_blank" rel="noopener">الخريطة</a> <span class="muted">(±${x.acc}م)</span>`:' <span class="pill p-warn">من غير موقع</span>'}</td><td class="small">${m?`${esc(MISSION_T[m.type]||'')} <span class="pill ${(HR_ST[m.status]||HR_ST.pending)[1]}">${(HR_ST[m.status]||HR_ST.pending)[0]}</span>`:'<span class="pill p-warn">مفيش مأمورية</span>'}</td><td class="small">${esc(x.note||'')}</td></tr>`}).join('')}</tbody></table></div>`:'<div class="empty">مفيش بصمات من الموبايل في اليوم ده</div>'}</div>`;
 }
 X9.punch=(t)=>doPunch(t.dataset.t);
+
+/* =====================================================================
+   v3.4 — قفل السيستم برّه الشيفت + دخول Beam Care للدعم بإذن الشركة
+   ===================================================================== */
+const SLP_DEF={on:false,grace:15,warn:10,punch:true,roles:[],u:{},def:{s:'09:00',e:'17:00',days:[0,1,2,3,4,6]},ext:{}};
+const slpCfg=()=>({...SLP_DEF,...(S.settings.shiftLock||{})});
+const slpMin=t=>{const m=String(t||'').match(/(\d{1,2}):(\d{2})/);return m?(+m[1])*60+(+m[2]):null};
+const slpFeat=()=>!!(S&&S.sub&&S.sub.shiftLock===true);
+function slpApplies(){const c=slpCfg();if(!slpFeat()||!c.on||!ME||!isStaff()||isDev(ME)||isOwnerU(ME)||ME.main)return false;return !c.roles.length||c.roles.includes(ME.role)}
+function slpState(){
+  if(!slpApplies())return null;const c=slpCfg(),sc=c.u[ME.id]||c.def,d=new Date(),t=today(),now=d.getHours()*60+d.getMinutes();
+  const ex=c.ext[ME.id];if(ex&&ex.d===t&&slpMin(ex.until)>now)return null;
+  if(Array.isArray(sc.days)&&!sc.days.includes(d.getDay()))return {why:'off'};
+  const s=slpMin(sc.s),e=slpMin(sc.e),g=n(c.grace);if(s==null||e==null)return null;
+  const inWin=e>s?(now>=s-g&&now<e+g):(now>=s-g||now<e+g);
+  if(!inWin)return {why:now<s?'before':'after',s:sc.s,e:sc.e};
+  if(c.punch){const mine=(S.punches||[]).filter(x=>x.uid===ME.id&&x.date===t).sort((a,b)=>a.at.localeCompare(b.at));if(!mine.length||mine[mine.length-1].type!=='in')return {why:mine.length?'out':'punch'}}
+  return null;
+}
+const SLP_WHY={before:'لسه بدري على الشيفت',after:'الشيفت خلص',off:'النهارده إجازتك',punch:'لازم تعمل بصمة حضور الأول',out:'إنت عملت بصمة انصراف'};
+function slpScreen(st){
+  const t=today(),k='pm-slp-'+ME.id+'-'+t+'-'+st.why;let first=false;try{first=!localStorage.getItem(k);localStorage.setItem(k,'1')}catch(e){}
+  if(first&&st.why!=='punch'){const ad=S.users.filter(u=>isOwnerU(u)&&!isDev(u)).map(u=>u.id);notify(ad,'🔒 محاولة فتح السيستم برّه الشيفت',`${ME.name} — ${SLP_WHY[st.why]}`,'settings')}
+  const pc=st.why==='punch'||st.why==='out'||st.why==='before';
+  return `<div class="panel grid" style="margin-top:24px;gap:12px;text-align:center"><div style="font-size:42px" aria-hidden="true">🔒</div><h2 style="margin:0">${SLP_WHY[st.why]}</h2>
+   <div class="muted">${st.s?`مواعيد شغلك من <b class="num">${esc(st.s)}</b> لـ <b class="num">${esc(st.e)}</b>. `:''}السيستم بيفتح في مواعيد الشغل بس.</div></div>
+   ${pc&&typeof punchCard==='function'?punchCard():''}
+   <div class="panel grid" style="gap:8px"><button class="btn" data-act="slpLeave">🌴 طلب إجازة</button><button class="btn" data-act="slpExt">⏱️ محتاج وقت زيادة النهارده</button><button class="btn ghost" data-act="slpRetry">🔄 جرّب تاني</button></div>`;
+}
+X9.slpRetry=()=>render();
+X9.slpLeave=()=>openLeave2();
+X9.slpExt=()=>modal(`<h3>⏱️ وقت زيادة النهارده</h3><label class="f">قد إيه؟<select id="slp_h"><option value="1">ساعة</option><option value="2">ساعتين</option><option value="3">٣ ساعات</option></select></label><label class="f">السبب<input id="slp_r" placeholder="مثلاً: تقرير لازم يخلص"></label>`,()=>{
+  const ad=S.users.filter(u=>isOwnerU(u)&&!isDev(u)).map(u=>u.id);notify(ad,'⏱️ طلب وقت زيادة',`${ME.name} محتاج ${$('#slp_h').selectedOptions[0].text}${$('#slp_r').value.trim()?' — '+$('#slp_r').value.trim():''} · وافق من الإعدادات ← قفل الشيفت`,'settings');save();toast('اتبعت الطلب للإدارة ✓');return true});
+// تنبيه قبل آخر الشيفت + قفل لما الوقت يخلص
+setInterval(()=>{try{if(!ME||!slpApplies())return;const c=slpCfg(),sc=c.u[ME.id]||c.def,d=new Date(),now=d.getHours()*60+d.getMinutes(),e=slpMin(sc.e),ex=c.ext[ME.id],end=ex&&ex.d===today()?Math.max(e,slpMin(ex.until)):e;
+  if(end-now===n(c.warn)&&window.SLP_W!==today()+end){window.SLP_W=today()+end;toast(`⏰ فاضل ${n(c.warn)} دقايق على آخر الشيفت — احفظ شغلك`)}
+  if(slpState()&&!window.SLP_ON)render()}catch(e){}},30000);
+function slpCard(){
+  if(!slpFeat()||!(isOwnerU(ME)||can('settings')))return '';const c=slpCfg();const staff=S.users.filter(u=>STAFF_ROLES.includes(u.role)&&!isOwnerU(u)&&!isDev(u)&&u.active!==false);
+  const roles=[...new Set(staff.map(u=>u.role))];const D=['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
+  return `<div class="panel grid" id="slpCard" style="gap:10px"><h3 style="margin:0">🔒 قفل السيستم برّه الشيفت</h3><div class="muted small">الموظف مايقدرش يفتح السيستم غير في مواعيد شغله. برّه الشيفت: البصمة وطلب الإجازة بس. صاحب الشركة مش بيتقفل عليه.</div>
+   <label class="chipc" style="justify-self:start"><input type="checkbox" id="slp_on" ${c.on?'checked':''}> مفعّل</label>
+   <div class="grid g3"><label class="f">سماح (دقيقة)<input id="slp_g" type="number" min="0" value="${n(c.grace)}"></label><label class="f">تنبيه قبل الآخر (دقيقة)<input id="slp_w" type="number" min="0" value="${n(c.warn)}"></label><label class="chipc" style="align-self:end;justify-self:start"><input type="checkbox" id="slp_p" ${c.punch?'checked':''}> لازم بصمة حضور الأول</label></div>
+   <div class="grid g2"><label class="f">المواعيد العادية من<input id="slp_s" type="time" value="${esc(c.def.s)}"></label><label class="f">لحد<input id="slp_e" type="time" value="${esc(c.def.e)}"></label></div>
+   <div class="row" style="flex-wrap:wrap;gap:6px">${D.map((d,i)=>`<label class="chipc"><input type="checkbox" class="slp_d" value="${i}" ${(c.def.days||[]).includes(i)?'checked':''}> ${d}</label>`).join('')}</div>
+   ${roles.length>1?`<div class="f">على مين؟ (لو مختارتش حاجة: على الكل)<div class="row" style="flex-wrap:wrap;gap:6px">${roles.map(r=>`<label class="chipc"><input type="checkbox" class="slp_r" value="${esc(r)}" ${c.roles.includes(r)?'checked':''}> ${esc(ROLE[r]||r)}</label>`).join('')}</div></div>`:''}
+   <div class="muted small">لو الموظف ليه مواعيد خاصة في المرتبات (الجدول بتاعه)، هتتاخد هي بدل العادية.</div>
+   <div class="row" style="gap:6px;flex-wrap:wrap"><select id="slp_x" style="width:auto">${staff.map(u=>`<option value="${esc(u.id)}">${esc(u.name)}</option>`).join('')}</select><select id="slp_xh" style="width:auto"><option value="1">ساعة</option><option value="2">ساعتين</option><option value="3">٣ ساعات</option></select><button type="button" class="btn ghost" data-act="slpGrant">⏱️ مدّ له الشيفت النهارده</button></div>
+   <button type="button" class="btn pri" data-act="slpSave">حفظ</button></div>`;
+}
+X9.slpSave=()=>{const c=slpCfg();const staff=S.users.filter(u=>STAFF_ROLES.includes(u.role)&&!isOwnerU(u)&&!isDev(u));const u={};
+  staff.forEach(x=>{try{const sc=typeof schedOf==='function'?schedOf(x):null;if(sc&&sc.start&&sc.end)u[x.id]={s:sc.start,e:sc.end,days:Array.isArray(sc.days)&&sc.days.length?sc.days:[...document.querySelectorAll('.slp_d:checked')].map(i=>+i.value)}}catch(e){}});
+  S.settings.shiftLock={...c,on:$('#slp_on').checked,grace:n($('#slp_g').value),warn:n($('#slp_w').value),punch:$('#slp_p').checked,def:{s:$('#slp_s').value||'09:00',e:$('#slp_e').value||'17:00',days:[...document.querySelectorAll('.slp_d:checked')].map(i=>+i.value)},roles:[...document.querySelectorAll('.slp_r:checked')].map(i=>i.value),u};
+  save();toast('اتحفظ ✓');render()};
+X9.slpGrant=()=>{const id=$('#slp_x').value,h=n($('#slp_xh').value)||1;if(!id)return;const c=slpCfg(),u=S.users.find(x=>x.id===id),sc=c.u[id]||c.def;const d=new Date(),now=d.getHours()*60+d.getMinutes(),base=Math.max(now,slpMin(sc.e)||now),m=Math.min(base+h*60,23*60+59);
+  const until=String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0');S.settings.shiftLock={...c,ext:{...c.ext,[id]:{d:today(),until}}};save();notify([id],'✅ اتوافق على الوقت الزيادة',`السيستم مفتوح لك النهارده لحد ${until}`,'home');toast(`${u?.name||''}: مفتوح لحد ${until} ✓`);render()};
+
+/* ----- دخول Beam Care للدعم (بإذن الشركة) ----- */
+let PSUP=null,PSUP_CODE=null;
+async function psupLoad(){if(!ONLINE)return;try{const s=await FB.db.collection('meta').doc('support').get();PSUP=s.exists?s.data():{};if(Number(PSUP.codeExp)>Date.now()&&!PSUP_CODE){const c=await FB.db.collection('meta').doc('supcode').get().catch(()=>null);PSUP_CODE=c&&c.exists?c.data():null}}catch(e){PSUP={}}if(VIEW==='settings'&&$('#psupCard'))$('#psupCard').outerHTML=psupCard()}
+function psupCard(){
+  if(!ONLINE||!isOwnerU(ME)||isDev(ME))return '';if(!PSUP){setTimeout(psupLoad,50);return '<div class="panel" id="psupCard">…</div>'}
+  const g=PSUP,now=Date.now(),act=Number(g.until)>now,code=Number(g.codeExp)>now&&PSUP_CODE&&PSUP_CODE.exp>now?PSUP_CODE.code:'',bk=g.backup!==false,log=(g.log||[]).slice().reverse().slice(0,10);
+  return `<div class="panel grid" id="psupCard" style="gap:10px"><div class="row between"><h3 style="margin:0">🛡️ دخول Beam Care للدعم الفني</h3>${act?'<span class="pill p-warn">داخلين دلوقتي</span>':''}</div>
+   <div class="muted small">محدش من Beam Care يقدر يشوف سجل التعديلات والأرشيف بتوع شركتك غير بإذنك: يا تفتحله الدخول من هنا، يا تبعتله كود. والإذن بيتقفل لوحده بعد المدة اللي تختارها، وكل دخول بيتسجل عندك.</div>
+   ${act?`<div class="banner info">مسموح لـ Beam Care لحد ${new Date(+g.until).toLocaleString('ar-EG',{weekday:'long',hour:'numeric',minute:'2-digit'})}</div><button type="button" class="btn" data-act="psupStop">🔒 اقفل الدخول دلوقتي</button>`
+   :`<div class="row" style="gap:6px;flex-wrap:wrap"><label class="f" style="width:auto">المدة<select id="psup_d" style="width:auto"><option value="0.25">ربع ساعة</option><option value="1" selected>ساعة</option><option value="3">٣ ساعات</option><option value="24">يوم</option></select></label>
+     <button type="button" class="btn pri" data-act="psupNow">افتح الدخول دلوقتي</button><button type="button" class="btn" data-act="psupCode">اعمل كود</button></div>
+     ${code?`<div class="banner ok">كود الدعم: <b class="num" style="font-size:22px;letter-spacing:4px">${esc(code)}</b> — ابعته لـ Beam Care (صالح ربع ساعة)</div>`:''}`}
+   <div class="banner ${bk?'info':'ok'} row between" style="gap:8px;flex-wrap:wrap"><span>${bk?'🗄️ النسخة الاحتياطية اليومية عند Beam Care شغالة — عشان لو حصل أي حاجة نرجّعلك بياناتك.':'🔒 قفل كامل: النسخة الاحتياطية عند Beam Care واقفة. حمّل نسخة Excel بنفسك من وقت للتاني.'}</span><button type="button" class="btn ghost" data-act="psupBk">${bk?'🔒 قفل كامل':'شغّل النسخة الاحتياطية'}</button></div>
+   ${log.length?`<details><summary class="muted small" style="cursor:pointer">سجل دخول Beam Care (${log.length})</summary>${log.map(x=>`<div class="small" style="border-top:1px solid var(--line);padding:4px 0">${new Date(+x.at).toLocaleString('ar-EG')} — ${esc(x.by||'Beam Care')}${x.how==='code'?' (بكود)':''}</div>`).join('')}</details>`:''}</div>`;
+}
+const psupSet=async o=>{try{await FB.db.collection('meta').doc('support').set(o,{merge:true});PSUP=null;await psupLoad();render()}catch(e){toast('تعذّر: '+fbErr(e))}};
+X9.psupNow=()=>{const d=Number($('#psup_d').value)||1;psupSet({dur:d,until:Date.now()+d*36e5,codeExp:0,by:ME.name})};
+X9.psupCode=async()=>{const d=Number($('#psup_d').value)||1,code=String(Math.floor(100000+Math.random()*900000)),exp=Date.now()+15*6e4;
+  try{await FB.db.collection('meta').doc('supcode').set({code,exp});PSUP_CODE={code,exp};await psupSet({dur:d,codeExp:exp,until:0,by:ME.name})}catch(e){toast('تعذّر: '+fbErr(e))}};
+X9.psupStop=()=>psupSet({until:0,codeExp:0});
+X9.psupBk=()=>{const on=(PSUP||{}).backup===false;if(on)return psupSet({backup:true});confirmBox('قفل كامل: النسخة الاحتياطية اليومية عند Beam Care هتقف، ومحدش من Beam Care هيشوف أي بيانات غير بإذنك. موافق؟',()=>psupSet({backup:false}))};
+
 document.addEventListener('change',e=>{if(e.target.id==='pud'){PUD=e.target.value||today();render()}});
 
 /* =====================================================================
@@ -6619,7 +6747,7 @@ let XR_PRE='';
 
 
 /* ---------- فحص التحديثات ---------- */
-const APP_VER='3.1.0';
+const APP_VER='3.4.0';
 async function checkUpdate(){try{if(location.protocol==='file:')return;const t=await (await fetch(location.pathname+'?_='+Date.now(),{cache:'no-store'})).text();const m=t.match(/const APP_VER='([^']+)'/);if(m&&m[1]!==APP_VER)showUpd(m[1])}catch(e){}}
 function showUpd(v){if(document.getElementById('updBar'))return;const b=document.createElement('div');b.id='updBar';b.style.cssText='position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:80;background:#1d2b45;color:#fff;padding:10px 16px;border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,.25);display:flex;gap:12px;align-items:center;font-weight:600;max-width:92vw';b.innerHTML='<span>🔄 فيه نسخة جديدة من السيستم</span><button type="button" style="background:#2b8fb8;color:#fff;border:0;border-radius:10px;padding:6px 14px;font:inherit;cursor:pointer">حدّث دلوقتي</button>';b.querySelector('button').onclick=()=>{location.replace(location.pathname+'?v='+encodeURIComponent(v)+location.hash)};document.body.appendChild(b)}
 setTimeout(checkUpdate,8000);setInterval(checkUpdate,5*60*1000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkUpdate()});
@@ -7566,17 +7694,22 @@ function viewWebReqCfg(){
   const head=`<div class="panel grid" style="gap:6px"><h2 style="margin:0">🌐 طلب الخدمة أونلاين</h2><div class="muted small">اللينك والـ QR والخدمات اللي العميل بيختار منها. الطلبات نفسها بتوصلك في «الطلبات ← طلبات الأونلاين».</div></div>`;
   if(!WWR_CFG_LOADED){wrLoadCfg().then(()=>{if(VIEW==='webreqcfg')render()});return head+`<div class="panel"><div class="empty">بيحمّل…</div></div>`}
   return head+wrCfgView()}
+/* زرار «لفوق» في الصفحات الطويلة */
+(()=>{const b=document.createElement('button');b.type='button';b.className='upbtn';b.title='لأول الصفحة';b.setAttribute('aria-label','لأول الصفحة');b.innerHTML='<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"/></svg>';b.onclick=()=>window.scrollTo({top:0,behavior:'smooth'});
+  const on=()=>{if(!b.isConnected&&document.body)document.body.appendChild(b);b.classList.toggle('on',!!ME&&window.scrollY>900)};addEventListener('scroll',on,{passive:true});setTimeout(on,500)})();
 /* زرار الرجوع في الموبايل: يرجّعك للصفحة اللي قبلها بدل ما يقفل السيستم */
 (()=>{let lastBack=0,ready=false;
   const st=()=>({pm:1,v:VIEW,p:PARAM});
   const arm=()=>{if(ready)return;ready=true;try{history.replaceState({pm:0},'');history.pushState(st(),'')}catch(e){}};
-  const _go=go;go=function(v,p=null){const before=VIEW+'|'+PARAM;_go(v,p);arm();if(VIEW+'|'+PARAM!==before){try{history.pushState(st(),'')}catch(e){}}};
+  const SCR={},key=()=>VIEW+'|'+PARAM;
+  const _go=go;go=function(v,p=null){const before=key();SCR[before]=window.scrollY;_go(v,p);arm();if(key()!==before){try{history.pushState(st(),'')}catch(e){}}};
+  const back=()=>{const y=SCR[key()]||0;requestAnimationFrame(()=>window.scrollTo(0,y))};
   setTimeout(arm,1500);
   addEventListener('popstate',e=>{if(!ME||location.hash==='#req'||location.hash.startsWith('#v='))return;const s=e.state;
     const so=document.getElementById('scanOv');if(so){document.getElementById('scanDone')?.click();try{history.pushState(st(),'')}catch(x){}return}
     if(document.getElementById('modal')){closeModal();try{history.pushState(st(),'')}catch(x){}return}
-    if(s&&s.pm===1){VIEW=s.v;PARAM=s.p;render();window.scrollTo(0,0);return}
-    if(VIEW!=='home'){VIEW='home';PARAM=null;render();window.scrollTo(0,0);try{history.pushState(st(),'')}catch(x){}return}
+    if(s&&s.pm===1){SCR[key()]=window.scrollY;VIEW=s.v;PARAM=s.p;render();back();return}
+    if(VIEW!=='home'){SCR[key()]=window.scrollY;VIEW='home';PARAM=null;render();back();try{history.pushState(st(),'')}catch(x){}return}
     const now=Date.now();if(now-lastBack<2200){history.back();return}lastBack=now;toast('دوس رجوع تاني علشان تقفل السيستم');try{history.pushState(st(),'')}catch(x){}});
 })();
 
@@ -7593,6 +7726,8 @@ const IMP_T={
  staff:{l:'الموظفين',ic:'🧑‍🔧',hint:/موظف|وظيف|مرتب|راتب|employee|staff|job|salary|hr/i,
   f:[['name','اسم الموظف',/اسم|الاسم|موظف|name|employee/i],['phone','التليفون',/تليفون|موبايل|هاتف|phone|mobile/i],['job','الوظيفة',/وظيف|مسمى|job|title|position|قسم/i],['username','اسم المستخدم (إنجليزي)',/user|يوزر|اسم المستخدم/i]]}
 };
+IMP_T.debts={l:'مديونيات العملاء (رصيد افتتاحي)',ic:'💳',hint:/مديوني|رصيد|آجل|اجل|باقي|متبقي|حساب|debt|balance|due/i,
+  f:[['name','اسم العميل / الدكتور',/^(الاسم|اسم|name|العميل|اسم العميل|الدكتور|دكتور|customer|client)/i],['clinic','اسم العيادة',/عياد|مركز|clinic|center/i],['phone','التليفون',/تليفون|موبايل|هاتف|رقم|phone|mobile|tel/i],['amount','المديونية',/مديوني|رصيد|الباقي|المتبقي|عليه|المبلغ|amount|balance|due|debt/i],['date','من تاريخ',/تاريخ|date/i]]};
 let IMP={sheets:[],done:null,busy:false};
 const impCell=v=>v==null?'':v instanceof Date?v.toISOString().slice(0,10):String(v).trim();
 function impHeaderRow(rows){for(let i=0;i<Math.min(10,rows.length);i++){const r=rows[i]||[];const txt=r.filter(c=>{const t=impCell(c);return t&&isNaN(Number(t))}).length;if(txt>=2)return i}return 0}
@@ -7649,6 +7784,13 @@ async function impGo(btn){if(IMP.busy)return;IMP.busy=true;btn.disabled=true;btn
     for(const r of rows){const ph=impPh(r.phone);let x=S.suppliers.find(y=>!y.deleted&&((ph&&impPh(y.phone)===ph)||impKey(y.name)===impKey(r.name)));
      if(!x){S.suppliers.push({id:uid(),name:r.name.trim(),company:r.company||'',phone:r.phone||'',address:r.address||'',notes:r.notes||''});add++}else{['company','phone','address','notes'].forEach(k=>{if(r[k]&&!x[k])x[k]=r[k]});upd++}}
     out.push(`🚚 الموردين: ${add} مورد جديد${upd?` · ${upd} اتحدّث`:''}`)}
+   if(sh.type==='debts'){
+    for(const r of rows){const amt=impNum(r.amount);if(!(amt>0))continue;const ph=impPh(r.phone),nm=(r.name||r.clinic||'').trim(),cl=(r.clinic||'').trim();if(!nm)continue;
+     let c=S.clients.find(x=>(ph&&impPh(x.phone)===ph)||(cl&&impKey(x.clinic)===impKey(cl))||(!cl&&impKey(x.name)===impKey(nm)));
+     if(!c){c={id:uid(),name:nm,clinic:cl,phone:r.phone||'',address:'',type:'visit',notes:'',branches:[],devices:[]};S.clients.push(c)}
+     const d=/^\d{4}-\d{2}-\d{2}$/.test(String(r.date||''))?r.date:today();let no=0;try{no=await takeSaleNo('spare')}catch(e){no=Date.now()%100000}
+     S.partSales.push({id:uid(),no,kind:'spare',date:d,clientId:c.id,branch:'',address:c.address||'',buyer:c.name||'',phone:c.phone||'',lines:[{partId:'',name:'رصيد سابق (من قبل السيستم)',qty:1,price:amt,cost:0}],discount:0,delivery:0,total:amt,term:'credit',paid:0,due:d,method:'',notes:'رصيد افتتاحي — مستورد من Excel',by:ME.id,opening:true});add++}
+    out.push(`💳 المديونيات: ${add} رصيد افتتاحي اتسجل`)}
    if(sh.type==='staff'){let k=0,bad=[];
     for(const r of rows){const nm=r.name.trim();if(S.users.some(u=>impKey(u.name)===impKey(nm))){upd++;continue}
      let un=String(r.username||'').toLowerCase().replace(/[^a-z0-9._-]/g,'');if(!USER_RE.test(un)||S.users.some(u=>u.username===un)){do{k++;un='emp'+(100+k)}while(S.users.some(u=>u.username===un))}
@@ -8858,12 +9000,12 @@ function home3d(only){if(!isStaff())return '';const mo=today().slice(0,7),pm=add
   return only?(P[only]||''):P.qa+P.kpi+P.today+P.sales}
 
 /* ---------- ترتيب الشاشة الرئيسية (لكل الشركة) ---------- */
-const HOME_SECS=[['search','🔍 خانة البحث'],['notes','📝 النوتة'],['qa','⚡ الأزرار السريعة (تقرير، بيع، مشتريات، تحصيل)'],['kpi','📊 كروت الأرقام (الإيرادات، التقارير، الآجل، الفوارغ)'],['today','📌 محتاج منك النهارده'],['sales','🏆 أكتر الأصناف مبيعًا ونسبة التحصيل'],['attend','🕘 حضور النهارده'],['main','🧭 باقي الرئيسية (الموافقات، الرسوم، زيارات النهارده…)']];
-function homeCfg(){const c=(ONLINE?S.homeCfg:S.settings?.homeCfg)||null;const def3=['qa','kpi','today','sales','attend','main'],def=['search','notes','attend','main'];
+const HOME_SECS=[['search','🔍 خانة البحث'],['notes','📝 النوتة'],['qa','⚡ الأزرار السريعة (تقرير، بيع، مشتريات، تحصيل)'],['kpi','📊 كروت الأرقام (الإيرادات، التقارير، الآجل، الفوارغ)'],['today','📌 محتاج منك النهارده'],['sales','🏆 أكتر الأصناف مبيعًا ونسبة التحصيل'],['attend','🕘 حضور النهارده'],['wrqr','📱 QR طلب الصيانة أونلاين'],['main','🧭 باقي الرئيسية (الموافقات، الرسوم، زيارات النهارده…)']];
+function homeCfg(){const c=(ONLINE?S.homeCfg:S.settings?.homeCfg)||null;const def3=['qa','kpi','today','sales','attend','wrqr','main'],def=['search','notes','attend','wrqr','main'];
   const base=T3D()?def3:def;if(!c||!Array.isArray(c.order))return {order:HOME_SECS.map(x=>x[0]).sort((a,b)=>(base.indexOf(a)<0?99:base.indexOf(a))-(base.indexOf(b)<0?99:base.indexOf(b))),hidden:Object.fromEntries(HOME_SECS.map(x=>[x[0],!base.includes(x[0])]))};
   const order=[...c.order.filter(k=>HOME_SECS.some(x=>x[0]===k)),...HOME_SECS.map(x=>x[0]).filter(k=>!c.order.includes(k))];return {order,hidden:c.hidden||{}}}
 function homeJoin(ks){const out=[];for(let i=0;i<ks.length;i++){const k=ks[i],nx=ks[i+1];if(!T3D()&&((k==='search'&&nx==='notes')||(k==='notes'&&nx==='search'))){const a=homeSec(k),b=homeSec(nx);out.push(a&&b?`<div class="hometop">${a}${b}</div>`:a+b);i++;continue}out.push(homeSec(k))}return out.join('')}
-function homeSec(k){try{if(k==='search')return T3D()?'':gsBox();if(k==='notes')return T3D()?'':notesPanel();if(k==='attend')return attTiles();if(k==='main')return viewHome0();return home3d(k)}catch(e){console.error(e);return ''}}
+function homeSec(k){try{if(k==='search')return T3D()?'':gsBox();if(k==='notes')return T3D()?'':notesPanel();if(k==='attend')return attTiles();if(k==='wrqr')return wrHomeCard();if(k==='main')return viewHome0();return home3d(k)}catch(e){console.error(e);return ''}}
 async function homeCfgSave(c){if(ONLINE){try{await FB.db.doc('meta/home').set(c);S.homeCfg=c}catch(er){toast('مقدرتش أحفظ: '+fbErr(er));return false}}else{S.settings.homeCfg=c;save()}return true}
 function homeEdit(){const c=homeCfg();let order=[...c.order],hid={...c.hidden};
   const draw=()=>{$('#hmL').innerHTML=order.map((k,i)=>{const l=(HOME_SECS.find(x=>x[0]===k)||[k,k])[1];const na=T3D()&&(k==='search'||k==='notes');return `<div class="row" style="gap:8px;padding:8px 0;border-top:1px solid var(--line);flex-wrap:nowrap"><label class="row" style="gap:8px;flex:1;flex-wrap:nowrap;min-width:0"><input type="checkbox" data-hk="${k}" ${hid[k]?'':'checked'} style="width:auto"><span style="${hid[k]?'opacity:.55':''}">${l}${na?' <span class="muted small">(في الشكل 3D موجود في الشريط اللي فوق)</span>':''}</span></label><button type="button" class="btn sm" data-hm="u" data-i="${i}" ${i?'':'disabled'} aria-label="لفوق">↑</button><button type="button" class="btn sm" data-hm="d" data-i="${i}" ${i<order.length-1?'':'disabled'} aria-label="لتحت">↓</button></div>`}).join('')};
@@ -8872,8 +9014,26 @@ function homeEdit(){const c=homeCfg();let order=[...c.order],hid={...c.hidden};
   $('#hmL').addEventListener('click',e=>{const b=e.target.closest('[data-hm]');if(!b)return;const i=+b.dataset.i,j=b.dataset.hm==='u'?i-1:i+1;if(j<0||j>=order.length)return;[order[i],order[j]]=[order[j],order[i]];draw()});
   $('#hmR').onclick=async()=>{if(ONLINE){try{await FB.db.doc('meta/home').delete();S.homeCfg=null}catch(er){toast(fbErr(er));return}}else{delete S.settings.homeCfg;save()}closeModal();toast('رجع الترتيب الأصلي');render()}}
 Object.assign(NEED9,{homeEdit:'home_layout'});Object.assign(X9,{homeEdit:()=>homeEdit()});
+/* كارت QR طلب الصيانة أونلاين في الشاشة الرئيسية */
+function wrHomeCard(){if(!(ONLINE&&can('requests')&&typeof wrAllowed==='function'&&wrAllowed()))return '';
+  if(!WWR_CFG_LOADED){wrLoadCfg().then(()=>{if(VIEW==='home')render()});return ''}
+  const c=WWR_CFG||{};if(!c.on)return '';
+  const url=webReqUrl(),mo=today().slice(0,7),n=WRS().filter(x=>{try{const d=x.at&&x.at.toDate?x.at.toDate():new Date(x.at);return !isNaN(d)&&d.toISOString().slice(0,7)===mo}catch(e){return false}}).length,nw=WRS().filter(x=>(x.status||'new')==='new').length;
+  if(!window.qrcode)loadQR().then(()=>{if(VIEW==='home')render()}).catch(()=>{});
+  const img=window.qrcode?qrData(url):'';
+  return `<div class="panel row" style="gap:14px;align-items:center;flex-wrap:wrap">${img?`<img src="${img}" alt="QR طلب الصيانة" data-act="wrBig" style="width:110px;height:110px;image-rendering:pixelated;background:#fff;padding:6px;border-radius:12px;border:1px solid var(--line);cursor:zoom-in">`:''}
+   <div style="flex:1;min-width:220px" class="grid"><b>📱 طلب الصيانة أونلاين</b><span class="muted small">العيادة تعمل سكان وتطلب الخدمة. الشهر ده وصلك <b>${n.toLocaleString('ar-EG')}</b> طلب${nw?` · <b style="color:var(--warn,#b7791f)">${nw.toLocaleString('ar-EG')} جديد</b>`:''}</span>
+   <div class="row" style="gap:6px;flex-wrap:wrap"><button class="btn sm" data-act="wrBig">⛶ تكبير</button><button class="btn sm ghost" data-act="wrCopy">🔗 نسخ اللينك</button><button class="btn sm ghost" data-act="wrShare">💬 ابعته</button><button class="btn sm ghost" data-act="wrPosterDl">🪧 بوستر للطباعة</button>${nw?'<button class="btn sm ghost" data-go="webreq">الطلبات</button>':''}</div></div></div>`}
+async function wrBig(){await loadQR();if(!window.qrcode)return toast('جرب تاني');const cv=wrCanvasQR(webReqUrl(),600);const bg=document.createElement('div');bg.style.cssText='position:fixed;inset:0;background:#fff;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px;text-align:center';
+  bg.innerHTML=`<h2 style="margin:0">${esc(BRAND())}</h2><b>اطلب خدمتك أونلاين</b>`;cv.style.cssText='width:min(80vw,62vh);height:min(80vw,62vh)';bg.appendChild(cv);const b=document.createElement('button');b.className='btn';b.textContent='إغلاق';b.onclick=()=>bg.remove();bg.appendChild(b);document.body.appendChild(bg)}
+Object.assign(X9,{wrBig:()=>wrBig(),wrCopy:async()=>{try{await navigator.clipboard.writeText(webReqUrl());toast('اتنسخ اللينك')}catch(e){prompt('انسخ اللينك:',webReqUrl())}},
+  wrShare:()=>openWa('','اطلب خدمتك من '+BRAND()+' أونلاين من هنا:\n'+webReqUrl()),wrPosterDl:async()=>{await loadQR();if(!window.qrcode)return toast('جرب تاني');wrDownload(await wrPoster(),'QR-'+BRAND()+'.png')}});
+
 /* ---------- رقم الإصدار وإيه الجديد ---------- */
 const RELEASES=[
+ ['3.4.0','2026-11-19',['خصوصية أكتر: Beam Care مش هتشوف سجل التعديلات والأرشيف بتوع شركتك غير بإذنك — تفتحلها الدخول من الإعدادات أو تبعتلها كود، والإذن بيتقفل لوحده، وكل دخول بيتسجل عندك','«قفل كامل» لو عايز توقف النسخة الاحتياطية عند Beam Care','قفل السيستم برّه الشيفت (جزء في الباكدج): الموظف يفتح السيستم في مواعيد شغله بس، وبرّه الشيفت البصمة وطلب الإجازة بس — مع وقت سماح، وتنبيه قبل آخر الشيفت، وطلب وقت زيادة، وإشعار للإدارة لو حد حاول يفتح']],
+ ['3.3.0','2026-11-19',['كارت «QR طلب الصيانة أونلاين» في الشاشة الرئيسية: تكبير، نسخ اللينك، إرسال، وبوستر للطباعة، وعدد طلبات الشهر','الرجوع بيرجّعك لنفس مكانك في الصفحة، وزرار ⬆ لأول الصفحة']],
+ ['3.2.0','2026-11-18',['اكتب بصوتك 🎙️: زرار مايك جنب خانات الكتابة (وصف العطل، اللي اتعمل، الملاحظات) — بتتكلم والكلام يتكتب لوحده بالعربي','جزء جديد في الباكدج: «اكتب بصوتك»']],
  ['3.1.0','2026-11-17',['طريقة العرض 3D بقت منفصلة عن الألوان: تشتغل مع أي ألوان','ترتيب الشاشة الرئيسية: إخفاء وإظهار وترتيب الأجزاء (صلاحية «ترتيب الشاشة الرئيسية للشركة»)','ألوان «Beam فاتح كحلي ودهبي» الجديدة']],
  ['3.0.0','2026-11-17',['شكل جديد «Beam 3D» فاتح بألوان Beam Care (بيتفعّل من لوحة Beam Care)','آلة حاسبة في الشريط اللي فوق','زرار النوتة في الشريط اللي فوق','صفحة رئيسية جديدة: أزرار سريعة، كروت الأرقام، «محتاج منك النهارده»، أكتر الأصناف، نسبة التحصيل','القائمة على الموبايل بقت بتطلع من الجنب','رقم إصدار لكل تحديث وصفحة «إيه الجديد»']],
  ['2.9.0','2026-11-16',['فوارغ الأسطوانات عند الموردين والمهندسين','المسميات الوظيفية بقت جوه «الوظيفة»','حفظ أونلاين أأمن وتنبيه لو حاجة ماتحفظتش','البيع للمورد والمقاصة','صيانة على حساب مورد أو مهندس من بره','فاتورة مشتريات واحدة لأي حاجة من أي مورد','ترقيم تلقائي لكل الفواتير']],
@@ -8883,7 +9043,7 @@ function whatsNew(){modal(`<h3>🆕 إيه الجديد</h3>${RELEASES.map(([v,d
 Object.assign(X9,{whatsnew:()=>whatsNew()});
 (function(){const st=document.createElement('style');st.textContent='.ver3{display:block;margin:14px auto 0;background:transparent;border:0;color:var(--muted);font:inherit;font-size:.76rem;opacity:.85;cursor:pointer;padding:6px 10px;border-radius:99px}.ver3:hover{background:var(--surface-2)}';document.head.appendChild(st)})();
 
-const SUB_MODS=[['export','تحميل كل البيانات Excel',[]],['freon','الفريون',['freon']],['sales','المبيعات والمستهلكات والعروض',['psales','orders','offers']],['quotes','عروض الأسعار',['quotes']],['pricelists','قوائم الأسعار وطلباتها أونلاين',['pricelists']],['devscan','قراءة شاشة الجهاز وتحليل بيانات الجهاز',[]],['pricetiers','أسعار خاصة لكل عميل (فئات أسعار)',[]],['homelayout','ترتيب الشاشة الرئيسية للشركة',['home_layout']],['devices','بيع وإيجار الأجهزة',['devices']],['contracts','عقود الصيانة',['contracts']],['suppliers','الموردين والمشتريات',['suppliers']],['finance','الحسابات والخزينة ورأس المال والآجل',['ar','accounts','capital','treasury','ledger']],['hr','الحضور والإجازات',['hr']],['payroll','المرتبات والمكافآت',['payroll']],['staff','إدارة الموظفين',['custody','meetings','perf','tests','policy','emps']],['weekly','التقارير الدورية',['weekly']],['analytics','التحليلات',['analytics']],['gs','النسخ لجوجل شيت',[]]];
+const SUB_MODS=[['export','تحميل كل البيانات Excel',[]],['freon','الفريون',['freon']],['sales','المبيعات والمستهلكات والعروض',['psales','orders','offers']],['quotes','عروض الأسعار',['quotes']],['pricelists','قوائم الأسعار وطلباتها أونلاين',['pricelists']],['devscan','قراءة شاشة الجهاز وتحليل بيانات الجهاز',[]],['pricetiers','أسعار خاصة لكل عميل (فئات أسعار)',[]],['homelayout','ترتيب الشاشة الرئيسية للشركة',['home_layout']],['voice','اكتب بصوتك (التقارير والملاحظات بالكلام)',[]],['devices','بيع وإيجار الأجهزة',['devices']],['contracts','عقود الصيانة',['contracts']],['suppliers','الموردين والمشتريات',['suppliers']],['finance','الحسابات والخزينة ورأس المال والآجل',['ar','accounts','capital','treasury','ledger']],['hr','الحضور والإجازات',['hr']],['payroll','المرتبات والمكافآت',['payroll']],['staff','إدارة الموظفين',['custody','meetings','perf','tests','policy','emps']],['weekly','التقارير الدورية',['weekly']],['analytics','التحليلات',['analytics']],['gs','النسخ لجوجل شيت',[]]];
 const SUB_TAB={};SUB_MODS.forEach(([k,,tabs])=>tabs.forEach(t=>SUB_TAB[t]=k));
 const BC_NAME='Beam Care Maintenance';
 const BC_LOGO='data:image/svg+xml;utf8,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="220" height="220" viewBox="0 0 220 220"><rect width="220" height="220" rx="52" fill="#2F6F68"/><path d="M110 40 L122 98 L180 110 L122 122 L110 180 L98 122 L40 110 L98 98 Z" fill="#DDA86E"/></svg>');
@@ -8892,6 +9052,38 @@ function subState(){const x=subX();if(!x)return {on:false,locked:false,grace:fal
   const stop=x.stop===true,locked=stop||today()>lockDay,grace=!locked&&today()>x.until,warn=!locked&&!grace&&left<=n(x.warn??7);return {on:true,x,left,lockDay,locked,grace,warn,stop,mode:stop?'full':(x.mode||'read')}}
 const subLockFull=()=>{if(!ME||isDev(ME))return false;const s=subState();return s.locked&&s.mode==='full'};
 const subRO=()=>{if(!ME||isDev(ME))return false;const s=subState();return s.locked};
+/* ----- اكتب بصوتك 🎙️ (جزء في الباكدج: voice) ----- */
+const VSR=window.SpeechRecognition||window.webkitSpeechRecognition;
+const vOn=()=>!!VSR&&!!ME&&subMod('voice');
+const VMIC='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>';
+let VREC=null,VEL=null;
+function vStop(){try{VREC&&VREC.stop()}catch(e){}}
+function vStart(el,btn){
+  if(VREC){const same=VEL===el;vStop();if(same)return}
+  let r;try{r=new VSR()}catch(e){toast('المتصفح ده مش بيدعم الكتابة بالصوت — جرّب Chrome');return}
+  r.lang='ar-EG';r.continuous=true;r.interimResults=true;
+  const base=el.value.replace(/\s+$/,'');let fin='',last='';
+  const put=v=>{el.value=v;el.dispatchEvent(new Event('input',{bubbles:true}))};
+  r.onresult=e=>{let mid='';for(let i=e.resultIndex;i<e.results.length;i++){const t=e.results[i][0].transcript.trim();if(e.results[i].isFinal)fin+=(fin?' ':'')+t;else mid+=(mid?' ':'')+t}last=mid;put([base,fin,mid].filter(Boolean).join(' '))};
+  r.onerror=e=>{if(e.error==='not-allowed'||e.error==='service-not-allowed')toast('اسمح للمتصفح يستخدم المايك من إعدادات الموقع');else if(!['no-speech','aborted'].includes(e.error))toast('وقف التسجيل ('+e.error+')')};
+  r.onend=()=>{btn.classList.remove('on');btn.setAttribute('aria-pressed','false');if(VREC===r){VREC=null;VEL=null}put([base,fin,last].filter(Boolean).join(' '));el.dispatchEvent(new Event('change',{bubbles:true}))};
+  VREC=r;VEL=el;btn.classList.add('on');btn.setAttribute('aria-pressed','true');
+  try{r.start()}catch(e){btn.classList.remove('on');VREC=null;VEL=null}
+}
+const V_SEL='textarea, input[data-voice]';
+function vWire(){
+  if(VEL&&!document.contains(VEL))vStop();
+  if(!vOn())return;
+  document.querySelectorAll(V_SEL).forEach(el=>{
+    if(el.dataset.nv||el.readOnly||el.disabled||el.dir==='ltr'||el.closest('.vwrap'))return;
+    el.dataset.nv='1';
+    const w=document.createElement('span');w.className='vwrap';el.parentNode.insertBefore(w,el);w.appendChild(el);
+    const b=document.createElement('button');b.type='button';b.className='vmic';b.title='اكتب بصوتك';b.setAttribute('aria-label','اكتب بصوتك');b.setAttribute('aria-pressed','false');b.innerHTML=VMIC;
+    b.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();vStart(el,b)});
+    w.appendChild(b);
+  });
+}
+{let q=0;new MutationObserver(()=>{if(!q)q=requestAnimationFrame(()=>{q=0;vWire()})}).observe(document.documentElement,{childList:true,subtree:true})}
 function subMod(k){if(ME&&isDev(ME))return true;const x=subX();return !x||!x.mods||x.mods[k]!==false}
 const modOn=tab=>{const k=SUB_TAB[tab];return !k||subMod(k)};
 TABS.forEach(t=>{const f=t[2];t[2]=()=>modOn(t[0])&&f()});

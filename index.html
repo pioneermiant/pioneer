@@ -3474,7 +3474,7 @@ document.addEventListener('click',e=>{
     case 'addClinicUser':if(!S.clients.length){toast('ضيف العميل الأول');break}openUserModal(null,'clinic',id||'');break;
     case 'editUser':{const u=S.users.find(x=>x.id===id);if(mainLocked(u)){toast('ده حساب صاحب الحساب — محمي ومحدش يقدر يعدّله');break}openUserModal(id);break}
     case 'mainClinic':{const u=S.users.find(x=>x.id===id);if(!u||u.role!=='clinic')break;const L=S.users.filter(x=>x.role==='clinic'&&x.clientId===u.clientId);Promise.all(L.filter(x=>!!x.mainClinic!==(x.id===id)).map(x=>{x.mainClinic=x.id===id;return saveUserDoc(x)})).then(()=>toast('اتحدد الحساب الأساسي للعيادة ✓')).catch(er=>toast(fbErr(er)));render();break}
-    case 'toggleUser':{const u=S.users.find(x=>x.id===id);if(u?.owner||u?.id===ME.id)break;if(mainLocked(u)){toast('ده حساب صاحب الحساب — محمي');break}u.active=u.active===false;saveUserDoc(u).catch(er=>toast(fbErr(er)));render();break}
+    case 'toggleUser':{const u=S.users.find(x=>x.id===id);if(u?.owner||u?.id===ME.id)break;if(mainLocked(u)){toast('ده حساب صاحب الحساب — محمي');break}u.active=u.active===false;setTimeout(()=>idcSync(u.id),300);saveUserDoc(u).catch(er=>toast(fbErr(er)));render();break}
     case 'addClient':openClientModal(null);break;
     case 'editClient':openClientModal(id);break;
     case 'delClient':confirmBox('حذف العميل؟ هيختفي من القوايم، وحساب دخول العيادة هيتوقف. تقاريره وحساباته القديمة هتفضل محفوظة.',()=>{const c=client(id);c.deleted=true;c.deletedAt=today();save();S.users.filter(u=>u.clientId===id&&u.active!==false).forEach(u=>{u.active=false;saveUserDoc(u).catch(()=>{})});go('clients')});break;
@@ -4233,7 +4233,7 @@ let EMPQ='',EMPD='';
 function viewEmps(){
   const q=EMPQ.trim().toLowerCase();
   const list=S.users.filter(u=>u.role!=='clinic'&&!u.owner&&!u.nonEmp&&inSc(u.id)&&(!EMPD||deptOf(u)===EMPD)&&(!q||(u.name+' '+(u.jobTitle||'')+' '+(u.phone||'')).toLowerCase().includes(q))).sort((a,b)=>STAFF_ROLE_LIST.indexOf(a.role)-STAFF_ROLE_LIST.indexOf(b.role)||a.name.localeCompare(b.name,'ar'));
-  return `<div class="row between"><h2>ملفات الموظفين</h2><div class="row"><input id="empq" placeholder="بحث بالاسم أو الموبايل" value="${esc(EMPQ)}" style="max-width:220px"><select id="empd" style="width:auto"><option value="">كل الإدارات</option>${Object.entries(DEPTS).map(([k,l])=>`<option value="${k}" ${k===EMPD?'selected':''}>${l}</option>`).join('')}</select></div></div>
+  return `<div class="row between"><h2>ملفات الموظفين</h2><div class="row">${idcFeat()&&can('settings')?'<button class="btn sm" data-act="idcCfg">⚙️ إعدادات الكارت</button>':''}<input id="empq" placeholder="بحث بالاسم أو الموبايل" value="${esc(EMPQ)}" style="max-width:220px"><select id="empd" style="width:auto"><option value="">كل الإدارات</option>${Object.entries(DEPTS).map(([k,l])=>`<option value="${k}" ${k===EMPD?'selected':''}>${l}</option>`).join('')}</select></div></div>
   <div class="muted small">ملف كل موظف فيه بياناته وصورته وكل أوراقه (البطاقة، الفيش الجنائي، المؤهل…). الموظف بيشوف ملفه بس من غير ما يعدّل.</div>
   <div class="pgrid">${list.map(u=>{const f=empFile(u.id)||{};const have=f.docs||{};const miss=DOC_REQ.filter(d=>!have[d]);return `<div class="pcard click" data-go="empf" data-p="${u.id}" style="cursor:pointer">${f.photo?`<img src="${f.photo}" alt="">`:'<div class="noimg">👤</div>'}<div class="pbody"><b>${esc(u.name)}</b><div class="muted small">${esc(u.jobTitle||roleLbl(u)||'')} · ${esc(DEPTS[deptOf(u)]||'')}</div>${u.phone||f.phone?`<div class="small num">${esc(f.phone||u.phone)}</div>`:''}<div>${miss.length?`<span class="pill p-warn">ناقص ${miss.length} ورق</span>`:'<span class="pill p-ok">الورق الأساسي كامل</span>'}${u.active===false?' <span class="pill p-bad">موقوف</span>':''}</div></div></div>`}).join('')||'<div class="empty">مفيش موظفين</div>'}</div>`;
 }
@@ -4251,7 +4251,7 @@ function viewEmpFile(uidv){
   const docs=EMPDOCS.uid===uidv?EMPDOCS.list:null;
   const kv=(l,v)=>`<span>${l}</span><b>${esc(v||'—')}</b>`;
   const lb=leaveBalOf(uidv);
-  return `<div class="row between"><h2>${uidv===ME.id?'ملفي':'ملف '+esc(u.name)}</h2><div class="row">${edit?`<button class="btn pri" data-act="editEmp" data-id="${uidv}">تعديل البيانات</button>`:''}${can('emp_files')?'<button class="btn" data-go="emps">كل الموظفين</button>':''}</div></div>
+  return `<div class="row between"><h2>${uidv===ME.id?'ملفي':'ملف '+esc(u.name)}</h2><div class="row">${edit?`<button class="btn pri" data-act="editEmp" data-id="${uidv}">تعديل البيانات</button>`:''}${edit&&idcFeat()?`<button class="btn" data-act="idCard" data-id="${uidv}">🪪 كارت الموظف</button>`:''}${can('emp_files')?'<button class="btn" data-go="emps">كل الموظفين</button>':''}</div></div>
   <div class="grid g2">
     <div class="panel row" style="gap:16px;align-items:flex-start;flex-wrap:nowrap"><div class="cn-img" style="width:120px;height:140px;flex:none">${f.photo?`<img src="${f.photo}" alt="" data-act="showEmpImg" data-src="${uidv}">`:'👤'}</div>
       <div class="grid" style="gap:4px"><b style="font-size:1.2rem">${esc(f.fullName||u.name)}</b><span>${esc(u.jobTitle||roleLbl(u)||'')}</span><span class="muted">${esc(DEPTS[deptOf(u)]||'')}</span>${f.hireDate?`<span class="small">من ${fd(f.hireDate)}</span>`:''}<span class="small">رصيد الإجازات: ${lb.left} من ${lb.bal} يوم</span></div></div>
@@ -4268,10 +4268,10 @@ function openEmpModal(uidv){
   const I=(id,l,v,t='text',x='')=>`<label class="f ${x}">${l}<input id="${id}" type="${t}" value="${esc(v||'')}"></label>`;
   modal(`<h3>بيانات ${esc(u.name)}</h3>
    <div class="row" style="gap:12px;align-items:flex-start"><div id="ef_img" class="cn-img">${photo?`<img src="${photo}" alt="">`:'👤'}</div><label class="btn sm">📷 صورة الموظف<input type="file" id="ef_ph" accept="image/*" hidden></label></div>
-   <div class="grid g2">${I('ef_fn','الاسم بالكامل (زي البطاقة)',f.fullName||u.name,'text','span2')}${I('ef_nid','الرقم القومي',f.nid)}${I('ef_b','تاريخ الميلاد',f.birth,'date')}${I('ef_p','الموبايل',f.phone||u.phone,'tel')}${I('ef_p2','موبايل تاني',f.phone2,'tel')}${I('ef_a','العنوان بالتفصيل',f.address,'text','span2')}${I('ef_e','المؤهل الدراسي',f.edu)}${I('ef_m','الحالة الاجتماعية',f.marital)}${I('ef_em','رقم للطوارئ (اسم وصلة القرابة)',f.emergency)}${I('ef_h','تاريخ التعيين',f.hireDate,'date')}${I('ef_ins','الرقم التأميني',f.insNo)}${I('ef_s','المرتب الأساسي',f.salary,'number')}
+   <div class="grid g2">${I('ef_fn','الاسم بالكامل (زي البطاقة)',f.fullName||u.name,'text','span2')}${idcFeat()?I('ef_fne','الاسم بالإنجليزي (للكارت)',f.fullNameEn,'text','span2')+I('ef_bl','فصيلة الدم',f.blood)+(()=>{const c=idcCfg();return idcHasB(c)?`<label class="f">تبع أنهي شركة (للكارت)<select id="ef_co"><option value="a" ${idcCo(f)==='a'?'selected':''}>${esc(c.a.name)}</option><option value="b" ${idcCo(f)==='b'?'selected':''}>${esc(c.b.name)}</option><option value="ab" ${idcCo(f)==='ab'?'selected':''}>الشركتين مع بعض</option></select></label>`:''})():''}${I('ef_nid','الرقم القومي',f.nid)}${I('ef_b','تاريخ الميلاد',f.birth,'date')}${I('ef_p','الموبايل',f.phone||u.phone,'tel')}${I('ef_p2','موبايل تاني',f.phone2,'tel')}${I('ef_a','العنوان بالتفصيل',f.address,'text','span2')}${I('ef_e','المؤهل الدراسي',f.edu)}${I('ef_m','الحالة الاجتماعية',f.marital)}${I('ef_em','رقم للطوارئ (اسم وصلة القرابة)',f.emergency)}${I('ef_h','تاريخ التعيين',f.hireDate,'date')}${I('ef_ins','الرقم التأميني',f.insNo)}${I('ef_s','المرتب الأساسي',f.salary,'number')}
    <label class="f span2">ملاحظات<textarea id="ef_n" style="min-height:60px">${esc(f.notes||'')}</textarea></label></div>`,()=>{
-    Object.assign(f,{photo,fullName:$('#ef_fn').value.trim(),nid:normD($('#ef_nid').value).trim(),birth:$('#ef_b').value,phone:$('#ef_p').value.trim(),phone2:$('#ef_p2').value.trim(),address:$('#ef_a').value.trim(),edu:$('#ef_e').value.trim(),marital:$('#ef_m').value.trim(),emergency:$('#ef_em').value.trim(),hireDate:$('#ef_h').value,insNo:$('#ef_ins').value.trim(),salary:n($('#ef_s').value),notes:$('#ef_n').value.trim(),updatedAt:new Date().toISOString()});
-    if(isNew)S.empFiles.push(f);save();toast('اتحفظت البيانات');render();
+    Object.assign(f,{photo,fullName:$('#ef_fn').value.trim(),nid:normD($('#ef_nid').value).trim(),birth:$('#ef_b').value,phone:$('#ef_p').value.trim(),phone2:$('#ef_p2').value.trim(),address:$('#ef_a').value.trim(),edu:$('#ef_e').value.trim(),marital:$('#ef_m').value.trim(),emergency:$('#ef_em').value.trim(),hireDate:$('#ef_h').value,insNo:$('#ef_ins').value.trim(),salary:n($('#ef_s').value),notes:$('#ef_n').value.trim(),updatedAt:new Date().toISOString()});if($('#ef_fne'))f.fullNameEn=$('#ef_fne').value.trim();if($('#ef_bl'))f.blood=$('#ef_bl').value.trim().toUpperCase();if($('#ef_co'))f.co=$('#ef_co').value;
+    if(isNew)S.empFiles.push(f);save();toast('اتحفظت البيانات');render();if(f.vt)idcSync(uidv);
   });
   $('#ef_ph').onchange=async e=>{const fl=e.target.files[0];if(!fl)return;try{photo=await compress(fl,360,.7);$('#ef_img').innerHTML=`<img src="${photo}" alt="">`}catch(_){toast('معرفتش أقرا الصورة')}};
 }
@@ -4296,12 +4296,194 @@ function openEmpDoc(id){const d=(EMPDOCS.list||[]).find(x=>x.id===id);if(!d)retu
 async function delEmpDoc(id){const d=(EMPDOCS.list||[]).find(x=>x.id===id);if(!d)return;
   if(ONLINE){try{const b=FB.db.batch();b.delete(FB.db.doc('empDocs/'+id));dsTomb(b,'empDocs',id);await b.commit()}catch(e){toast(fbErr(e));return}}else S.empDocs=S.empDocs.filter(x=>x.id!==id);
   const f=empFile(d.uid);if(f&&f.docs&&f.docs[d.type]){f.docs[d.type]--;if(f.docs[d.type]<=0)delete f.docs[d.type]}save();EMPDOCS.list=null;render()}
+/* ---------- كارت الموظف (ID) + التحقق بالـ QR — ميزة بالباكدج: idCards ---------- */
+const idcFeat=()=>!!(S&&S.sub&&S.sub.idCards===true);
+const IDC_DEF={a:{name:'',logo:'',phone:'',line:'LASER MAINTENANCE EXPERTS',style:'blue'},b:{name:'',logo:'',phone:'',line:'LASER CARE & SOLUTIONS',style:'gold'},abLine:'ONE TEAM · LASER EXCELLENCE',abPhone:'',sig:'',years:1,tagAr:'جودة تعتمد عليها',tagEn:'QUALITY YOU CAN RELY ON',seq:0};
+function idcCfg(){const c=S.settings.idc||{};return {...IDC_DEF,...c,a:{...IDC_DEF.a,name:BRAND(),...(c.a||{})},b:{...IDC_DEF.b,...(c.b||{})}}}
+const idcHasB=c=>!!(c.b.name&&c.b.logo);
+const IDC_ST={blue:{acc:'#1683BE',side:['#3A3D42','#1C1E21'],sideTx:'#7FD3F5',bar:'#3A3D42',ph:['#4A4E55','#1C1E21'],beam:'#4FC0EE',deco:'gear',gold:'#29A8E0'},gold:{acc:'#1F6FEB',side:['#12306A','#0B1D42'],sideTx:'#F1D08A',bar:'#D7AE57',ph:['#F1D08A','#C99A3E'],beam:'#78B4FF',deco:'ring',gold:'#C9A24A'}};
+const idcRand=()=>{const a=new Uint8Array(18);crypto.getRandomValues(a);return 'e'+[...a].map(x=>x.toString(36).padStart(2,'0')).join('').slice(0,26)};
+const idcCo=f=>(f&&f.co)||'a';
+const idcIni=n=>{const w=String(n||'').replace(/[^A-Za-z ]/g,' ').trim().split(/\s+/).filter(Boolean);return (w.length>1?w[0][0]+w[1][0]:(w[0]||'EM').slice(0,2)).toUpperCase()};
+const idcPre=(co,c)=>co==='ab'?(idcIni(c.a.name)[0]+idcIni(c.b.name)[0]):idcIni(c[co].name);
+const idcAlive=(u,f)=>u&&u.active!==false&&!(f&&f.cardOff);
+function idcVerifyDoc(u,f){const c=idcCfg();return {id:f.vt,t:'e',name:f.fullName||u.name,en:(f.fullNameEn||'').toUpperCase(),title:u.jobTitle||roleLbl(u)||'',dept:DEPTS[deptOf(u)]||'',co:idcCo(f),no:f.cardNo||'',valid:f.cardValid||'',st:idcAlive(u,f)?'on':'off',offAt:idcAlive(u,f)?'':(f.cardOffAt||new Date().toISOString()),photo:f.cardPhoto||'',company:BRAND(),at:new Date().toISOString()}}
+async function idcSync(uidv){const u=S.users.find(x=>x.id===uidv),f=empFile(uidv);if(!u||!f||!f.vt||!ONLINE)return;
+  const live=idcAlive(u,f);if(!live&&!f.cardOffAt){f.cardOffAt=new Date().toISOString();save()}if(live&&f.cardOffAt){delete f.cardOffAt;save()}
+  try{await FB.db.collection('verify').doc(f.vt).set(idcVerifyDoc(u,f))}catch(e){}}
+async function idcBrandSync(){if(!ONLINE)return;const c=idcCfg();try{await FB.db.collection('verify').doc('_brand').set({id:'_brand',t:'b',a:{name:c.a.name,logo:c.a.logo},b:idcHasB(c)?{name:c.b.name,logo:c.b.logo}:null,at:new Date().toISOString()})}catch(e){}}
+/* ---- الخطوط جوه الصورة (عشان الكارت يطلع بنفس الشكل على أي جهاز) ---- */
+let IDC_FONTS=null;
+async function idcFonts(){if(IDC_FONTS)return IDC_FONTS;let css='';
+  try{const r=await fetch('https://fonts.googleapis.com/css2?family=Cairo:wght@600;800;900&family=Montserrat:wght@600;700;800&display=swap');let t=await r.text();
+    const urls=[...new Set([...t.matchAll(/url\((https:[^)]+)\)/g)].map(m=>m[1]))];
+    for(const u of urls){try{const b=await (await fetch(u)).blob();const d=await new Promise(res=>{const fr=new FileReader();fr.onload=()=>res(fr.result);fr.readAsDataURL(b)});t=t.split(u).join(d)}catch(e){}}
+    css=t;const st=document.createElement('style');st.textContent=t;document.head.appendChild(st);await document.fonts.ready;
+    for(const w of [600,800,900])try{await document.fonts.load(w+' 20px Cairo','أب')}catch(e){}
+    try{await document.fonts.load('700 20px Montserrat','AB')}catch(e){}
+  }catch(e){}
+  IDC_FONTS=css;return css}
+const IDC_AR="Cairo,'IBM Plex Sans Arabic',Tahoma,Arial,sans-serif",IDC_EN="Montserrat,Cairo,Arial,sans-serif";
+let IDC_CV=null;function idcW(t,font,ls=0){IDC_CV=IDC_CV||document.createElement('canvas').getContext('2d');IDC_CV.font=font;return IDC_CV.measureText(t).width+ls*[...t].length}
+function idcFit(t,maxW,size,weight,fam=IDC_AR,ls=0){let s=size;while(s>10&&idcW(t,`${weight} ${s}px ${fam}`,ls*s)>maxW)s-=1;return s}
+const idcE=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function idcImgSize(src){return new Promise(res=>{if(!src)return res({w:1,h:1});const i=new Image();i.onload=()=>res({w:i.naturalWidth||1,h:i.naturalHeight||1});i.onerror=()=>res({w:1,h:1});i.src=src})}
+function idcGear(){let d='';const n0=28,R=96,r=84,tw=.42;for(let i=0;i<n0;i++){const a=i*2*Math.PI/n0,s=Math.PI/n0*tw*2;[[a-s/2-.06,r],[a-s/2,R],[a+s/2,R],[a+s/2+.06,r],[a+2*Math.PI/n0-s/2-.06,r]].forEach(([t,rr],j)=>{d+=(i===0&&j===0?'M':'L')+(100+rr*Math.cos(t)).toFixed(1)+' '+(100+rr*Math.sin(t)).toFixed(1)})}return d+'Z'}
+function idcGuil(col){let p='';for(let k=0;k<26;k++){let d='';for(let x=0;x<=540;x+=6){const y=428+Math.sin(x/58+k*.24)*856*.32*Math.cos(x/170+k*.11)+Math.sin(x/23+k)*6;d+=(x?'L':'M')+x+' '+y.toFixed(1)}p+=`<path d="${d}" fill="none" stroke="${col}" stroke-width=".7" opacity="${(.17+.12*Math.sin(k)).toFixed(2)}"/>`}return p}
+const IDC_AV='data:image/svg+xml;utf8,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#D3DAE5"/><circle cx="50" cy="40" r="18" fill="#8D9AB0"/><path d="M14 100c2-22 17-34 36-34s34 12 36 34z" fill="#8D9AB0"/></svg>');
+const IDC_PHONE='M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z';
+async function idcSvgs(u,f){
+  const c=idcCfg(),co=idcCo(f),duo=co==='ab'&&idcHasB(c),B=duo?null:c[co==='b'?'b':'a'],st=IDC_ST[duo?'gold':(B.style||'blue')];
+  const fonts=await idcFonts();await loadQR();
+  if(!window.JsBarcode)try{await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.6/JsBarcode.all.min.js')}catch(e){}
+  const W=540,H=856,acc=st.acc;
+  const name=f.fullName||u.name,en=(f.fullNameEn||'').toUpperCase(),title=u.jobTitle||roleLbl(u)||'',dept=DEPTS[deptOf(u)]||'';
+  const photo=f.photo||f.cardPhoto||IDC_AV,url=verifyUrl('e',f.vt);
+  const qr=(()=>{try{const q=qrcode(0,'M');q.addData(url);q.make();return q.createDataURL(8,0)}catch(e){return ''}})();
+  let bar='';try{const sv=document.createElementNS('http://www.w3.org/2000/svg','svg');JsBarcode(sv,f.cardNo||'0',{format:'CODE128',displayValue:false,margin:0,height:60,width:2,background:'transparent'});bar='data:image/svg+xml;utf8,'+encodeURIComponent(new XMLSerializer().serializeToString(sv))}catch(e){}
+  const line=duo?c.abLine:B.line,phone=(duo?(c.abPhone||c.a.phone):B.phone)||'',sideT=duo?`${c.a.name} │ ${c.b.name}`.toUpperCase():`${B.name} · STAFF`.toUpperCase();
+  const sideG=duo?['#1C1E21','#12306A']:st.side,ft=duo?`${c.a.name} │ ${c.b.name}`.toUpperCase():B.name.toUpperCase();
+  const LA=duo?c.a:B,LB=duo?c.b:null;const sa=await idcImgSize(LA.logo),sb=LB?await idcImgSize(LB.logo):null,ss=c.sig?await idcImgSize(c.sig):null;
+  const css=`<style>${fonts}</style>`;
+  const defs=`<defs><linearGradient id="bg1" x1="0" y1="0" x2=".55" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset=".6" stop-color="#F3F5FA"/><stop offset="1" stop-color="#E9EEF7"/></linearGradient>
+   <linearGradient id="bg2" x1="0" y1="0" x2=".55" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#EEF2F9"/></linearGradient>
+   <linearGradient id="sd" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${sideG[0]}"/><stop offset="1" stop-color="${sideG[1]}"/></linearGradient>
+   <linearGradient id="bm" x1="0" x2="1"><stop offset="0" stop-color="${st.beam}" stop-opacity="0"/><stop offset=".2" stop-color="${st.beam}" stop-opacity=".25"/><stop offset=".5" stop-color="#fff"/><stop offset=".8" stop-color="${st.beam}" stop-opacity=".25"/><stop offset="1" stop-color="${st.beam}" stop-opacity="0"/></linearGradient>
+   <linearGradient id="gl" x1="0" x2="1"><stop offset="0" stop-color="${st.gold}" stop-opacity="0"/><stop offset="1" stop-color="${st.gold}"/></linearGradient>
+   <linearGradient id="gr" x1="0" x2="1"><stop offset="0" stop-color="${st.gold}"/><stop offset="1" stop-color="${st.gold}" stop-opacity="0"/></linearGradient>
+   <linearGradient id="gv" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#C9A24A" stop-opacity="0"/><stop offset=".25" stop-color="#C9A24A"/><stop offset=".75" stop-color="#C9A24A"/><stop offset="1" stop-color="#C9A24A" stop-opacity="0"/></linearGradient>
+   <linearGradient id="ph" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${duo?'#29A8E0':st.ph[0]}"/><stop offset="1" stop-color="${duo?'#C9A24A':st.ph[1]}"/></linearGradient>
+   <linearGradient id="tb" x1="0" x2="1"><stop offset="0" stop-color="${duo?'#29A8E0':st.bar}"/><stop offset="1" stop-color="${duo?'#D7AE57':st.bar}"/></linearGradient>
+   <linearGradient id="ho" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F6D98C"/><stop offset=".25" stop-color="#B7E3F7"/><stop offset=".5" stop-color="#E7C1F2"/><stop offset=".75" stop-color="#A8F0D8"/><stop offset="1" stop-color="#F6D98C"/></linearGradient>
+   <filter id="bl" x="-20%" y="-400%" width="140%" height="900%"><feGaussianBlur stdDeviation="9"/></filter>
+   <filter id="sh" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="12" stdDeviation="12" flood-color="#0B1D42" flood-opacity=".22"/></filter>
+   <filter id="sh2" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="5" stdDeviation="7" flood-color="#0B1D42" flood-opacity=".07"/></filter>
+</defs>`;
+  const beam=`<g transform="rotate(-32 250 302.5)"><rect x="-200" y="296" width="900" height="13" fill="${st.beam}" opacity=".55" filter="url(#bl)"/><rect x="-200" y="300" width="900" height="5" rx="3" fill="url(#bm)"/></g>`;
+  const ring=op=>`<g transform="rotate(-20 10 400)" opacity="${op}"><path d="M-300 400 A310 150 0 0 1 10 250" fill="none" stroke="#D7AE57" stroke-width="7" stroke-linecap="round"/></g>`;
+  const gear=`<g transform="translate(-290 330) scale(2.15)" opacity=".35"><path d="${idcGear()}" fill="none" stroke="#29A8E0" stroke-width="1.4"/><circle cx="100" cy="100" r="70" fill="none" stroke="#29A8E0" stroke-width=".7" stroke-dasharray="1 3"/></g>`;
+  const deco=duo?ring(.4):st.deco==='gear'?gear:ring(.55);
+  const lineBlock=(txt,y,size,ls,cx,maxSide,col='#7A879B')=>{const w=idcW(txt,`700 ${size}px ${IDC_EN}`,ls*size);return `<text x="${cx}" y="${y}" text-anchor="middle" font-family="${IDC_EN}" font-weight="700" font-size="${size}" letter-spacing="${(ls*size).toFixed(1)}" fill="${col}" direction="ltr">${idcE(txt)}</text><rect x="${cx-w/2-12-maxSide}" y="${y-size*.38}" width="${maxSide}" height="1.5" fill="url(#gl)"/><rect x="${cx+w/2+12}" y="${y-size*.38}" width="${maxSide}" height="1.5" fill="url(#gr)"/>`};
+  const img=(src,x,y,w,h,extra='')=>src?`<image href="${src}" x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" preserveAspectRatio="xMidYMid meet" ${extra}/>`:'';
+  /* ---- الوش ---- */
+  let logos='',lineY,phY;
+  if(duo){const wa=165,wb=192,ha=wa*sa.h/sa.w,hb=wb*sb.h/sb.w,cy=104,tot=wa+wb+34,x0=238-tot/2;logos=img(LB.logo,x0,cy-hb/2,wb,hb)+`<rect x="${x0+wb+16}" y="${cy-29}" width="2" height="58" fill="url(#gv)"/>`+img(LA.logo,x0+wb+34,cy-ha/2,wa,ha);lineY=166;phY=206}
+  else{const w=280,h=Math.min(110,w*sa.h/sa.w),ww=h*sa.w/sa.h;logos=img(LA.logo,238-ww/2,66,ww,h);lineY=66+h+24;phY=Math.max(206,lineY+40)}
+  const py=phY;
+  const nmY=py+290+62,nmSize=idcFit(name,400,40,900);
+  const fld=[['رقم الموظف',f.cardNo||'—',1],['القسم',dept||'—',0],['فصيلة الدم',f.blood||'',1]].filter(x=>x[1]);
+  let fx=440,fH='';for(const [l,v,isEn] of fld){const vs=19,fam=isEn?IDC_EN:IDC_AR,w=Math.max(idcW(l,`600 13px ${IDC_AR}`),idcW(v,`800 ${vs}px ${fam}`));if(fx-w<190)break;fH+=`<text x="${fx}" y="790" text-anchor="end" font-family="${IDC_AR}" font-weight="600" font-size="13" fill="#0E1F45" fill-opacity=".55">${idcE(l)}</text><text x="${fx}" y="816" text-anchor="end" font-family="${fam}" font-weight="800" font-size="${vs}" fill="#0E1F45" ${isEn?'direction="ltr"':''}>${idcE(v)}</text>`;fx-=w+24;if(fx<190)break}
+  const front=`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${css}${defs}
+   <rect width="${W}" height="${H}" fill="url(#bg1)"/>${beam}${deco}
+   <rect x="470" y="0" width="70" height="${H}" fill="url(#sd)"/><text transform="rotate(90 505 428)" x="505" y="428" text-anchor="middle" dominant-baseline="central" font-family="${IDC_EN}" font-weight="700" font-size="${idcFit(sideT,700,16,700,IDC_EN,.14)}" letter-spacing="2.2" fill="${duo?'#F1D08A':st.sideTx}" direction="ltr">${idcE(sideT)}</text>
+   ${logos}${lineBlock(line,lineY,10.5,.26,238,60,'#7A879B')}
+   <rect x="187" y="${py-3}" width="256" height="296" rx="31" fill="url(#ph)" filter="url(#sh)"/><rect x="189" y="${py-1}" width="252" height="292" rx="29" fill="#fff"/>
+   <image href="${photo}" x="196" y="${py+6}" width="238" height="278" preserveAspectRatio="xMidYMid slice" clip-path="url(#pc2)"/>
+   <clipPath id="pc2"><rect x="196" y="${py+6}" width="238" height="278" rx="25"/></clipPath>
+   <text x="440" y="${nmY}" text-anchor="end" font-family="${IDC_AR}" font-weight="900" font-size="${nmSize}" fill="#0E1F45">${idcE(name)}</text>
+   ${en?`<text x="440" y="${nmY+28}" text-anchor="end" font-family="${IDC_EN}" font-weight="600" font-size="${idcFit(en,400,14,600,IDC_EN,.14)}" letter-spacing="2" fill="#6B7A93" direction="ltr">${idcE(en)}</text>`:''}
+   ${title?`<rect x="414" y="${nmY+(en?55:35)}" width="26" height="4" rx="2" fill="url(#tb)"/><text x="404" y="${nmY+(en?64:44)}" text-anchor="end" font-family="${IDC_AR}" font-weight="800" font-size="${idcFit(title,360,20,800)}" fill="${acc}">${idcE(title)}</text>`:''}
+   <rect x="40" y="${H-40-130}" width="130" height="130" rx="16" fill="#fff" filter="url(#sh2)"/>${qr?`<image href="${qr}" x="50" y="${H-40-120}" width="110" height="110"/>`:''}
+   ${fH}</svg>`;
+  /* ---- الضهر ---- */
+  let blogo='';
+  if(duo){const wa=185,wb=215,ha=wa*sa.h/sa.w,hb=wb*sb.h/sb.w,cy=150,tot=wa+wb+46,x0=270-tot/2;blogo=img(LB.logo,x0,cy-hb/2,wb,hb)+`<rect x="${x0+wb+22}" y="${cy-40}" width="2" height="80" fill="url(#gv)"/>`+img(LA.logo,x0+wb+46,cy-ha/2,wa,ha)}
+  else{const w=340,h=Math.min(120,w*sa.h/sa.w),ww=h*sa.w/sa.h;blogo=img(LA.logo,270-ww/2,150-h/2,ww,h)}
+  const mic=(duo?`${c.a.name} ✦ ${c.b.name} ✦ ${line} ✦ `:`${B.name} ✦ ${line} ✦ `).toUpperCase().repeat(12);
+  const box=(x,y,l,v,isEn)=>`<rect x="${x}" y="${y}" width="220" height="64" rx="16" fill="#fff" fill-opacity=".88" stroke="#E3E8F1" filter="url(#sh2)"/><text x="${x+204}" y="${y+25}" text-anchor="end" font-family="${IDC_AR}" font-weight="600" font-size="13" fill="#0E1F45" fill-opacity=".55">${idcE(l)}</text><text x="${x+204}" y="${y+51}" text-anchor="end" font-family="${isEn?IDC_EN:IDC_AR}" font-weight="800" font-size="${idcFit(v||'—',190,17,800,isEn?IDC_EN:IDC_AR)}" fill="#0E1F45" ${isEn?'direction="ltr"':''}>${idcE(v||'—')}</text>`;
+  const issue=f.cardIssued?f.cardIssued.slice(5,7)+'/'+f.cardIssued.slice(0,4):'',valid=f.cardValid?f.cardValid.slice(5,7)+'/'+f.cardValid.slice(0,4):'';
+  const emerg=(f.emergency||'').replace(/[^0-9+ ]/g,' ').replace(/\s+/g,' ').trim().split(' ').filter(x=>x.replace(/\D/g,'').length>=7)[0]||'';
+  const phW=idcW(phone,`800 24px ${IDC_EN}`)+idcW('للتواصل',`700 15px ${IDC_AR}`)+38+24,phX=270+phW/2;
+  const back=`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${css}${defs}
+   <rect width="${W}" height="${H}" fill="url(#bg2)"/>${idcGuil(duo?'#9FB4D6':st.deco==='gear'?'#9CCBE6':'#9FB4D6')}
+   <text x="0" y="68" font-family="${IDC_EN}" font-weight="700" font-size="6.5" letter-spacing=".5" fill="#0E1F45" fill-opacity=".28" direction="ltr">${idcE(mic)}</text>
+   <text x="0" y="${H-24}" font-family="${IDC_EN}" font-weight="700" font-size="6.5" letter-spacing=".5" fill="#0E1F45" fill-opacity=".28" direction="ltr">${idcE(mic)}</text>
+   ${blogo}${lineBlock(line,232,12.5,.3,270,90,'#5E6B80')}
+   <text x="270" y="${c.tagEn?278:286}" text-anchor="middle" font-family="${IDC_AR}" font-weight="800" font-size="19" fill="#0E1F45">${idcE(c.tagAr||'')}</text>
+   ${c.tagEn?`<text x="270" y="300" text-anchor="middle" font-family="${IDC_EN}" font-weight="700" font-size="10.5" letter-spacing="2.9" fill="#8A97AB" direction="ltr">${idcE(c.tagEn)}</text>`:''}
+   ${box(276,338,'تاريخ الإصدار',issue,1)}${box(44,338,'صالحة لحد',valid,1)}${box(276,412,'فصيلة الدم',f.blood||'',1)}${box(44,412,'رقم الطوارئ',emerg,1)}
+   <rect x="44" y="500" width="300" height="118" rx="16" fill="#fff" stroke="#E3E8F1"/>${bar?`<image href="${bar}" x="62" y="514" width="264" height="66" preserveAspectRatio="none"/>`:''}<text x="194" y="604" text-anchor="middle" font-family="${IDC_EN}" font-weight="700" font-size="12" letter-spacing="3.6" fill="#5E6B80" direction="ltr">${idcE(f.cardNo||'')}</text>
+   <circle cx="436" cy="559" r="58" fill="url(#ho)"/><circle cx="436" cy="559" r="52" fill="none" stroke="#fff" stroke-opacity=".55" stroke-width="6"/><text x="436" y="555" text-anchor="middle" font-family="${IDC_EN}" font-weight="800" font-size="10" letter-spacing="1.4" fill="#0E1F45" fill-opacity=".55">AUTH</text><text x="436" y="570" text-anchor="middle" font-family="${IDC_EN}" font-weight="800" font-size="10" letter-spacing="1.4" fill="#0E1F45" fill-opacity=".55">SEAL</text>
+   ${phone?`<circle cx="${phX-19}" cy="675" r="19" fill="url(#ph)"/><g transform="translate(${phX-28} 666) scale(.75)"><path d="${IDC_PHONE}" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></g><text x="${phX-46}" y="681" text-anchor="end" font-family="${IDC_AR}" font-weight="700" font-size="15" fill="#6B7A93">للتواصل</text><text x="${phX-phW}" y="684" font-family="${IDC_EN}" font-weight="800" font-size="24" fill="#12306A" direction="ltr">${idcE(phone)}</text>`:''}
+   ${c.sig&&ss?img(c.sig,320+(170-Math.min(170,60*ss.w/ss.h))/2,H-36-26-62,Math.min(170,60*ss.w/ss.h),60):''}
+   <line x1="320" y1="${H-36-24}" x2="490" y2="${H-36-24}" stroke="#B9C3D3" stroke-width="2" stroke-dasharray="6 5"/><text x="490" y="${H-36-4}" text-anchor="end" font-family="${IDC_AR}" font-weight="600" font-size="13" fill="#6B7A93">توقيع المدير</text>
+   <text x="50" y="${H-40}" font-family="${IDC_EN}" font-weight="600" font-size="${idcFit(ft,250,13,600,IDC_EN,.18)}" letter-spacing="2.3" fill="#6B7A93" direction="ltr">${idcE(ft)}</text></svg>`;
+  return {front,back};
+}
+function idcRaster(svg,scale=3){return new Promise((res,rej)=>{const i=new Image();i.onload=()=>{const cv=document.createElement('canvas');cv.width=540*scale;cv.height=856*scale;const x=cv.getContext('2d');x.drawImage(i,0,0,cv.width,cv.height);res({png:cv.toDataURL('image/png'),jpg:cv.toDataURL('image/jpeg',.95)})};i.onerror=()=>rej('مقدرتش أرسم الكارت');i.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg)})}
+function idcDl(href,name){const a=document.createElement('a');a.href=href;a.download=name;document.body.appendChild(a);a.click();a.remove()}
+async function idcIssue(u,f,renew){const c=idcCfg();let ch=false;
+  if(!f.vt||renew){if(f.vt&&ONLINE){try{await FB.db.collection('verify').doc(f.vt).set({...idcVerifyDoc(u,f),st:'void',offAt:new Date().toISOString()})}catch(e){}}f.vt=idcRand();ch=true}
+  if(!f.cardNo){const sq=(S.settings.idc?.seq||0)+1;S.settings.idc={...(S.settings.idc||{}),seq:sq};f.cardNo=idcPre(idcCo(f),c)+'-'+String(sq).padStart(4,'0');ch=true}
+  if(!f.cardIssued||renew){const d=new Date();f.cardIssued=d.toISOString().slice(0,10);const v=new Date(d);v.setFullYear(v.getFullYear()+(+c.years||1));f.cardValid=v.toISOString().slice(0,10);ch=true}
+  const psig=f.photo?f.photo.length+':'+f.photo.slice(-32):'';if(!f.photo&&f.cardPhoto){f.cardPhoto='';f.cardPhotoSig='';ch=true}
+  if(f.photo&&f.cardPhotoSig!==psig){try{const im=await new Promise((r,j)=>{const i=new Image();i.onload=()=>r(i);i.onerror=j;i.src=f.photo});const cv=document.createElement('canvas'),k=Math.min(1,200/Math.max(im.width,im.height));cv.width=im.width*k;cv.height=im.height*k;cv.getContext('2d').drawImage(im,0,0,cv.width,cv.height);const d=cv.toDataURL('image/jpeg',.72);f.cardPhoto=d;f.cardPhotoSig=psig;ch=true}catch(e){}}
+  if(ch)save();await idcSync(u.id)}
+async function openIdCard(uidv){
+  if(!idcFeat()){toast('الميزة دي مش في باكدجك');return}
+  const u=S.users.find(x=>x.id===uidv);let f=empFile(uidv);if(!u)return;
+  if(!f){f={id:'ef_'+uidv,uid:uidv,docs:{}};S.empFiles.push(f)}
+  const c=idcCfg();if(!c.a.logo){toast('ارفع لوجو الشركة الأول من «⚙️ إعدادات الكارت»');openIdcCfg();return}
+  closeModal(true);const bg=document.createElement('div');bg.className='modal-bg';bg.id='modal';
+  bg.innerHTML=`<div class="modal" style="max-width:760px"><h3>🪪 كارت ${esc(f.fullName||u.name)}</h3><div class="muted small" id="idc_st">بيجهّز الكارت…</div><div class="row" id="idc_pv" style="gap:12px;justify-content:center;flex-wrap:wrap;margin:10px 0"></div>
+   ${idcAlive(u,f)?'':'<div class="banner warn">الموظف ده موقوف — الـ QR بتاعه بيقول «موقوف» لأي حد يمسحه.</div>'}
+   <div class="row" style="justify-content:space-between;flex-wrap:wrap;gap:8px"><div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn pri" id="idc_pdf" disabled>⬇️ PDF للمطبعة</button><button class="btn" id="idc_f" disabled>⬇️ صورة الوش</button><button class="btn" id="idc_b" disabled>⬇️ صورة الضهر</button></div><div class="row" style="gap:8px"><button class="btn sm" id="idc_new">🔁 كارت بديل (لو ضاع)</button><button class="btn" id="idc_x">قفل</button></div></div>
+   <div class="muted small" style="margin-top:8px">ابعت ملف الـ PDF لأي مطبعة كروت بلاستيك (PVC) — المقاس 54 × 85.6 مم بالطول، وش وضهر. ${f.fullNameEn?'':'<b>نصيحة:</b> زوّد الاسم بالإنجليزي وفصيلة الدم من «تعديل البيانات».'}</div></div>`;
+  document.body.appendChild(bg);bg.onclick=e=>{if(e.target===bg)closeModal()};$('#idc_x').onclick=()=>closeModal();
+  let F='',Bk='',FJ='',BJ='';
+  const draw=async(renew)=>{try{$('#idc_st').textContent='بيجهّز الكارت…';await idcIssue(u,f,renew);const s=await idcSvgs(u,f);const r1=await idcRaster(s.front),r2=await idcRaster(s.back);F=r1.png;Bk=r2.png;FJ=r1.jpg;BJ=r2.jpg;
+    $('#idc_pv').innerHTML=`<img src="${F}" style="width:240px;border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,.18)" alt="الوش"><img src="${Bk}" style="width:240px;border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,.18)" alt="الضهر">`;
+    $('#idc_st').innerHTML=`رقم الكارت <b class="num">${esc(f.cardNo)}</b> · صالح لحد <b class="num">${fd(f.cardValid)}</b> · امسح الـ QR من موبايلك للتجربة`;['#idc_pdf','#idc_f','#idc_b'].forEach(s=>$(s).disabled=false)}catch(e){$('#idc_st').textContent=typeof e==='string'?e:'حصلت مشكلة وأنا بجهّز الكارت — جرب تاني'}};
+  const fn=(f.fullNameEn||f.cardNo||'card').replace(/[^A-Za-z0-9-]+/g,'-');
+  $('#idc_f').onclick=()=>idcDl(F,`ID-${fn}-front.png`);$('#idc_b').onclick=()=>idcDl(Bk,`ID-${fn}-back.png`);
+  $('#idc_pdf').onclick=async()=>{try{if(!window.jspdf)await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');const d=new window.jspdf.jsPDF({unit:'mm',format:[54,85.6],orientation:'portrait'});d.addImage(FJ,'JPEG',0,0,54,85.6);d.addPage([54,85.6],'portrait');d.addImage(BJ,'JPEG',0,0,54,85.6);d.save(`ID-${fn}.pdf`)}catch(e){toast('مقدرتش أعمل الـ PDF — نزّل الصورتين')}};
+  $('#idc_new').onclick=()=>confirmBox('هيتعمل كارت جديد بـ QR جديد، والكارت القديم هيبقى ملغي (لو حد مسحه هيقول «ملغي»). تكمل؟',()=>{draw(true)});
+  draw(false);
+}
+function openIdcCfg(){
+  const c=idcCfg();let la=c.a.logo,lb=c.b.logo,sig=c.sig;
+  const st=(id,v)=>`<select id="${id}"><option value="blue" ${v==='blue'?'selected':''}>فحمي وأزرق + ترس صيانة</option><option value="gold" ${v==='gold'?'selected':''}>كحلي ودهبي + حلقة دهبي</option></select>`;
+  const pv=(id,src)=>`<div id="${id}" style="height:56px;min-width:120px;border:1px dashed var(--line);border-radius:10px;display:grid;place-items:center;background:#fff;padding:4px">${src?`<img src="${src}" style="max-height:48px;max-width:200px">`:'<span class="muted small">مفيش</span>'}</div>`;
+  modal(`<h3>⚙️ إعدادات كارت الموظف</h3>
+   <div class="sec-title">الشركة الأولى</div><div class="grid g2"><label class="f">الاسم (بالإنجليزي)<input id="ic_an" value="${esc(c.a.name)}"></label><label class="f">رقم التواصل اللي على الكارت<input id="ic_ap" value="${esc(c.a.phone)}" inputmode="tel"></label><label class="f">السطر اللي تحت اللوجو<input id="ic_al" value="${esc(c.a.line)}"></label><label class="f">الألوان${st('ic_as',c.a.style)}</label></div>
+   <div class="row" style="gap:10px;align-items:center">${pv('ic_alp',la)}<label class="btn sm">⬆️ لوجو (PNG من غير خلفية أحسن)<input type="file" id="ic_alf" accept="image/*" hidden></label></div>
+   <div class="sec-title">الشركة التانية (اختياري — لو فيه موظفين تبعها أو كارت مشترك)</div><div class="grid g2"><label class="f">الاسم (بالإنجليزي)<input id="ic_bn" value="${esc(c.b.name)}"></label><label class="f">رقم التواصل<input id="ic_bp" value="${esc(c.b.phone)}" inputmode="tel"></label><label class="f">السطر اللي تحت اللوجو<input id="ic_bl" value="${esc(c.b.line)}"></label><label class="f">الألوان${st('ic_bs',c.b.style)}</label></div>
+   <div class="row" style="gap:10px;align-items:center">${pv('ic_blp',lb)}<label class="btn sm">⬆️ لوجو<input type="file" id="ic_blf" accept="image/*" hidden></label>${lb?'<button type="button" class="btn sm danger" id="ic_bx">شيل</button>':''}</div>
+   <div class="sec-title">الكارت المشترك (للموظفين التابعين للشركتين)</div><div class="grid g2"><label class="f">السطر اللي تحت اللوجوهين<input id="ic_abl" value="${esc(c.abLine)}"></label><label class="f">رقم التواصل<input id="ic_abp" value="${esc(c.abPhone)}" inputmode="tel"></label></div>
+   <div class="sec-title">ضهر الكارت</div><div class="grid g2"><label class="f">الجملة بالعربي<input id="ic_ta" value="${esc(c.tagAr)}"></label><label class="f">معناها بالإنجليزي<input id="ic_te" value="${esc(c.tagEn)}"></label><label class="f">الكارت صالح لمدة<select id="ic_y">${[1,2,3].map(y=>`<option value="${y}" ${+c.years===y?'selected':''}>${y===1?'سنة':y===2?'سنتين':'3 سنين'}</option>`).join('')}</select></label></div>
+   <div class="row" style="gap:10px;align-items:center">${pv('ic_sgp',sig)}<label class="btn sm">✍️ صورة توقيع المدير<input type="file" id="ic_sgf" accept="image/*" hidden></label>${sig?'<button type="button" class="btn sm danger" id="ic_sx">شيل</button>':''}</div>
+   <div class="muted small">صوّر التوقيع على ورقة بيضا بقلم أزرق أو أسود — السيستم بيشيل الخلفية لوحده.</div>`,()=>{
+    const v=id=>$(id).value.trim();
+    S.settings.idc={...(S.settings.idc||{}),a:{name:v('#ic_an'),phone:v('#ic_ap'),line:v('#ic_al'),style:v('#ic_as'),logo:la},b:{name:v('#ic_bn'),phone:v('#ic_bp'),line:v('#ic_bl'),style:v('#ic_bs'),logo:lb},abLine:v('#ic_abl'),abPhone:v('#ic_abp'),tagAr:v('#ic_ta'),tagEn:v('#ic_te'),years:+v('#ic_y')||1,sig};
+    save();idcBrandSync();toast('اتحفظت إعدادات الكارت');render()});
+  const rd=async(fl,max,trim)=>{const d=await readFileData(fl);const im=await new Promise((r,j)=>{const i=new Image();i.onload=()=>r(i);i.onerror=j;i.src=d});const k=Math.min(1,max/Math.max(im.width,im.height));const cv=document.createElement('canvas');cv.width=Math.round(im.width*k);cv.height=Math.round(im.height*k);const x=cv.getContext('2d');x.drawImage(im,0,0,cv.width,cv.height);
+    if(trim){const p=x.getImageData(0,0,cv.width,cv.height),a=p.data;for(let i=0;i<a.length;i+=4){const mn=Math.min(a[i],a[i+1],a[i+2]),l=(a[i]+a[i+1]+a[i+2])/3;const al=trim==='sig'?Math.max(0,Math.min(255,(200-l)*3)):(mn>238?0:mn>215?Math.round((238-mn)*11):255);a[i+3]=Math.min(a[i+3],al);if(trim==='sig'&&al>0){const dk=a[i+2]>a[i]+15;a[i]=dk?20:15;a[i+1]=dk?40:20;a[i+2]=dk?120:35}}x.putImageData(p,0,0)}
+    return cv.toDataURL('image/png')};
+  const hook=(inp,max,trim,set,pvId)=>{$(inp).onchange=async e=>{const fl=e.target.files[0];if(!fl)return;try{const d=await rd(fl,max,trim);set(d);$(pvId).innerHTML=`<img src="${d}" style="max-height:48px;max-width:200px">`}catch(_){toast('معرفتش أقرا الصورة')}}};
+  hook('#ic_alf',900,'logo',d=>la=d,'#ic_alp');hook('#ic_blf',900,'logo',d=>lb=d,'#ic_blp');hook('#ic_sgf',700,'sig',d=>sig=d,'#ic_sgp');
+  if($('#ic_bx'))$('#ic_bx').onclick=()=>{lb='';$('#ic_blp').innerHTML='<span class="muted small">مفيش</span>'};
+  if($('#ic_sx'))$('#ic_sx').onclick=()=>{sig='';$('#ic_sgp').innerHTML='<span class="muted small">مفيش</span>'};
+}
+async function viewEmpVerify(m,v,db){
+  let br=null;try{const d=await db.collection('verify').doc('_brand').get();if(d.exists)br=d.data()}catch(e){}
+  const today=new Date().toISOString().slice(0,10),exp=v.valid&&v.valid<today;
+  const S2=v.st==='on'&&!exp?{c:'#0F8A4B',bg:'#E7F7EE',i:'✅',t:'موظف حالي',d:'الشخص ده موظف شغال عندنا دلوقتي والكارت ساري.'}:v.st==='void'?{c:'#B42318',bg:'#FDECEA',i:'⛔',t:'الكارت ده ملغي',d:'الكارت ده اتلغى واتعمل بداله كارت جديد. لو حد بيستخدمه، كلّم الشركة.'}:v.st!=='on'?{c:'#B42318',bg:'#FDECEA',i:'⛔',t:'مش موظف عندنا',d:`الشخص ده مابقاش موظف في الشركة${v.offAt?' من '+fd(v.offAt.slice(0,10)):''}. الكارت ده مش ساري.`}:{c:'#B54708',bg:'#FEF4E6',i:'⚠️',t:'الكارت منتهي',d:'الكارت ده خلصت صلاحيته — لازم يتجدد.'};
+  const lg=x=>x&&x.logo?`<img src="${x.logo}" alt="${esc(x.name)}" style="max-height:54px;max-width:150px;object-fit:contain">`:'';
+  m.innerHTML=`<div class="panel grid" style="max-width:520px;margin:16px auto;gap:14px;text-align:center">
+   ${br?`<div class="row" style="justify-content:center;align-items:center;gap:16px;flex-wrap:nowrap">${lg(br.a)}${br.b?`<span style="width:2px;height:46px;background:linear-gradient(180deg,transparent,#C9A24A,transparent)"></span>${lg(br.b)}`:''}</div>`:''}
+   <div style="background:${S2.bg};color:${S2.c};border-radius:16px;padding:14px"><div style="font-size:2.2rem;line-height:1">${S2.i}</div><b style="font-size:1.35rem;display:block;margin-top:6px">${S2.t}</b><div class="small" style="margin-top:4px">${S2.d}</div></div>
+   ${v.photo?`<img src="${v.photo}" alt="" style="width:120px;height:140px;object-fit:cover;border-radius:16px;margin:0 auto;${v.st==='on'&&!exp?'':'filter:grayscale(1);opacity:.7'}">`:''}
+   <div><b style="font-size:1.3rem">${esc(v.name)}</b>${v.en?`<div class="muted small num" dir="ltr" style="letter-spacing:.12em;text-align:center">${esc(v.en)}</div>`:''}<div>${esc(v.title||'')}${v.dept?` · <span class="muted">${esc(v.dept)}</span>`:''}</div></div>
+   <div class="kv" style="text-align:right"><span>رقم الكارت</span><b class="num">${esc(v.no||'—')}</b><span>صالح لحد</span><b class="num">${v.valid?fd(v.valid):'—'}</b><span>آخر تحديث</span><b class="num">${v.at?fd(v.at.slice(0,10)):'—'}</b></div>
+   <div class="muted small">الصفحة دي بتتحدّث أوتوماتيك من سيستم الشركة — لو الموظف اتوقف، بتقول كده على طول.</div></div>`;
+}
+
 Object.assign(X9,{
-  editEmp:(t,id)=>openEmpModal(id),addEmpDoc:(t,id)=>openEmpDocModal(id),openEmpDoc:(t,id)=>openEmpDoc(id),
+  editEmp:(t,id)=>openEmpModal(id),idCard:(t,id)=>openIdCard(id),idcCfg:()=>openIdcCfg(),addEmpDoc:(t,id)=>openEmpDocModal(id),openEmpDoc:(t,id)=>openEmpDoc(id),
   delEmpDoc:(t,id)=>confirmBox('حذف الورقة دي؟',()=>delEmpDoc(id)),
   showEmpImg:(t)=>{const f=empFile(t.dataset.src);if(f?.photo){closeModal(true);const bg=document.createElement('div');bg.className='modal-bg';bg.id='modal';bg.innerHTML=`<div class="modal" style="max-width:420px"><img src="${f.photo}" style="width:100%;border-radius:8px" alt=""></div>`;document.body.appendChild(bg);bg.onclick=()=>closeModal()}}
 });
-Object.assign(NEED9,{editEmp:'emp_files',addEmpDoc:'emp_files',delEmpDoc:'emp_files'});
+Object.assign(NEED9,{idCard:'emp_files',idcCfg:'settings',editEmp:'emp_files',addEmpDoc:'emp_files',delEmpDoc:'emp_files'});
 document.addEventListener('change',e=>{if(e.target.id==='empd'){EMPD=e.target.value;render()}});
 document.addEventListener('input',e=>{if(e.target.id==='empq'){EMPQ=e.target.value;const p=e.target.selectionStart;render();const i=$('#empq');if(i){i.focus();i.setSelectionRange(p,p)}}});
 
@@ -6117,8 +6299,9 @@ async function viewVerifyPage(code){
   const [t,id]=code.split('.');const m=document.getElementById('main');document.body.classList.add('nonav');try{document.getElementById('tabs').innerHTML='';document.getElementById('brandSub').innerHTML='التحقق من المستندات'}catch(e){}
   m.innerHTML='<div class="panel"><div class="empty">بيتم التحقق…</div></div>';
   let v=null,hist=[];
-  try{const cfg=getFbConfig();if(cfg){for(const f of ['app','firestore'])await loadScript(`https://www.gstatic.com/firebasejs/${FB_VER}/firebase-${f}-compat.js`);const app=firebase.apps.find(a=>a.name==='verify')||firebase.initializeApp(cfg,'verify');const db=app.firestore();const d=await db.collection('verify').doc(id).get();if(d.exists){v=d.data();hist=v.hist||[]}}
+  try{const cfg=getFbConfig();if(cfg){for(const f of ['app','firestore'])await loadScript(`https://www.gstatic.com/firebasejs/${FB_VER}/firebase-${f}-compat.js`);const app=firebase.apps.find(a=>a.name==='verify')||firebase.initializeApp(cfg,'verify');const db=app.firestore();const d=await db.collection('verify').doc(id).get();if(d.exists){v=d.data();if(v.t==='e'){await viewEmpVerify(m,v,db);return}hist=v.hist||[]}}
     else{const st=await loadState().catch(()=>null);v=(st?.verify||[]).find(x=>x.id===id)||null;hist=v?.hist||[]}}catch(e){}
+  if(!v&&t==='e'){m.innerHTML=`<div class="panel grid" style="max-width:520px;margin:20px auto;text-align:center"><div style="font-size:2.4rem">❌</div><h2>الكارت ده مش متسجل عندنا</h2><div class="muted">مفيش موظف بالكود ده في سيستم ${esc(BRAND())} — الكارت ده غالباً متقلد. لو عندك شك، كلّم الشركة على طول.</div></div>`;return}
   if(!v){m.innerHTML=`<div class="panel grid" style="max-width:560px;margin:20px auto;text-align:center"><div style="font-size:2.4rem">❌</div><h2>مش لاقي المستند ده</h2><div class="muted">الكود ده مش متسجل في سيستم ${esc(BRAND())}. لو المستند معاك ورقي، كلّم الشركة للتأكد.</div></div>`;return}
   hist.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
   m.innerHTML=`<div class="panel grid" style="max-width:620px;margin:16px auto;gap:10px"><div style="text-align:center"><div style="font-size:2.6rem">✅</div><h2 style="margin:4px 0">${v.t==='r'?'تقرير صيانة أصلي':'فاتورة أصلية'}</h2><div class="muted">صادر من ${esc(v.company||BRAND())}</div></div>
@@ -6860,7 +7043,7 @@ let XR_PRE='';
 
 
 /* ---------- فحص التحديثات ---------- */
-const APP_VER='3.5.0';
+const APP_VER='3.6.0';
 async function checkUpdate(){try{if(location.protocol==='file:')return;const t=await (await fetch(location.pathname+'?_='+Date.now(),{cache:'no-store'})).text();const m=t.match(/const APP_VER='([^']+)'/);if(m&&m[1]!==APP_VER)showUpd(m[1])}catch(e){}}
 function showUpd(v){if(document.getElementById('updBar'))return;const b=document.createElement('div');b.id='updBar';b.style.cssText='position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:80;background:#1d2b45;color:#fff;padding:10px 16px;border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,.25);display:flex;gap:12px;align-items:center;font-weight:600;max-width:92vw';b.innerHTML='<span>🔄 فيه نسخة جديدة من السيستم</span><button type="button" style="background:#2b8fb8;color:#fff;border:0;border-radius:10px;padding:6px 14px;font:inherit;cursor:pointer">حدّث دلوقتي</button>';b.querySelector('button').onclick=()=>{location.replace(location.pathname+'?v='+encodeURIComponent(v)+location.hash)};document.body.appendChild(b)}
 setTimeout(checkUpdate,8000);setInterval(checkUpdate,5*60*1000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkUpdate()});
@@ -9144,6 +9327,7 @@ Object.assign(X9,{wrBig:()=>wrBig(),wrCopy:async()=>{try{await navigator.clipboa
 
 /* ---------- رقم الإصدار وإيه الجديد ---------- */
 const RELEASES=[
+ ['3.6.0','2026-11-22',['🪪 كارت الموظف: تصميم جاهز للمطبعة (PDF وصور) من ملف كل موظف، و QR بيأكد لأي حد إن الموظف لسه شغال — ولو اتوقف بيقول كده على طول']],
  ['3.5.0','2026-11-21',['أشكال جديدة للقائمة: أيقونات ملوّنة بتكبر لما تقف عليها، وشريط زي الماك، ونيون منوّر، وأيقونات بلوحة فرعية']],
  ['3.4.0','2026-11-19',['خصوصية أكتر: Beam Care مش هتشوف سجل التعديلات والأرشيف بتوع شركتك غير بإذنك — تفتحلها الدخول من الإعدادات أو تبعتلها كود، والإذن بيتقفل لوحده، وكل دخول بيتسجل عندك','«قفل كامل» لو عايز توقف النسخة الاحتياطية عند Beam Care','قفل السيستم برّه الشيفت (جزء في الباكدج): الموظف يفتح السيستم في مواعيد شغله بس، وبرّه الشيفت البصمة وطلب الإجازة بس — مع وقت سماح، وتنبيه قبل آخر الشيفت، وطلب وقت زيادة، وإشعار للإدارة لو حد حاول يفتح']],
  ['3.3.0','2026-11-19',['كارت «QR طلب الصيانة أونلاين» في الشاشة الرئيسية: تكبير، نسخ اللينك، إرسال، وبوستر للطباعة، وعدد طلبات الشهر','الرجوع بيرجّعك لنفس مكانك في الصفحة، وزرار ⬆ لأول الصفحة']],

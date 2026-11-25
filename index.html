@@ -59,7 +59,7 @@ async function pmBgLoad(){const th=document.documentElement.dataset.theme||'';co
   if(!d){const x=await fetch(U+'bg_'+best.bg).then(r=>r.ok?r.json():null);d=x?.fields?.d?.stringValue||'';try{Object.keys(localStorage).filter(z=>z.startsWith('pm-bg-')).forEach(z=>localStorage.removeItem(z));if(d)localStorage.setItem(k,d)}catch(e){}}
   if(d){document.documentElement.style.setProperty('--gbg','url("'+d+'")');document.documentElement.style.setProperty('--gblur','1px')}
  }catch(e){console.warn('bg',e)}}
-const PM_SBC={home:['#FF9A4D','#F25C1F'],requests:['#FF7F95','#E11D48'],webreq:['#60A5FA','#2563EB'],reports:['#CB8CFF','#9333EA'],clients:['#3EE0C8','#0E9F96'],contracts:['#818CF8','#3730A3'],stock:['#FCC943','#D97706'],psales:['#5EE38E','#16A34A'],orders:['#FDBA74','#C2410C'],freon:['#67E8F9','#0891B2'],offers:['#FDA4AF','#E11D48'],quotes:['#F0ABFC','#A21CAF'],pricelists:['#FCD34D','#B45309'],devices:['#38BDF8','#1D4ED8'],suppliers:['#A3E635','#4D7C0F'],ar:['#FB923C','#C2410C'],accounts:['#34D399','#047857'],capital:['#FBBF24','#92400E'],treasury:['#5EE38E','#15803D'],weekly:['#C4B5FD','#6D28D9'],custody:['#F9A8D4','#BE185D'],hr:['#2DD4BF','#0F766E'],meetings:['#93C5FD','#1E40AF'],perf:['#FDE047','#CA8A04'],tests:['#A5B4FC','#4338CA'],policy:['#CBD5E1','#475569'],emps:['#8F99FF','#4F46E5'],analytics:['#E879F9','#86198F'],ledger:['#6EE7B7','#065F46'],audit:['#94A3B8','#475569'],archive:['#D6D3D1','#57534E'],payroll:['#86EFAC','#166534'],users:['#7DD3FC','#0369A1'],mysub:['#F6C27C','#DE8B3C'],settings:['#B0B6C0','#5B6270'],webreqcfg:['#60A5FA','#1D4ED8'],me:['#7DD3FC','#0369A1'],import:['#86EFAC','#15803D']};
+const PM_SBC={office:['#FDBA74','#EA580C'],home:['#FF9A4D','#F25C1F'],requests:['#FF7F95','#E11D48'],webreq:['#60A5FA','#2563EB'],reports:['#CB8CFF','#9333EA'],clients:['#3EE0C8','#0E9F96'],contracts:['#818CF8','#3730A3'],stock:['#FCC943','#D97706'],psales:['#5EE38E','#16A34A'],orders:['#FDBA74','#C2410C'],freon:['#67E8F9','#0891B2'],offers:['#FDA4AF','#E11D48'],quotes:['#F0ABFC','#A21CAF'],pricelists:['#FCD34D','#B45309'],devices:['#38BDF8','#1D4ED8'],suppliers:['#A3E635','#4D7C0F'],ar:['#FB923C','#C2410C'],accounts:['#34D399','#047857'],capital:['#FBBF24','#92400E'],treasury:['#5EE38E','#15803D'],weekly:['#C4B5FD','#6D28D9'],custody:['#F9A8D4','#BE185D'],hr:['#2DD4BF','#0F766E'],meetings:['#93C5FD','#1E40AF'],perf:['#FDE047','#CA8A04'],tests:['#A5B4FC','#4338CA'],policy:['#CBD5E1','#475569'],emps:['#8F99FF','#4F46E5'],analytics:['#E879F9','#86198F'],ledger:['#6EE7B7','#065F46'],audit:['#94A3B8','#475569'],archive:['#D6D3D1','#57534E'],payroll:['#86EFAC','#166534'],users:['#7DD3FC','#0369A1'],mysub:['#F6C27C','#DE8B3C'],settings:['#B0B6C0','#5B6270'],webreqcfg:['#60A5FA','#1D4ED8'],me:['#7DD3FC','#0369A1'],import:['#86EFAC','#15803D']};
 const PM_SB_CSS=Object.entries(PM_SBC).map(([k,c])=>`[data-go="${k}"]{--t1:${c[0]};--t2:${c[1]}}`).join('')+`
 .sb-tg,#sbTip,.sb-panel{display:none}
 html body.sbx:not(.sb-neon) .tabs .tab svg{width:38px!important;height:38px!important;padding:8.5px!important;border-radius:12px!important;background:linear-gradient(160deg,var(--t1,#B0B6C0),var(--t2,#5B6270))!important;stroke:#fff!important;fill:none!important;stroke-width:2!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.45),0 4px 10px rgba(0,0,0,.18)!important;flex:none;transition:transform .18s cubic-bezier(.3,1.4,.5,1),box-shadow .18s}
@@ -503,6 +503,22 @@ input:focus,select:focus,textarea:focus{border-color:var(--accent)}
 .upbtn{position:fixed;left:max(16px,env(safe-area-inset-left,0px));bottom:calc(24px + env(safe-area-inset-bottom,0px));z-index:40;width:44px;height:44px;border-radius:50%;border:1px solid var(--line,#ddd);background:var(--card,#fff);color:var(--ink,#222);box-shadow:0 6px 18px rgba(0,0,0,.16);display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:0;transform:translateY(10px);pointer-events:none;transition:opacity .2s,transform .2s}
 .upbtn.on{opacity:.92;transform:none;pointer-events:auto}
 @media (max-width:760px){.upbtn{bottom:calc(84px + env(safe-area-inset-bottom,0px))}}
+
+.lo-chips{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+.lo-chip{display:inline-flex;align-items:center;gap:6px;border:1.5px solid var(--c,var(--line));background:var(--surface);color:var(--ink);border-radius:99px;padding:6px 12px;font:inherit;font-weight:700;font-size:.85rem;cursor:pointer}
+.lo-chip b{background:var(--c,#64748B);color:#fff;border-radius:99px;padding:0 8px;font-size:.8rem}
+.lo-chip.on{background:var(--c);color:#fff}.lo-chip.on b{background:#fff;color:var(--c)}
+.lo-map{padding:6px;overflow:hidden;background:linear-gradient(180deg,#F5F7FB,#E9EEF5)}
+.lo-svg{width:100%;height:auto;display:block;font-family:inherit}
+@media (max-width:700px){.lo-map{overflow-x:auto;-webkit-overflow-scrolling:touch}.lo-svg{width:820px;max-width:none}.lo-map::after{content:'⇆ اسحب عشان تشوف المكتب كله';display:block;text-align:center;font-size:.75rem;color:var(--muted);padding:4px}}
+.lo-desk:hover>polygon:nth-of-type(3){fill:#fff}.lo-desk{transition:opacity .2s}
+.lo-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin-top:12px}
+.lo-g{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:10px}
+.lo-gh{font-weight:800;margin-bottom:6px}
+.lo-row{display:flex;align-items:center;gap:10px;width:100%;background:none;border:0;border-radius:12px;padding:6px;font:inherit;color:var(--ink);cursor:pointer;text-align:right}
+.lo-row:hover{background:rgba(127,127,127,.08)}.lo-rt{display:flex;flex-direction:column;flex:1;min-width:0}.lo-rt small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.op-stage{overflow:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--line);border-radius:14px;max-height:70vh;background:var(--surface)}
+.op-svg{display:block;touch-action:pan-x pan-y;user-select:none;-webkit-user-select:none}.op-it{cursor:grab;touch-action:none}.op-it text{pointer-events:none}.op-hd{fill:#C9973A;stroke:#fff;stroke-width:3;touch-action:none;cursor:nwse-resize}
 </style>
 </head>
 <body>
@@ -1100,6 +1116,7 @@ const TABS=[
  ['weekly','التقارير الدورية',()=>can('weekly_report')||can('weekly_view')||isOwnerU(ME)||!!ME?.nonEmp||(S.weekrep||[]).some(w=>w.approverId===ME?.id)],
  ['custody','العهدة والمصاريف',()=>isStaff(),'الموظفين'],
  ['hr','الحضور والإجازات',()=>isStaff()],
+ ['office','مكتب الشركة الحي',()=>loCan()],
  ['meetings','الاجتماعات',()=>can('meetings')||myMeetings().length>0],
  ['perf','الأداء والتقييم',()=>can('evals')||(isStaff()&&seeRes()&&!isNonEmp(ME))],
  ['tests','الاختبارات',()=>can('tests')||myTests().length>0],
@@ -1117,10 +1134,11 @@ const TABS=[
  ['me','حسابي',()=>!!ME&&!isClinic()],
  ['import','استيراد من Excel',()=>can('settings')||isDev(ME)]
 ];
-const SUBVIEW={quote:'quotes',plord:'pricelists',new:'reports',insp:'reports',branch:'clients',inspf:'reports',inspv:'reports',test:'tests',tgrade:'tests',empf:'emps',devh:'clients',perfu:'perf',view:'reports',edit:'reports',client:'clients',dev:'devices',sdev:'devices',supplier:'suppliers',cust:'custody',psale:'psales'};
+const SUBVIEW={officeplan:'office',quote:'quotes',plord:'pricelists',new:'reports',insp:'reports',branch:'clients',inspf:'reports',inspv:'reports',test:'tests',tgrade:'tests',empf:'emps',devh:'clients',perfu:'perf',view:'reports',edit:'reports',client:'clients',dev:'devices',sdev:'devices',supplier:'suppliers',cust:'custody',psale:'psales'};
 const tabOf=v=>SUBVIEW[v]||v;
-function allowed(v,p){if(v==='archive')return isDev(ME);if(v==='new')return can('reports_write');if(v==='insp'||v==='inspf'||v==='inspv')return can('inspections');if(v==='empf')return (can('emp_files')&&inSc(p))||p===ME?.id;if(v==='test')return isStaff();if(v==='tgrade')return can('tests');if(v==='view')return can('reports_write')||can('reports_all');if(v==='edit')return can('reports_write')||can('reports_all');const t=TABS.find(x=>x[0]===tabOf(v));return !t||t[2]()}
+function allowed(v,p){if(v==='officeplan')return loFeat()&&can('settings');if(v==='archive')return isDev(ME);if(v==='new')return can('reports_write');if(v==='insp'||v==='inspf'||v==='inspv')return can('inspections');if(v==='empf')return (can('emp_files')&&inSc(p))||p===ME?.id;if(v==='test')return isStaff();if(v==='tgrade')return can('tests');if(v==='view')return can('reports_write')||can('reports_all');if(v==='edit')return can('reports_write')||can('reports_all');const t=TABS.find(x=>x[0]===tabOf(v));return !t||t[2]()}
 const ICONS={
+ office:'<path d="M3 21h18M5 21V7l7-4 7 4v14M9 9h1M14 9h1M9 13h1M14 13h1M10 21v-4h4v4"/>',
  mysub:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h4"/>',
  home:'<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',
  webreq:'<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.7 3.8 5.7 3.8 9s-1.3 6.3-3.8 9c-2.5-2.7-3.8-5.7-3.8-9S9.5 5.7 12 3"/>',
@@ -1206,7 +1224,7 @@ function render(){try{deptsApply()}catch(e){}try{invNoTick()}catch(e){}if(PM_DEM
     +verTag();try{pmSbAfter()}catch(e){}
   document.body.classList.remove('nonav');setTimeout(()=>{try{const a=document.querySelector('#tabs .tab.on');const t=$('#tabs');if(a&&t&&t.scrollWidth>t.clientWidth+4){const r=a.getBoundingClientRect(),q=t.getBoundingClientRect();if(r.left<q.left||r.right>q.right)t.scrollLeft+=(r.left+r.width/2)-(q.left+q.width/2)}}catch(e){}},30);
   const banner=(PM_DEMO?`<div class="banner info row between no-print" style="gap:10px;flex-wrap:wrap"><span>🧪 <b>دي نسخة تجربة من Beam Care Maintenance</b> — البيانات وهمية ومحفوظة على جهازك بس. جرّب براحتك.${PM_TRIAL_END?` <b>${PM_TRIAL_PLAN?.n?`باكدج ${esc(PM_TRIAL_PLAN.n)} · `:''}فاضل ${Math.max(0,Math.ceil((PM_TRIAL_END-Date.now())/864e5))} يوم على التجربة.</b>`:''}</span><span class="row" style="gap:6px">${PM_DEMO_WA?`<a class="btn sm pri" target="_blank" rel="noopener" href="https://wa.me/${PM_DEMO_WA}?text=${encodeURIComponent('أهلاً، جربت نسخة التجربة من Beam Care Maintenance وعايز أعرف تفاصيل الاشتراك')}">💬 عايز أشترك</a>`:''}<button class="btn sm" data-act="demoReset">ابدأ التجربة من جديد</button></span></div>`:'')+(S.demo&&isAdmin()&&!PM_DEMO?`<div class="banner row between no-print"><span>دي بيانات تجريبية. فيه مهندس (karim)، ومحاسب (amr)، ومدير المستهلكات (nader)، ومندوب توصيل (sayed)، وعيادة (skinline) — كلهم بكلمة سر 123456 علشان تجرب شاشاتهم.</span><button class="btn sm" data-act="clearDemo">امسح البيانات التجريبية وابدأ</button></div>`:PM_DEMO&&isAdmin()?`<div class="banner row between no-print"><span>تقدر تدخل بحسابات تانية علشان تشوف كل شاشة: مهندس (karim)، محاسب (amr)، مستهلكات (nader)، مندوب (sayed)، عيادة (skinline) — كلهم بكلمة سر 123456، والمدير admin بكلمة سر 123456.</span></div>`:'');
-  const V={import:viewImport,me:viewMe,webreqcfg:viewWebReqCfg,webreq:viewWebReq,mysub:viewMySub,devices:viewDevices,dev:()=>viewDev(PARAM),sdev:()=>viewSdev(PARAM),suppliers:viewSuppliers,supplier:()=>viewSupplier(PARAM),home:viewHome,requests:viewRequests,new:()=>viewForm(null),edit:()=>viewForm(PARAM),reports:viewReports,view:()=>viewReport(PARAM),clients:viewClients,client:()=>viewClient(PARAM),contracts:viewContracts,stock:viewStock,psales:viewPartSales,psale:()=>viewPartSale(PARAM),ar:viewAR,accounts:viewAccounts,capital:viewCapital,custody:viewCustody,cust:()=>viewCustodyOf(PARAM),hr:viewHR2,devh:()=>viewDevHistory(PARAM),orders:viewOrders,perf:viewPerf,perfu:()=>viewPerfUser(PARAM),tests:viewTests,test:()=>viewTakeTest(PARAM),tgrade:()=>viewGrade(PARAM),emps:viewEmps,payroll:viewPayroll,offers:viewOffers,pricelists:viewPricelists,plord:()=>viewPlOrder(PARAM),quotes:viewQuotes,quote:()=>viewQuote(PARAM),meetings:viewMeetings,policy:()=>viewPolicy(),branch:()=>viewBranch(PARAM),insp:()=>viewInsp(),inspf:()=>viewInspForm(PARAM),inspv:()=>viewInspView(PARAM),treasury:()=>viewTreasury(),freon:()=>frStrip(can('stock')?`<div class="row between"><h2>المخزن</h2>${stockTabs()}</div>`+viewFreon():viewFreon()),weekly:()=>viewWeekly(),analytics:()=>viewAnalytics(),ledger:()=>viewLedger(),audit:()=>viewAudit(),archive:()=>viewArchive(),empf:()=>viewEmpFile(PARAM),users:viewUsers,settings:()=>(can('nav_order')?navOrderPanel():'')+(can('settings')?viewSettings():'')};
+  const V={officeplan:viewOfficePlan,office:viewOffice,import:viewImport,me:viewMe,webreqcfg:viewWebReqCfg,webreq:viewWebReq,mysub:viewMySub,devices:viewDevices,dev:()=>viewDev(PARAM),sdev:()=>viewSdev(PARAM),suppliers:viewSuppliers,supplier:()=>viewSupplier(PARAM),home:viewHome,requests:viewRequests,new:()=>viewForm(null),edit:()=>viewForm(PARAM),reports:viewReports,view:()=>viewReport(PARAM),clients:viewClients,client:()=>viewClient(PARAM),contracts:viewContracts,stock:viewStock,psales:viewPartSales,psale:()=>viewPartSale(PARAM),ar:viewAR,accounts:viewAccounts,capital:viewCapital,custody:viewCustody,cust:()=>viewCustodyOf(PARAM),hr:viewHR2,devh:()=>viewDevHistory(PARAM),orders:viewOrders,perf:viewPerf,perfu:()=>viewPerfUser(PARAM),tests:viewTests,test:()=>viewTakeTest(PARAM),tgrade:()=>viewGrade(PARAM),emps:viewEmps,payroll:viewPayroll,offers:viewOffers,pricelists:viewPricelists,plord:()=>viewPlOrder(PARAM),quotes:viewQuotes,quote:()=>viewQuote(PARAM),meetings:viewMeetings,policy:()=>viewPolicy(),branch:()=>viewBranch(PARAM),insp:()=>viewInsp(),inspf:()=>viewInspForm(PARAM),inspv:()=>viewInspView(PARAM),treasury:()=>viewTreasury(),freon:()=>frStrip(can('stock')?`<div class="row between"><h2>المخزن</h2>${stockTabs()}</div>`+viewFreon():viewFreon()),weekly:()=>viewWeekly(),analytics:()=>viewAnalytics(),ledger:()=>viewLedger(),audit:()=>viewAudit(),archive:()=>viewArchive(),empf:()=>viewEmpFile(PARAM),users:viewUsers,settings:()=>(can('nav_order')?navOrderPanel():'')+(can('settings')?viewSettings():'')};
   m.innerHTML=topBar3d()+subBanner()+banner+hubBar(VIEW)+(V[VIEW]||viewHome)();
   if($('#ntM'))$('#ntM').innerHTML=notesPanel();
   if(VIEW==='new'||VIEW==='edit')initForm();
@@ -4268,9 +4286,9 @@ function openEmpModal(uidv){
   const I=(id,l,v,t='text',x='')=>`<label class="f ${x}">${l}<input id="${id}" type="${t}" value="${esc(v||'')}"></label>`;
   modal(`<h3>بيانات ${esc(u.name)}</h3>
    <div class="row" style="gap:12px;align-items:flex-start"><div id="ef_img" class="cn-img">${photo?`<img src="${photo}" alt="">`:'👤'}</div><label class="btn sm">📷 صورة الموظف<input type="file" id="ef_ph" accept="image/*" hidden></label></div>
-   <div class="grid g2">${I('ef_fn','الاسم بالكامل (زي البطاقة)',f.fullName||u.name,'text','span2')}${idcFeat()?I('ef_fne','الاسم بالإنجليزي (للكارت)',f.fullNameEn,'text','span2')+I('ef_bl','فصيلة الدم',f.blood)+(()=>{const c=idcCfg();return idcHasB(c)?`<label class="f">تبع أنهي شركة (للكارت)<select id="ef_co"><option value="a" ${idcCo(f)==='a'?'selected':''}>${esc(c.a.name)}</option><option value="b" ${idcCo(f)==='b'?'selected':''}>${esc(c.b.name)}</option><option value="ab" ${idcCo(f)==='ab'?'selected':''}>الشركتين مع بعض</option></select></label>`:''})():''}${I('ef_nid','الرقم القومي',f.nid)}${I('ef_b','تاريخ الميلاد',f.birth,'date')}${I('ef_p','الموبايل',f.phone||u.phone,'tel')}${I('ef_p2','موبايل تاني',f.phone2,'tel')}${I('ef_a','العنوان بالتفصيل',f.address,'text','span2')}${I('ef_e','المؤهل الدراسي',f.edu)}${I('ef_m','الحالة الاجتماعية',f.marital)}${I('ef_em','رقم للطوارئ (اسم وصلة القرابة)',f.emergency)}${I('ef_h','تاريخ التعيين',f.hireDate,'date')}${I('ef_ins','الرقم التأميني',f.insNo)}${I('ef_s','المرتب الأساسي',f.salary,'number')}
+   <div class="grid g2">${I('ef_fn','الاسم بالكامل (زي البطاقة)',f.fullName||u.name,'text','span2')}${loFeat()&&opRooms().length?`<label class="f">مكانه في المكتب<select id="ef_room"><option value="">— مش محدد —</option>${opRooms().map(r=>`<option value="${esc(r.id)}" ${f.room===r.id?'selected':''}>${esc(r.name||'أوضة')}</option>`).join('')}</select></label>`:''}${idcFeat()?I('ef_fne','الاسم بالإنجليزي (للكارت)',f.fullNameEn,'text','span2')+I('ef_bl','فصيلة الدم',f.blood)+(()=>{const c=idcCfg();return idcHasB(c)?`<label class="f">تبع أنهي شركة (للكارت)<select id="ef_co"><option value="a" ${idcCo(f)==='a'?'selected':''}>${esc(c.a.name)}</option><option value="b" ${idcCo(f)==='b'?'selected':''}>${esc(c.b.name)}</option><option value="ab" ${idcCo(f)==='ab'?'selected':''}>الشركتين مع بعض</option></select></label>`:''})():''}${I('ef_nid','الرقم القومي',f.nid)}${I('ef_b','تاريخ الميلاد',f.birth,'date')}${I('ef_p','الموبايل',f.phone||u.phone,'tel')}${I('ef_p2','موبايل تاني',f.phone2,'tel')}${I('ef_a','العنوان بالتفصيل',f.address,'text','span2')}${I('ef_e','المؤهل الدراسي',f.edu)}${I('ef_m','الحالة الاجتماعية',f.marital)}${I('ef_em','رقم للطوارئ (اسم وصلة القرابة)',f.emergency)}${I('ef_h','تاريخ التعيين',f.hireDate,'date')}${I('ef_ins','الرقم التأميني',f.insNo)}${I('ef_s','المرتب الأساسي',f.salary,'number')}
    <label class="f span2">ملاحظات<textarea id="ef_n" style="min-height:60px">${esc(f.notes||'')}</textarea></label></div>`,()=>{
-    Object.assign(f,{photo,fullName:$('#ef_fn').value.trim(),nid:normD($('#ef_nid').value).trim(),birth:$('#ef_b').value,phone:$('#ef_p').value.trim(),phone2:$('#ef_p2').value.trim(),address:$('#ef_a').value.trim(),edu:$('#ef_e').value.trim(),marital:$('#ef_m').value.trim(),emergency:$('#ef_em').value.trim(),hireDate:$('#ef_h').value,insNo:$('#ef_ins').value.trim(),salary:n($('#ef_s').value),notes:$('#ef_n').value.trim(),updatedAt:new Date().toISOString()});if($('#ef_fne'))f.fullNameEn=$('#ef_fne').value.trim();if($('#ef_bl'))f.blood=$('#ef_bl').value.trim().toUpperCase();if($('#ef_co'))f.co=$('#ef_co').value;
+    Object.assign(f,{photo,fullName:$('#ef_fn').value.trim(),nid:normD($('#ef_nid').value).trim(),birth:$('#ef_b').value,phone:$('#ef_p').value.trim(),phone2:$('#ef_p2').value.trim(),address:$('#ef_a').value.trim(),edu:$('#ef_e').value.trim(),marital:$('#ef_m').value.trim(),emergency:$('#ef_em').value.trim(),hireDate:$('#ef_h').value,insNo:$('#ef_ins').value.trim(),salary:n($('#ef_s').value),notes:$('#ef_n').value.trim(),updatedAt:new Date().toISOString()});if($('#ef_room'))f.room=$('#ef_room').value;if($('#ef_fne'))f.fullNameEn=$('#ef_fne').value.trim();if($('#ef_bl'))f.blood=$('#ef_bl').value.trim().toUpperCase();if($('#ef_co'))f.co=$('#ef_co').value;
     if(isNew)S.empFiles.push(f);save();toast('اتحفظت البيانات');render();if(f.vt)idcSync(uidv);
   });
   $('#ef_ph').onchange=async e=>{const fl=e.target.files[0];if(!fl)return;try{photo=await compress(fl,360,.7);$('#ef_img').innerHTML=`<img src="${photo}" alt="">`}catch(_){toast('معرفتش أقرا الصورة')}};
@@ -4478,12 +4496,172 @@ async function viewEmpVerify(m,v,db){
    <div class="muted small">الصفحة دي بتتحدّث أوتوماتيك من سيستم الشركة — لو الموظف اتوقف، بتقول كده على طول.</div></div>`;
 }
 
+/* ---------- مكتب الشركة الحي — ميزة بالباكدج: liveOffice ---------- */
+const loFeat=()=>!!(S&&S.sub&&S.sub.liveOffice===true);
+const loCan=()=>loFeat()&&(can('hr')||can('attendance')||can('emp_files'));
+const LO_ST={work:{c:'#16A34A',i:'🟢',l:'في الشغل'},road:{c:'#2563EB',i:'🚗',l:'في الطريق'},site:{c:'#7C3AED',i:'🔧',l:'عند عميل'},mission:{c:'#0891B2',i:'📍',l:'مأمورية'},left:{c:'#64748B',i:'👋',l:'مشي'},soon:{c:'#D97706',i:'⏳',l:'لسه ماجاش'},absent:{c:'#DC2626',i:'🔴',l:'غايب'},leave:{c:'#DB2777',i:'🌴',l:'إجازة'},off:{c:'#94A3B8',i:'🏠',l:'راحة'}};
+const LO_ORDER=['work','site','road','mission','soon','left','absent','leave','off'];
+let LO_F='',LO_T=null;
+function loState(u){const t=today();let d;try{d=dayStatus(u,t)}catch(e){d={st:'absent'}}const cfg=attCfgU(u);
+  const vis=S.requests.filter(r=>r.engineerId===u.id&&r.date===t&&r.status!=='cancelled');
+  const act=vis.filter(r=>r.status==='assigned'),road=act.find(r=>r.onWayAt&&!r.arrivedAt),site=act.find(r=>r.arrivedAt);
+  const open=S.requests.filter(r=>r.engineerId===u.id&&r.status==='assigned').length,done=vis.filter(r=>r.status==='done').length;
+  const nm=(()=>{const x=new Date();return x.getHours()*60+x.getMinutes()})();
+  let k;if(d.st==='leave')k='leave';else if(site)k='site';else if(road)k='road';else if(d.st==='mission')k='mission';else if(d.tin&&!d.tout)k='work';else if(d.tout)k='left';else if(d.st==='off')k='off';else k=nm<hm2min(cfg.start||'09:00')+n(cfg.grace||0)?'soon':'absent';
+  const r0=site||road;return {k,d,where:r0?cName(client(r0.clientId))+(r0.branch?' – '+r0.branch:''):'',eta:road?.eta||'',open,done,visits:vis.length}}
+function loSvg(list){
+  const N=list.length,cols=Math.max(2,Math.min(4,Math.ceil(Math.sqrt(N*1.3)))),rows=Math.max(1,Math.ceil(N/cols));
+  const CW=4.6,CH=4.4,W=cols*CW+1.6,H=rows*CH+1.4,s=30,c3=.866;
+  const P=(x,y,z=0)=>[(x-y)*s*c3,(x+y)*s*.5-z*s];
+  const ox=H*s*c3+20,oy=4*s+50,pt=(x,y,z)=>{const p=P(x,y,z);return (p[0]+ox).toFixed(1)+','+(p[1]+oy).toFixed(1)};
+  const poly=(pts,fill,extra='')=>`<polygon points="${pts.map(a=>pt(...a)).join(' ')}" fill="${fill}" ${extra}/>`;
+  const vbW=(W+H)*s*c3+40,vbH=(W+H)*s*.5+4*s+90;
+  let g='';
+  g+=poly([[0,0,0],[W,0,0],[W,H,0],[0,H,0]],'url(#lo_fl)');
+  for(let x=0.6;x<W;x+=0.6)g+=`<line x1="${pt(x,0,0).split(',')[0]}" y1="${pt(x,0,0).split(',')[1]}" x2="${pt(x,H,0).split(',')[0]}" y2="${pt(x,H,0).split(',')[1]}" stroke="#B9814C" stroke-opacity=".35" stroke-width=".8"/>`;
+  for(let r=0;r<rows;r++){const y=1.0+r*CH+CH-1.05;g+=poly([[0.4,y,0.01],[W-0.4,y,0.01],[W-0.4,y+0.75,0.01],[0.4,y+0.75,0.01]],'#2BB3A3','opacity=".85"')}
+  g+=poly([[0,0,0],[0,H,0],[0,H,3.2],[0,0,3.2]],'#E9EDF3')+poly([[0,0,0],[W,0,0],[W,0,3.2],[0,0,3.2]],'#F4F6FA');
+  for(let x=0.5;x<W-0.6;x+=1.25)g+=poly([[x,0,0.9],[x+1.0,0,0.9],[x+1.0,0,2.8],[x,0,2.8]],'url(#lo_gl)');
+  g+=poly([[0,0,3.2],[W,0,3.2],[W,-0.2,3.35],[-0.2,-0.2,3.35],[-0.2,H,3.35],[0,H,3.2]],'#CBD3DE');
+  g+=poly([[W,0,0],[W,H,0],[W,H,-.35],[W,0,-.35]],'#9C5B2E')+poly([[0,H,0],[W,H,0],[W,H,-.35],[0,H,-.35]],'#B56A36');
+  const items=list.map((u,i)=>({u,i,cx:i%cols,cy:Math.floor(i/cols)})).sort((a,b)=>(a.cx+a.cy)-(b.cx+b.cy));
+  for(const it of items){const u=it.u.u,st=it.u.st;const x0=1.0+it.cx*CW,y0=1.0+it.cy*CH,S0=LO_ST[st.k];const dw=2.3,dd=1.15,dh=.75;
+    let o=`<g class="lo-desk" data-act="loDesk" data-id="${u.id}" style="cursor:pointer" opacity="${LO_F&&LO_F!==st.k?'.25':'1'}">`;
+    o+=`<ellipse cx="${pt(x0+dw/2,y0+dd/2+.5,0).split(',')[0]}" cy="${pt(x0+dw/2,y0+dd/2+.5,0).split(',')[1]}" rx="${s*1.9}" ry="${s*1.0}" fill="#000" opacity=".08"/>`;
+    o+=poly([[x0,y0+dd,0],[x0+dw,y0+dd,0],[x0+dw,y0+dd,dh],[x0,y0+dd,dh]],'#B8C2D0')+poly([[x0+dw,y0,0],[x0+dw,y0+dd,0],[x0+dw,y0+dd,dh],[x0+dw,y0,dh]],'#94A3B8')+poly([[x0,y0,dh],[x0+dw,y0,dh],[x0+dw,y0+dd,dh],[x0,y0+dd,dh]],'#F8FAFC','stroke="#CBD5E1" stroke-width=".6"');
+    o+=poly([[x0+.7,y0+.25,dh],[x0+1.6,y0+.25,dh],[x0+1.6,y0+.25,dh+.62],[x0+.7,y0+.25,dh+.62]],'#1E293B')+poly([[x0+.76,y0+.25,dh+.07],[x0+1.54,y0+.25,dh+.07],[x0+1.54,y0+.25,dh+.56],[x0+.76,y0+.25,dh+.56]],st.k==='work'?'#38BDF8':'#334155');
+    const [hx,hy]=pt(x0+dw/2,y0+dd+.85,0).split(',').map(Number);
+    if(st.k==='work'){const bg=AV_COLORS[[...u.id].reduce((h,ch)=>(h*31+ch.charCodeAt(0))>>>0,0)%AV_COLORS.length];
+      o+=`<ellipse cx="${hx}" cy="${hy+4}" rx="${s*.55}" ry="${s*.28}" fill="#1E293B" opacity=".7"/><path d="M${hx-s*.48} ${hy} q0 ${-s*.9} ${s*.48} ${-s*.9} q${s*.48} 0 ${s*.48} ${s*.9}z" fill="${bg}"/>`;
+      o+=`<clipPath id="lo_c${it.i}"><circle cx="${hx}" cy="${hy-s*1.25}" r="${s*.42}"/></clipPath><circle cx="${hx}" cy="${hy-s*1.25}" r="${s*.48}" fill="${S0.c}"/>${u.photo?`<image href="${u.photo}" x="${hx-s*.42}" y="${hy-s*1.67}" width="${s*.84}" height="${s*.84}" clip-path="url(#lo_c${it.i})" preserveAspectRatio="xMidYMid slice"/>`:`<circle cx="${hx}" cy="${hy-s*1.25}" r="${s*.42}" fill="${bg}"/><text x="${hx}" y="${hy-s*1.25+5}" text-anchor="middle" font-size="14" font-weight="800" fill="#fff">${esc((u.name||'?').trim().charAt(0))}</text>`}`}
+    else{o+=`<ellipse cx="${hx}" cy="${hy+2}" rx="${s*.5}" ry="${s*.25}" fill="#475569" opacity=".55"/><text x="${hx}" y="${hy-s*.5}" text-anchor="middle" font-size="${s*.85}">${S0.i==='🟢'?'':S0.i}</text>`}
+    const [lx,ly]=pt(x0+dw/2,y0+dd/2+.3,dh+1.75).split(',').map(Number);const nm=(u.name||'').split(' ').slice(0,2).join(' ');const sub=st.where||(st.k==='work'&&st.open?`${st.open} طلب مفتوح`:'');
+    const w=Math.max(nm.length*7.4+34,sub.length*6.2+20,96);
+    o+=`<g transform="translate(${lx} ${ly})"><rect x="${-w/2}" y="-15" width="${w}" height="${sub?40:28}" rx="12" fill="#fff" stroke="${S0.c}" stroke-width="1.6" filter="url(#lo_sh)"/><circle cx="${w/2-13}" cy="-1" r="5" fill="${S0.c}"/><text x="${w/2-23}" y="4" text-anchor="end" font-size="12.5" font-weight="800" fill="#0F172A">${esc(nm)}</text>${sub?`<text x="0" y="19" text-anchor="middle" font-size="10.5" font-weight="600" fill="${S0.c}">${esc(sub.length>26?sub.slice(0,25)+'…':sub)}</text>`:''}<path d="M-6 ${sub?25:13} L0 ${sub?32:20} L6 ${sub?25:13}z" fill="#fff" stroke="${S0.c}" stroke-width="1.2"/></g>`;
+    g+=o+'</g>'}
+  return `<svg viewBox="0 0 ${vbW.toFixed(0)} ${vbH.toFixed(0)}" class="lo-svg" direction="ltr" style="direction:ltr" role="img" aria-label="مكتب الشركة الحي"><defs><linearGradient id="lo_fl" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#E7B57E"/><stop offset="1" stop-color="#C98B55"/></linearGradient><linearGradient id="lo_gl" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#BFE3F5"/><stop offset="1" stop-color="#7FB8D9"/></linearGradient><filter id="lo_sh" x="-20%" y="-30%" width="140%" height="180%"><feDropShadow dx="0" dy="2" stdDeviation="2.5" flood-opacity=".18"/></filter></defs>${g}</svg>`}
+function viewOffice(){
+  if(!loFeat())return `<div class="panel"><h2>مكتب الشركة الحي</h2><div class="muted">الميزة دي مش في باكدجك.</div></div>`;
+  const list=SEMPS().filter(u=>u.active!==false&&!u.nonEmp).sort((a,b)=>(deptOf(a)||'').localeCompare(deptOf(b)||'')||a.name.localeCompare(b.name,'ar')).map(u=>({u,st:loState(u)}));
+  const cnt={};list.forEach(x=>cnt[x.st.k]=(cnt[x.st.k]||0)+1);
+  const chips=LO_ORDER.filter(k=>cnt[k]).map(k=>`<button class="lo-chip ${LO_F===k?'on':''}" data-act="loF" data-id="${k}" style="--c:${LO_ST[k].c}"><span>${LO_ST[k].i}</span>${LO_ST[k].l}<b class="num">${cnt[k]}</b></button>`).join('');
+  const grp=LO_ORDER.filter(k=>cnt[k]&&(!LO_F||LO_F===k)).map(k=>`<div class="lo-g"><div class="lo-gh" style="color:${LO_ST[k].c}">${LO_ST[k].i} ${LO_ST[k].l} <span class="muted num">(${cnt[k]})</span></div>${list.filter(x=>x.st.k===k).map(({u,st})=>`<button class="lo-row" data-act="loDesk" data-id="${u.id}">${avHTML(u,34)}<span class="lo-rt"><b>${esc(u.name)}</b><small class="muted">${esc(st.where||u.jobTitle||roleLbl(u)||'')}${st.eta?` · متوقع ${esc(st.eta)}`:''}${st.d&&st.d.tin?` · حضور ${esc(st.d.tin)}`:''}${st.d&&st.d.tout?` · انصراف ${esc(st.d.tout)}`:''}</small></span>${st.open?`<span class="pill p-info num">${st.open} طلب</span>`:''}</button>`).join('')}</div>`).join('');
+  const now=new Date();
+  return `<div class="row between"><h2>🏢 مكتب الشركة الحي</h2><span class="row" style="gap:8px;align-items:center">${can('settings')?'<button class="btn sm" data-act="opEdit">✏️ رسم مكان الشركة</button>':''}<span class="muted small">بيتحدّث لوحده · آخر تحديث ${now.toLocaleTimeString('ar-EG',{hour:'numeric',minute:'2-digit'})}</span></span></div>
+   <div class="lo-chips">${chips}${LO_F?'<button class="lo-chip" data-act="loF" data-id="">✕ الكل</button>':''}</div>
+   ${list.length?(()=>{const pl=opPlan();if(pl){const r=loSvgPlan(list);return `<div class="panel lo-map">${r.svg}</div>${r.nop.length?`<div class="banner warn">${r.nop.length===1?'موظف واحد':r.nop.length+' موظفين'} لسه مالهمش مكان في المكتب: ${r.nop.map(x=>esc(x.u.name)).join('، ')} — حدد أوضة كل واحد من «تعديل البيانات» في ملفه.</div>`:''}<div class="lo-list">${grp}</div>`}
+     return `${can('settings')?'<div class="banner">ارسم شكل الشركة الحقيقي (الأوض والأبواب) من «✏️ رسم مكان الشركة»، وبعدها حدد أوضة كل موظف من ملفه — والمكتب يترسم بالشكل ده.</div>':''}<div class="panel lo-map">${loSvg(list)}</div><div class="lo-list">${grp}</div>`})():'<div class="panel muted">مفيش موظفين لسه.</div>'}`}
+function loDesk(uidv){const u=S.users.find(x=>x.id===uidv);if(!u)return;const st=loState(u),S0=LO_ST[st.k],t=today();
+  const vis=S.requests.filter(r=>r.engineerId===u.id&&r.date===t&&r.status!=='cancelled');
+  modal(`<div class="row" style="gap:12px;align-items:center">${avHTML(u,56)}<div><h3 style="margin:0">${esc(u.name)}</h3><div class="muted small">${esc(u.jobTitle||roleLbl(u)||'')}${deptOf(u)?' · '+esc(DEPTS[deptOf(u)]||''):''}</div></div></div>
+   <div style="margin:12px 0;padding:12px 14px;border-radius:14px;background:${S0.c}18;color:${S0.c};font-weight:800">${S0.i} ${S0.l}${st.where?` — ${esc(st.where)}`:''}${st.eta?` · متوقع يوصل ${esc(st.eta)}`:''}</div>
+   <div class="kv"><span>الحضور</span><b class="num">${st.d?.tin||'—'}</b><span>الانصراف</span><b class="num">${st.d?.tout||'—'}</b><span>زيارات النهارده</span><b class="num">${st.visits} (اتعمل ${st.done})</b><span>طلبات مفتوحة عليه</span><b class="num">${st.open}</b></div>
+   ${vis.length?`<div class="sec-title">زيارات النهارده</div>${vis.map(r=>`<div class="row between" style="padding:6px 0;border-bottom:1px solid var(--line)"><span>${esc(cName(client(r.clientId)))}${r.branch?' – '+esc(r.branch):''}</span><span class="pill ${r.status==='done'?'p-ok':r.arrivedAt?'p-info':r.onWayAt?'p-warn':'p-mut'}">${r.status==='done'?'اتعملت':r.arrivedAt?'عنده دلوقتي':r.onWayAt?'في الطريق':'لسه'}</span></div>`).join('')}`:''}`,()=>{});const ok=$('#mOk'),cn=$('#mCancel');if(ok)ok.remove();if(cn)cn.textContent='قفل';
+  if(can('emp_files')&&opRooms().length){const f0=empFile(u.id)||{};const w=document.createElement('label');w.className='f';w.style.marginTop='10px';w.innerHTML=`مكانه في المكتب<select id="lo_room"><option value="">— مش محدد —</option>${opRooms().map(r=>`<option value="${esc(r.id)}" ${f0.room===r.id?'selected':''}>${esc(r.name||'أوضة')}</option>`).join('')}</select>`;$('#modalForm').insertBefore(w,$('#modalForm').lastElementChild);
+    $('#lo_room').onchange=e=>{let f=empFile(u.id);if(!f){f={id:'ef_'+u.id,uid:u.id,docs:{}};S.empFiles.push(f)}f.room=e.target.value;f.updatedAt=new Date().toISOString();save();toast('اتغيّر مكانه');closeModal();render()}}
+  if(can('emp_files')&&cn){const b=document.createElement('button');b.type='button';b.className='btn pri';b.textContent='📁 ملف الموظف';b.onclick=()=>{closeModal();go('empf',u.id)};cn.after(b)}}
+
+setInterval(()=>{try{if(VIEW==='office'&&!document.getElementById('modal')&&!document.hidden)render()}catch(e){}},60000);
+/* ---------- مخطط مكان الشركة (للمكتب الحي) ---------- */
+const opPlan=()=>{const p=S.settings.officePlan;return p&&Array.isArray(p.items)&&p.items.some(i=>i.t==='room')?p:null};
+const opRooms=()=>(opPlan()?.items||[]).filter(i=>i.t==='room');
+const opRoomOf=u=>{const f=empFile(u.id),r=f&&f.room;return r&&opRooms().some(x=>x.id===r)?r:''};
+const OP_DEF={room:{w:4,h:3,name:'أوضة'},door:{w:.9,h:.9,name:''},win:{w:1.2,h:.15,name:''}};
+let OP=null,OPSEL=null,OPDRAG=null;
+const opSnap=v=>Math.round(v*2)/2,opR1=v=>Math.round(v*10)/10;
+function opStart(){const p=opPlan();OP=p?JSON.parse(JSON.stringify(p)):{w:14,h:12,items:[]};OPSEL=null;go('officeplan')}
+function opSvgHTML(){const U=34,P=OP;let g=`<rect x="0" y="0" width="${P.w*U}" height="${P.h*U}" fill="var(--surface)"/>`;
+  for(let x=0;x<=P.w;x+=.5)g+=`<line x1="${x*U}" y1="0" x2="${x*U}" y2="${P.h*U}" stroke="var(--line)" stroke-opacity="${x%1?.45:1}"/>`;
+  for(let y=0;y<=P.h;y+=.5)g+=`<line x1="0" y1="${y*U}" x2="${P.w*U}" y2="${y*U}" stroke="var(--line)" stroke-opacity="${y%1?.45:1}"/>`;
+  const ord=['room','win','door'];
+  for(const it of [...P.items].sort((a,b)=>ord.indexOf(a.t)-ord.indexOf(b.t))){const w=it.w*U,h=it.h*U,cx=w/2,cy=h/2,s=it.id===OPSEL;let inner='';
+    if(it.t==='room')inner=`<rect width="${w}" height="${h}" fill="var(--bg)" stroke="${s?'var(--accent,#C9973A)':'var(--ink)'}" stroke-width="${s?4:3}"/><text x="${cx}" y="${cy}" text-anchor="middle" dominant-baseline="central" font-size="14" font-weight="700" fill="var(--ink)" transform="rotate(${-it.rot} ${cx} ${cy})">${esc(it.name)}</text>`;
+    else if(it.t==='door')inner=`<rect width="${w}" height="${h}" fill="transparent" stroke="${s?'#C9973A':'transparent'}" stroke-width="2"/><line x1="0" y1="0" x2="${w}" y2="0" stroke="var(--surface)" stroke-width="7"/><path d="M0 0 L0 ${h} M0 0 A${w} ${h} 0 0 1 ${w} ${h}" fill="none" stroke="var(--ink)" stroke-width="2" stroke-dasharray="5 4"/>`;
+    else inner=`<rect width="${w}" height="${h}" fill="#9ED3F0" stroke="${s?'#C9973A':'var(--ink)'}" stroke-width="2"/>`;
+    g+=`<g class="op-it" data-op="${it.id}" transform="translate(${it.x*U} ${it.y*U}) rotate(${it.rot} ${cx} ${cy})">${inner}${s&&it.t!=='door'?`<circle class="op-hd" data-ophd="${it.id}" cx="${w}" cy="${h}" r="10"/>`:''}</g>`}
+  return `<svg id="opSvg" class="op-svg" viewBox="-14 -14 ${P.w*U+28} ${P.h*U+28}" width="${P.w*U+28}" height="${P.h*U+28}" style="direction:ltr">${g}</svg>`}
+function viewOfficePlan(){if(!OP){const p=opPlan();OP=p?JSON.parse(JSON.stringify(p)):{w:14,h:12,items:[]}}
+  const it=OP.items.find(i=>i.id===OPSEL);
+  return `<div class="row between"><h2>✏️ رسم مكان الشركة</h2><div class="row"><button class="btn" data-act="opCancel">رجوع من غير حفظ</button><button class="btn pri" data-act="opSave">💾 حفظ المخطط</button></div></div>
+   <div class="muted small" style="margin:4px 0 10px">ارسم الأوض والأبواب والشبابيك، واسحب أي حاجة لمكانها، ومن النقطة الدهبي كبّر أو صغّر. المكاتب بتتحط لوحدها: كل موظف تختار أوضته من «تعديل البيانات» في ملفه.</div>
+   <div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:10px"><button class="btn pri" data-act="opAdd" data-id="room">➕ أوضة</button><button class="btn" data-act="opAdd" data-id="door">🚪 باب</button><button class="btn" data-act="opAdd" data-id="win">🪟 شباك</button>
+    <label class="btn sm">📂 فتح ملف مخطط<input type="file" id="opFile" accept=".json,application/json" hidden></label>
+    <span style="flex:1"></span><span class="muted small">المساحة: عرض <input id="opW" type="number" min="4" max="60" value="${OP.w}" style="width:64px"> × طول <input id="opH" type="number" min="4" max="60" value="${OP.h}" style="width:64px"> متر</span></div>
+   <div class="op-stage">${opSvgHTML()}</div>
+   ${it?`<div class="panel row" style="gap:10px;flex-wrap:wrap;align-items:end;margin-top:10px">${it.t==='room'?`<label class="f">اسم الأوضة<input id="opName" value="${esc(it.name||'')}" maxlength="40"></label>`:''}<label class="f">العرض (متر)<input id="opIW" type="number" step=".1" value="${it.w}" style="width:90px"></label><label class="f">الطول (متر)<input id="opIH" type="number" step=".1" value="${it.h}" style="width:90px"></label><button class="btn" data-act="opRot">↻ لف</button><button class="btn danger" data-act="opDel">🗑 امسح</button></div>`:''}
+   <div class="muted small" style="margin-top:8px">كل مربع صغير = نص متر · الأوض: ${OP.items.filter(i=>i.t==='room').length}</div>`}
+(function(){const pt=e=>{const sv=document.getElementById('opSvg'),m=sv.getScreenCTM().inverse(),p=sv.createSVGPoint();p.x=e.clientX;p.y=e.clientY;const q=p.matrixTransform(m);return {x:q.x/34,y:q.y/34}};
+  const redraw=()=>{const st=document.querySelector('.op-stage');if(st)st.innerHTML=opSvgHTML()};
+  document.addEventListener('pointerdown',e=>{if(VIEW!=='officeplan'||!OP)return;const sv=e.target.closest&&e.target.closest('#opSvg');if(!sv)return;
+    const h=e.target.closest('[data-ophd]'),g=e.target.closest('.op-it');
+    if(h){const it=OP.items.find(i=>i.id===h.dataset.ophd);OPDRAG={m:'s',it,p0:pt(e),w0:it.w,h0:it.h}}
+    else if(g){const id=g.dataset.op;const it=OP.items.find(i=>i.id===id);const ch=OPSEL!==id;OPSEL=id;OPDRAG={m:'m',it,p0:pt(e),x0:it.x,y0:it.y,ch}}
+    else{if(OPSEL){OPSEL=null;render()}return}
+    e.preventDefault();redraw()});
+  document.addEventListener('pointermove',e=>{if(!OPDRAG)return;const p=pt(e),dx=p.x-OPDRAG.p0.x,dy=p.y-OPDRAG.p0.y,it=OPDRAG.it;
+    if(OPDRAG.m==='m'){it.x=Math.max(-1,Math.min(OP.w,opSnap(OPDRAG.x0+dx)));it.y=Math.max(-1,Math.min(OP.h,opSnap(OPDRAG.y0+dy)))}
+    else{const r=it.rot%180!==0;it.w=Math.max(.3,opR1(opSnap((OPDRAG.w0+(r?dy:dx))*2)/2));it.h=Math.max(it.t==='win'?.15:.3,opR1(opSnap((OPDRAG.h0+(r?dx:dy))*2)/2))}
+    redraw()});
+  const end=()=>{if(OPDRAG){const ch=OPDRAG.ch||OPDRAG.m==='s';OPDRAG=null;render()}};document.addEventListener('pointerup',end);document.addEventListener('pointercancel',end);
+  document.addEventListener('input',e=>{if(VIEW!=='officeplan'||!OP)return;const it=OP.items.find(i=>i.id===OPSEL);
+    if(e.target.id==='opName'&&it){it.name=e.target.value.slice(0,40);redraw()}});
+  document.addEventListener('change',async e=>{if(VIEW!=='officeplan'||!OP)return;const it=OP.items.find(i=>i.id===OPSEL),id=e.target.id;
+    if(id==='opIW'&&it){it.w=opR1(Math.max(.15,Math.min(60,+e.target.value||.3)));render()}
+    else if(id==='opIH'&&it){it.h=opR1(Math.max(.15,Math.min(60,+e.target.value||.3)));render()}
+    else if(id==='opW'||id==='opH'){const v=Math.max(4,Math.min(60,Math.round(+e.target.value)||10));if(id==='opW')OP.w=v;else OP.h=v;render()}
+    else if(id==='opFile'){const fl=e.target.files[0];if(!fl)return;try{const d=JSON.parse(await fl.text());const items=(d.items||[]).filter(i=>i&&OP_DEF[i.t]).map(i=>({id:String(i.id||Math.random().toString(36).slice(2,9)).slice(0,20),t:i.t,x:+i.x||0,y:+i.y||0,w:+i.w||1,h:+i.h||1,rot:+i.rot||0,name:String(i.name||'').slice(0,40)}));if(!items.length)throw 0;OP={w:Math.max(4,Math.min(60,+d.w||14)),h:Math.max(4,Math.min(60,+d.h||12)),items};OPSEL=null;toast('اتفتح المخطط — راجعه ودوس «حفظ المخطط»');render()}catch(_){toast('الملف ده مش ملف مخطط')}}});
+})();
+function opRoomFloor(name){const n=name||'';return /حمام|wc/i.test(n)?['#DCE6EE','#C3D1DD','#A9BBCB']:/مخزن|stor/i.test(n)?['#D7D3CC','#BDB7AE','#A39C92']:/بلكون|بلكونة|بلكونه/.test(n)?['#E2A982','#C98B62','#B0744E']:/مدخل|ممر|صالة|صاله|استقبال/.test(n)?['#E9DCC6','#D4C3A6','#BCA987']:['#E7B57E','#C98B55','#B0744A']}
+function loSvgPlan(list){
+  const P=opPlan(),rooms=opRooms(),s=34,c3=.866;
+  let mnX=1e9,mxX=-1e9,mnY=1e9,mxY=-1e9;for(const r of (rooms.length?rooms:[{x:0,y:0,w:P.w,h:P.h,rot:0}])){const t=(r.rot||0)%180!==0,w=t?r.h:r.w,h=t?r.w:r.h,x0=t?r.x+r.w/2-r.h/2:r.x,y0=t?r.y+r.h/2-r.w/2:r.y;for(const [x,y] of [[x0,y0],[x0+w,y0],[x0+w,y0+h],[x0,y0+h]]){const X=(x-y)*s*c3,Y=(x+y)*s*.5;mnX=Math.min(mnX,X);mxX=Math.max(mxX,X);mnY=Math.min(mnY,Y);mxY=Math.max(mxY,Y)}}
+  const ox=-mnX+40,oy=-mnY+110;const pt=(x,y,z=0)=>(((x-y)*s*c3+ox).toFixed(1)+','+((x+y)*s*.5-z*s+oy).toFixed(1));
+  const poly=(pts,fill,extra='')=>`<polygon points="${pts.map(a=>pt(...a)).join(' ')}" fill="${fill}" ${extra}/>`;
+  const vbW=mxX-mnX+80,vbH=mxY-mnY+150;
+  const WH=.9;let g='';
+  const rs=[...rooms].sort((a,b)=>(a.x+a.y)-(b.x+b.y));
+  const rr=r=>{const t=r.rot%180!==0;return t?{x:r.x+r.w/2-r.h/2,y:r.y+r.h/2-r.w/2,w:r.h,h:r.w}:{x:r.x,y:r.y,w:r.w,h:r.h}};
+  for(const r0 of rs){const r=rr(r0),[f1,f2,f3]=opRoomFloor(r0.name);
+    g+=poly([[r.x,r.y,0],[r.x+r.w,r.y,0],[r.x+r.w,r.y+r.h,0],[r.x,r.y+r.h,0]],f1,`stroke="${f3}" stroke-width="1"`);
+    if(/حمام|wc/i.test(r0.name||'')){for(let x=r.x+.5;x<r.x+r.w;x+=.5)g+=`<line x1="${pt(x,r.y).split(',')[0]}" y1="${pt(x,r.y).split(',')[1]}" x2="${pt(x,r.y+r.h).split(',')[0]}" y2="${pt(x,r.y+r.h).split(',')[1]}" stroke="${f3}" stroke-opacity=".5" stroke-width=".7"/>`}
+    else for(let x=r.x+.4;x<r.x+r.w;x+=.4)g+=`<line x1="${pt(x,r.y).split(',')[0]}" y1="${pt(x,r.y).split(',')[1]}" x2="${pt(x,r.y+r.h).split(',')[0]}" y2="${pt(x,r.y+r.h).split(',')[1]}" stroke="${f3}" stroke-opacity=".3" stroke-width=".7"/>`;
+    g+=poly([[r.x,r.y,0],[r.x+r.w,r.y,0],[r.x+r.w,r.y,WH],[r.x,r.y,WH]],'#F3F5F9','stroke="#C9D2DE" stroke-width=".8"')+poly([[r.x,r.y,0],[r.x,r.y+r.h,0],[r.x,r.y+r.h,WH],[r.x,r.y,WH]],'#E6EAF1','stroke="#C9D2DE" stroke-width=".8"');
+    g+=poly([[r.x,r.y,WH],[r.x+r.w,r.y,WH],[r.x+r.w,r.y+.12,WH],[r.x+.12,r.y+.12,WH],[r.x+.12,r.y+r.h,WH],[r.x,r.y+r.h,WH]],'#B7C2D2');
+    g+=`<polyline points="${[[r.x+r.w,r.y,0],[r.x+r.w,r.y+r.h,0],[r.x,r.y+r.h,0]].map(a=>pt(...a)).join(' ')}" fill="none" stroke="#7D8BA3" stroke-width="2.4" stroke-linecap="round"/>`}
+  for(const it of P.items.filter(i=>i.t==='win'||i.t==='door')){const r=rr(it),z0=it.t==='win'?.3:0,z1=it.t==='win'?.8:.85;const hor=it.t==='door'?(it.rot%180===0):r.w>=r.h;
+    const pts=hor?[[r.x,r.y+r.h/2,z0],[r.x+r.w,r.y+r.h/2,z0],[r.x+r.w,r.y+r.h/2,z1],[r.x,r.y+r.h/2,z1]]:[[r.x+r.w/2,r.y,z0],[r.x+r.w/2,r.y+r.h,z0],[r.x+r.w/2,r.y+r.h,z1],[r.x+r.w/2,r.y,z1]];
+    if(it.t==='door'){const d=hor?[[r.x,r.y,0],[r.x+Math.max(r.w,.8),r.y,0],[r.x+Math.max(r.w,.8),r.y,.85],[r.x,r.y,.85]]:[[r.x,r.y,0],[r.x,r.y+Math.max(r.h,.8),0],[r.x,r.y+Math.max(r.h,.8),.85],[r.x,r.y,.85]];g+=poly(d,'#9A6A44','opacity=".9"')}
+    else g+=poly(pts,'#8FCBEA','stroke="#5E9BC0" stroke-width="1"')}
+  const byRoom={};list.forEach(x=>{const k=opRoomOf(x.u)||'_';(byRoom[k]=byRoom[k]||[]).push(x)});
+  const desks=[];
+  for(const r0 of rooms){const ppl=byRoom[r0.id]||[];if(!ppl.length)continue;const r=rr(r0);const n0=ppl.length;
+    const cols=Math.max(1,Math.min(n0,Math.floor((r.w-.4)/2.0)||1)),rowsN=Math.ceil(n0/cols);const cw=(r.w-.4)/cols,ch=Math.max(1.4,(r.h-.4)/rowsN);const k=Math.min(1,cw/2.0,ch/2.0);
+    ppl.forEach((x,i)=>{const cx=i%cols,cy=Math.floor(i/cols);desks.push({...x,x0:r.x+.2+cx*cw+(cw-1.4*k)/2,y0:r.y+.2+cy*ch+.15,k})})}
+  const nop=byRoom._||[];
+  desks.sort((a,b)=>(a.x0+a.y0)-(b.x0+b.y0));
+  desks.forEach((it,ii)=>{const {u,st}=it,S0=LO_ST[st.k],k=it.k,x0=it.x0,y0=it.y0,dw=1.4*k,dd=.65*k,dh=.72;
+    let o=`<g class="lo-desk" data-act="loDesk" data-id="${u.id}" style="cursor:pointer" opacity="${LO_F&&LO_F!==st.k?'.25':'1'}">`;
+    o+=poly([[x0,y0+dd,0],[x0+dw,y0+dd,0],[x0+dw,y0+dd,dh],[x0,y0+dd,dh]],'#B8C2D0')+poly([[x0+dw,y0,0],[x0+dw,y0+dd,0],[x0+dw,y0+dd,dh],[x0+dw,y0,dh]],'#94A3B8')+poly([[x0,y0,dh],[x0+dw,y0,dh],[x0+dw,y0+dd,dh],[x0,y0+dd,dh]],'#F8FAFC','stroke="#CBD5E1" stroke-width=".6"');
+    o+=poly([[x0+dw*.3,y0+.15*k,dh],[x0+dw*.7,y0+.15*k,dh],[x0+dw*.7,y0+.15*k,dh+.55],[x0+dw*.3,y0+.15*k,dh+.55]],st.k==='work'?'#38BDF8':'#334155','stroke="#1E293B" stroke-width="1.5"');
+    const [hx,hy]=pt(x0+dw/2,y0+dd+.65,0).split(',').map(Number);
+    if(st.k==='work'){const bg=AV_COLORS[[...u.id].reduce((h,c)=>(h*31+c.charCodeAt(0))>>>0,0)%AV_COLORS.length];
+      o+=`<ellipse cx="${hx}" cy="${hy+3}" rx="${s*.5}" ry="${s*.25}" fill="#1E293B" opacity=".6"/><path d="M${hx-s*.42} ${hy} q0 ${-s*.8} ${s*.42} ${-s*.8} q${s*.42} 0 ${s*.42} ${s*.8}z" fill="${bg}"/><clipPath id="lp_c${ii}"><circle cx="${hx}" cy="${hy-s*1.1}" r="${s*.38}"/></clipPath><circle cx="${hx}" cy="${hy-s*1.1}" r="${s*.44}" fill="${S0.c}"/>${u.photo?`<image href="${u.photo}" x="${hx-s*.38}" y="${hy-s*1.48}" width="${s*.76}" height="${s*.76}" clip-path="url(#lp_c${ii})" preserveAspectRatio="xMidYMid slice"/>`:`<circle cx="${hx}" cy="${hy-s*1.1}" r="${s*.38}" fill="${bg}"/><text x="${hx}" y="${hy-s*1.1+5}" text-anchor="middle" font-size="13" font-weight="800" fill="#fff">${esc((u.name||'?').trim().charAt(0))}</text>`}`}
+    else o+=`<ellipse cx="${hx}" cy="${hy+2}" rx="${s*.45}" ry="${s*.22}" fill="#475569" opacity=".5"/><text x="${hx}" y="${hy-s*.4}" text-anchor="middle" font-size="${s*.75}">${S0.i==='🟢'?'':S0.i}</text>`;
+    const [lx,ly]=pt(x0+dw/2,y0+dd/2,dh+1.9).split(',').map(Number);const nm=(u.name||'').split(' ').slice(0,2).join(' '),sub=st.where||(st.k==='work'&&st.open?`${st.open} طلب مفتوح`:'');const w=Math.max(nm.length*7+32,sub.length*6+18,90);
+    o+=`<g transform="translate(${lx} ${ly})"><rect x="${-w/2}" y="-14" width="${w}" height="${sub?38:26}" rx="11" fill="#fff" stroke="${S0.c}" stroke-width="1.5" filter="url(#lo_sh)"/><circle cx="${w/2-12}" cy="-1" r="4.5" fill="${S0.c}"/><text x="${w/2-21}" y="3.5" text-anchor="end" font-size="12" font-weight="800" fill="#0F172A">${esc(nm)}</text>${sub?`<text x="0" y="17" text-anchor="middle" font-size="10" font-weight="600" fill="${S0.c}">${esc(sub.length>26?sub.slice(0,25)+'…':sub)}</text>`:''}<path d="M-5 ${sub?24:12} L0 ${sub?30:18} L5 ${sub?24:12}z" fill="#fff" stroke="${S0.c}" stroke-width="1.1"/></g>`;
+    g+=o+'</g>'});
+  for(const r0 of rooms){const r=rr(r0);const [tx,ty]=pt(r.x+r.w/2,r.y+r.h/2,0).split(',').map(Number);const has=(byRoom[r0.id]||[]).length;
+    g+=`<text x="${tx}" y="${has?ty+s*.9:ty}" text-anchor="middle" font-size="12" font-weight="800" fill="#5B4632" fill-opacity=".75" style="paint-order:stroke" stroke="#ffffff" stroke-opacity=".55" stroke-width="3">${esc(r0.name||'')}</text>`}
+  return {svg:`<svg viewBox="0 0 ${vbW.toFixed(0)} ${vbH.toFixed(0)}" class="lo-svg" direction="ltr" style="direction:ltr" role="img" aria-label="مكتب الشركة الحي"><defs><filter id="lo_sh" x="-20%" y="-30%" width="140%" height="180%"><feDropShadow dx="0" dy="2" stdDeviation="2.5" flood-opacity=".18"/></filter></defs>${g}</svg>`,nop}}
+
 Object.assign(X9,{
-  editEmp:(t,id)=>openEmpModal(id),idCard:(t,id)=>openIdCard(id),idcCfg:()=>openIdcCfg(),addEmpDoc:(t,id)=>openEmpDocModal(id),openEmpDoc:(t,id)=>openEmpDoc(id),
+  editEmp:(t,id)=>openEmpModal(id),opEdit:()=>opStart(),opCancel:()=>{OP=null;OPSEL=null;go('office')},opSave:()=>{if(!OP)return;S.settings.officePlan={w:OP.w,h:OP.h,items:OP.items.map(i=>({id:i.id,t:i.t,x:i.x,y:i.y,w:i.w,h:i.h,rot:i.rot||0,name:i.name||''})),at:new Date().toISOString()};save();toast('اتحفظ مخطط الشركة');OP=null;OPSEL=null;go('office')},
+  opAdd:(t,id)=>{if(!OP||!OP_DEF[id])return;const d=OP_DEF[id],it={id:Math.random().toString(36).slice(2,9),t:id,x:opSnap(OP.w/2-d.w/2),y:opSnap(OP.h/2-d.h/2),w:d.w,h:d.h,rot:0,name:d.name};OP.items.push(it);OPSEL=it.id;render();if(id==='room')setTimeout(()=>{const n=$('#opName');if(n){n.focus();n.select()}},60)},
+  opRot:()=>{const it=OP&&OP.items.find(i=>i.id===OPSEL);if(it){it.rot=(it.rot+90)%360;render()}},opDel:()=>{if(!OP)return;OP.items=OP.items.filter(i=>i.id!==OPSEL);OPSEL=null;render()},loDesk:(t,id)=>loDesk(id),loF:(t,id)=>{LO_F=LO_F===id?'':(id||'');render()},idCard:(t,id)=>openIdCard(id),idcCfg:()=>openIdcCfg(),addEmpDoc:(t,id)=>openEmpDocModal(id),openEmpDoc:(t,id)=>openEmpDoc(id),
   delEmpDoc:(t,id)=>confirmBox('حذف الورقة دي؟',()=>delEmpDoc(id)),
   showEmpImg:(t)=>{const f=empFile(t.dataset.src);if(f?.photo){closeModal(true);const bg=document.createElement('div');bg.className='modal-bg';bg.id='modal';bg.innerHTML=`<div class="modal" style="max-width:420px"><img src="${f.photo}" style="width:100%;border-radius:8px" alt=""></div>`;document.body.appendChild(bg);bg.onclick=()=>closeModal()}}
 });
-Object.assign(NEED9,{idCard:'emp_files',idcCfg:'settings',editEmp:'emp_files',addEmpDoc:'emp_files',delEmpDoc:'emp_files'});
+Object.assign(NEED9,{opEdit:'settings',opSave:'settings',idCard:'emp_files',idcCfg:'settings',editEmp:'emp_files',addEmpDoc:'emp_files',delEmpDoc:'emp_files'});
 document.addEventListener('change',e=>{if(e.target.id==='empd'){EMPD=e.target.value;render()}});
 document.addEventListener('input',e=>{if(e.target.id==='empq'){EMPQ=e.target.value;const p=e.target.selectionStart;render();const i=$('#empq');if(i){i.focus();i.setSelectionRange(p,p)}}});
 
@@ -7043,7 +7221,7 @@ let XR_PRE='';
 
 
 /* ---------- فحص التحديثات ---------- */
-const APP_VER='3.6.0';
+const APP_VER='3.8.0';
 async function checkUpdate(){try{if(location.protocol==='file:')return;const t=await (await fetch(location.pathname+'?_='+Date.now(),{cache:'no-store'})).text();const m=t.match(/const APP_VER='([^']+)'/);if(m&&m[1]!==APP_VER)showUpd(m[1])}catch(e){}}
 function showUpd(v){if(document.getElementById('updBar'))return;const b=document.createElement('div');b.id='updBar';b.style.cssText='position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:80;background:#1d2b45;color:#fff;padding:10px 16px;border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,.25);display:flex;gap:12px;align-items:center;font-weight:600;max-width:92vw';b.innerHTML='<span>🔄 فيه نسخة جديدة من السيستم</span><button type="button" style="background:#2b8fb8;color:#fff;border:0;border-radius:10px;padding:6px 14px;font:inherit;cursor:pointer">حدّث دلوقتي</button>';b.querySelector('button').onclick=()=>{location.replace(location.pathname+'?v='+encodeURIComponent(v)+location.hash)};document.body.appendChild(b)}
 setTimeout(checkUpdate,8000);setInterval(checkUpdate,5*60*1000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkUpdate()});
@@ -7503,7 +7681,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-capm]');if
 const HUBS=[
  {id:'reqh',label:'الطلبات',icon:'requests',items:[['requests','طلبات الصيانة'],['webreq','طلبات الأونلاين'],['orders','طلبات المستهلكات']]},
  {id:'fin',label:'إدارة المحاسبة',icon:'accounts',items:[['accounts','ملخص الحسابات'],['treasury','الخزينة'],['ar','الآجل والتحصيل'],['capital','رأس المال'],['ledger','القيود والقوائم'],['weekly','التقارير الدورية']]},
- {id:'staffh',label:'الموارد البشرية',icon:'perf',items:[['hr','الحضور والإجازات'],['custody','العهدة والمصاريف'],['emps','ملفات الموظفين'],['payroll','المرتبات والمكافآت'],['perf','الأداء والتقييم'],['tests','الاختبارات'],['meetings','الاجتماعات'],['policy','سياسة العمل']]},
+ {id:'staffh',label:'الموارد البشرية',icon:'perf',items:[['hr','الحضور والإجازات'],['office','مكتب الشركة الحي'],['custody','العهدة والمصاريف'],['emps','ملفات الموظفين'],['payroll','المرتبات والمكافآت'],['perf','الأداء والتقييم'],['tests','الاختبارات'],['meetings','الاجتماعات'],['policy','سياسة العمل']]},
  {id:'seth',label:'الإعدادات',icon:'settings',items:[['settings','الإعدادات العامة'],['users','المستخدمين'],['webreqcfg','طلب الخدمة أونلاين'],['mysub','الاشتراك والباكدج'],['import','استيراد من Excel'],['me','حسابي']],lead:'settings'},
  {id:'salesh',label:'فواتير البيع والعروض',icon:'psales',items:[['psales','فواتير البيع'],['quotes','عروض الأسعار'],['pricelists','قوائم الأسعار'],['offers','العروض']]},
  {id:'sysh',label:'السجل والأرشيف',icon:'audit',items:[['audit','سجل التعديلات'],['archive','الأرشيف والنسخ']]},
@@ -9327,6 +9505,8 @@ Object.assign(X9,{wrBig:()=>wrBig(),wrCopy:async()=>{try{await navigator.clipboa
 
 /* ---------- رقم الإصدار وإيه الجديد ---------- */
 const RELEASES=[
+ ['3.8.0','2026-11-25',['✏️ رسم مكان الشركة الحقيقي (الأوض والأبواب والشبابيك) من جوه السيستم','📍 تحديد أوضة كل موظف من ملفه — والمكتب الحي بيترسم بشكل الشقة نفسها']],
+ ['3.7.0','2026-11-24',['🏢 مكتب الشركة الحي: كل موظف على مكتبه وحالته لحظة بلحظة — في الشغل، في الطريق لعميل، عند عميل، إجازة، غايب']],
  ['3.6.0','2026-11-22',['🪪 كارت الموظف: تصميم جاهز للمطبعة (PDF وصور) من ملف كل موظف، و QR بيأكد لأي حد إن الموظف لسه شغال — ولو اتوقف بيقول كده على طول']],
  ['3.5.0','2026-11-21',['أشكال جديدة للقائمة: أيقونات ملوّنة بتكبر لما تقف عليها، وشريط زي الماك، ونيون منوّر، وأيقونات بلوحة فرعية']],
  ['3.4.0','2026-11-19',['خصوصية أكتر: Beam Care مش هتشوف سجل التعديلات والأرشيف بتوع شركتك غير بإذنك — تفتحلها الدخول من الإعدادات أو تبعتلها كود، والإذن بيتقفل لوحده، وكل دخول بيتسجل عندك','«قفل كامل» لو عايز توقف النسخة الاحتياطية عند Beam Care','قفل السيستم برّه الشيفت (جزء في الباكدج): الموظف يفتح السيستم في مواعيد شغله بس، وبرّه الشيفت البصمة وطلب الإجازة بس — مع وقت سماح، وتنبيه قبل آخر الشيفت، وطلب وقت زيادة، وإشعار للإدارة لو حد حاول يفتح']],
